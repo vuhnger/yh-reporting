@@ -19,6 +19,8 @@
     "clsx": "^2.1.1",
     "docx": "^9.5.1",
     "file-saver": "^2.0.5",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
     "next": "16.1.4",
     "react": "19.2.3",
