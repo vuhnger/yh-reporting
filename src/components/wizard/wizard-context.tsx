@@ -53,8 +53,6 @@ export interface ReportState {
     industry: string;
   };
   step: number;
-  reportType: "noise" | "indoor-climate" | "chemical" | "light" | "";
-  
   // Specific Data for Noise Reports
   metadata: ReportMetadata;
   measurements: Measurement[];
@@ -73,8 +71,6 @@ interface WizardContextType {
   state: ReportState;
   updateClient: (client: Partial<ReportState["client"]>) => void;
   updateMetadata: (meta: Partial<ReportMetadata>) => void;
-  setReportType: (type: ReportState["reportType"]) => void;
-  
   // Measurement Actions
   addMeasurement: () => void;
   updateMeasurement: (id: string, data: Partial<Measurement>) => void;
@@ -93,8 +89,6 @@ interface WizardContextType {
 const defaultState: ReportState = {
   client: { orgNr: "", name: "", address: "", industry: "" },
   step: 1,
-  reportType: "",
-  
   metadata: {
     assignment: "",
     date: new Date().toISOString().split("T")[0],
@@ -138,6 +132,14 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({
       ...prev,
       client: { ...prev.client, ...client },
+      metadata: {
+        ...prev.metadata,
+        assignment: prev.metadata.assignment
+          ? prev.metadata.assignment
+          : client.name || prev.client.name
+            ? `Støykartlegging hos ${client.name ?? prev.client.name}`
+            : prev.metadata.assignment,
+      },
     }));
   }, []);
 
@@ -146,23 +148,6 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       ...prev,
       metadata: { ...prev.metadata, ...meta },
     }));
-  }, []);
-
-  const setReportType = useCallback((type: ReportState["reportType"]) => {
-    setState((prev) => {
-      // Auto-generate assignment title if both client name and type exist
-      let assignment = prev.metadata.assignment;
-      if (!assignment && prev.client.name) {
-         const typeLabel = type === "noise" ? "Støykartlegging" : "Kartlegging";
-         assignment = `${typeLabel} hos ${prev.client.name}`;
-      }
-      
-      return { 
-        ...prev, 
-        reportType: type,
-        metadata: { ...prev.metadata, assignment }
-      };
-    });
   }, []);
 
   const addMeasurement = useCallback(() => {
@@ -223,7 +208,6 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     state,
     updateClient,
     updateMetadata,
-    setReportType,
     addMeasurement,
     updateMeasurement,
     removeMeasurement,
@@ -235,7 +219,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setStep,
     reset,
     loadReport,
-  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
+  }), [state, updateClient, updateMetadata, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
 
   return (
     <WizardContext.Provider value={value}>

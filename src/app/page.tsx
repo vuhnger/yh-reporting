@@ -2,6 +2,7 @@
 
 import { WizardProvider } from "@/components/wizard/wizard-context";
 import { ReportWizardContent } from "@/components/wizard/report-wizard";
+import { PDFPreview } from "@/components/wizard/pdf-preview";
 
 export default function Home() {
   return (
@@ -14,7 +15,12 @@ export default function Home() {
       </div>
       
       <WizardProvider>
-        <ReportWizardContent />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] gap-8 items-start">
+          <ReportWizardContent />
+          <div className="hidden lg:block sticky top-6 h-[calc(100vh-3rem)]">
+            <PDFPreview />
+          </div>
+        </div>
       </WizardProvider>
     </div>
   );

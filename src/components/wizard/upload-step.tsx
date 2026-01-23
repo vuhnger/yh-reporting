@@ -4,12 +4,11 @@ import { useWizard } from "./wizard-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { FileUp, Trash2 } from "lucide-react";
 
 export function UploadStep() {
-  const { state, setReportType, addFiles, removeFile, nextStep, prevStep } = useWizard();
+  const { state, addFiles, removeFile, nextStep, prevStep } = useWizard();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -26,17 +25,9 @@ export function UploadStep() {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label>Report Type</Label>
-          <Select value={state.reportType} onValueChange={(val: any) => setReportType(val)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select type..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="indoor-climate">Indoor Climate (Inneklima)</SelectItem>
-              <SelectItem value="noise">Noise (Støy)</SelectItem>
-              <SelectItem value="chemical">Chemical / Dust</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="rounded-md border px-3 py-2 text-sm text-muted-foreground bg-slate-50">
+            Støy (Noise)
+          </div>
         </div>
 
         <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4 hover:bg-slate-50 transition-colors">
@@ -77,7 +68,7 @@ export function UploadStep() {
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="outline" onClick={prevStep}>Back</Button>
-        <Button onClick={nextStep} disabled={!state.reportType}>Next Step</Button>
+        <Button onClick={nextStep}>Next Step</Button>
       </CardFooter>
     </Card>
   );

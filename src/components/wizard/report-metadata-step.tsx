@@ -4,11 +4,10 @@ import { useWizard } from "./wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 export function ReportMetadataStep() {
-  const { state, updateMetadata, setReportType } = useWizard();
+  const { state, updateMetadata } = useWizard();
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -20,21 +19,6 @@ export function ReportMetadataStep() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label>Rapporttype</Label>
-            <Select value={state.reportType} onValueChange={(val: any) => setReportType(val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Velg type..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="noise">Støy</SelectItem>
-                <SelectItem value="indoor-climate">Inneklima</SelectItem>
-                <SelectItem value="chemical">Kjemikalier / Støv</SelectItem>
-                <SelectItem value="light">Lys</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="assignment">Oppdrag (auto)</Label>
             <Input

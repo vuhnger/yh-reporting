@@ -8,7 +8,6 @@ export const noiseSampleReport: ReportState = {
     industry: "",
   },
   step: 1,
-  reportType: "noise",
   metadata: {
     assignment: "Kartlegging av støy på lab.",
     date: "2025-09-23",
