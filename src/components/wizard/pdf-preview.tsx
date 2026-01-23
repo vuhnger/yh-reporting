@@ -14,6 +14,12 @@ export function PDFPreview() {
   const prevUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (state.reportType !== "noise") {
+      setUrl(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const handle = window.setTimeout(() => {
       const blob = generateNoiseReportPDFBlob(state);
@@ -38,6 +44,19 @@ export function PDFPreview() {
       }
     };
   }, []);
+
+  if (state.reportType !== "noise") {
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="text-base">PDF‑forhåndsvisning</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Forhåndsvisning støtter foreløpig kun støyrapport.
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-full">

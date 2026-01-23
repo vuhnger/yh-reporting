@@ -63,15 +63,6 @@ export function ExportStep() {
                 Du må fylle ut bedriftsinformasjon og legge til minst én måling før du kan laste ned.
             </p>
         )}
-        <div className="pt-2">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto border-dashed border-primary/40 text-primary"
-            onClick={handlePrefill}
-          >
-            Fyll inn testdata fra ALS‑rapport (23.09.2025)
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

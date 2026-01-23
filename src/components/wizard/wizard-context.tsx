@@ -42,6 +42,15 @@ export interface ReportMetadata {
   calibratorSerial: string;      // Serienr. kalibrator
   lastCalibrationDate: string;   // Siste kalibrering
   methodText: string;            // Tilleggstekst metode
+  findingsText: string;          // Funn og vurderinger (valgfri)
+  introExtraText: string;        // Innledning (valgfri)
+  thresholdsExtraText: string;   // Grenseverdier (valgfri)
+  riskExtraText: string;         // Risikovurdering (valgfri)
+  trainingExtraText: string;     // Informasjon/opplæring (valgfri)
+  conclusionsExtraText: string;  // Konklusjon (valgfri)
+  recommendationsExtraText: string; // Anbefalinger (valgfri)
+  referencesExtraText: string;   // Referanser (valgfri)
+  appendicesExtraText: string;   // Vedlegg (valgfri)
 }
 
 // Define the shape of our report data
@@ -53,6 +62,7 @@ export interface ReportState {
     industry: string;
   };
   step: number;
+  reportType: "noise" | "indoor-climate" | "chemical" | "light" | "";
   // Specific Data for Noise Reports
   metadata: ReportMetadata;
   measurements: Measurement[];
@@ -71,6 +81,7 @@ interface WizardContextType {
   state: ReportState;
   updateClient: (client: Partial<ReportState["client"]>) => void;
   updateMetadata: (meta: Partial<ReportMetadata>) => void;
+  setReportType: (type: ReportState["reportType"]) => void;
   // Measurement Actions
   addMeasurement: () => void;
   updateMeasurement: (id: string, data: Partial<Measurement>) => void;
@@ -89,6 +100,7 @@ interface WizardContextType {
 const defaultState: ReportState = {
   client: { orgNr: "", name: "", address: "", industry: "" },
   step: 1,
+  reportType: "",
   metadata: {
     assignment: "",
     date: new Date().toISOString().split("T")[0],
@@ -105,6 +117,15 @@ const defaultState: ReportState = {
     calibratorSerial: "",
     lastCalibrationDate: "",
     methodText: "",
+    findingsText: "",
+    introExtraText: "",
+    thresholdsExtraText: "",
+    riskExtraText: "",
+    trainingExtraText: "",
+    conclusionsExtraText: "",
+    recommendationsExtraText: "",
+    referencesExtraText: "",
+    appendicesExtraText: "",
   },
   
   measurements: [],
@@ -137,7 +158,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         assignment: prev.metadata.assignment
           ? prev.metadata.assignment
           : client.name || prev.client.name
-            ? `Støykartlegging hos ${client.name ?? prev.client.name}`
+            ? `${prev.reportType === "noise" ? "Støykartlegging" : "Kartlegging"} hos ${client.name ?? prev.client.name}`
             : prev.metadata.assignment,
       },
     }));
@@ -148,6 +169,22 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       ...prev,
       metadata: { ...prev.metadata, ...meta },
     }));
+  }, []);
+
+  const setReportType = useCallback((type: ReportState["reportType"]) => {
+    setState((prev) => {
+      let assignment = prev.metadata.assignment;
+      if (!assignment && prev.client.name) {
+        const typeLabel = type === "noise" ? "Støykartlegging" : "Kartlegging";
+        assignment = `${typeLabel} hos ${prev.client.name}`;
+      }
+
+      return {
+        ...prev,
+        reportType: type,
+        metadata: { ...prev.metadata, assignment },
+      };
+    });
   }, []);
 
   const addMeasurement = useCallback(() => {
@@ -208,6 +245,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     state,
     updateClient,
     updateMetadata,
+    setReportType,
     addMeasurement,
     updateMeasurement,
     removeMeasurement,
@@ -219,7 +257,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setStep,
     reset,
     loadReport,
-  }), [state, updateClient, updateMetadata, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
+  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
 
   return (
     <WizardContext.Provider value={value}>

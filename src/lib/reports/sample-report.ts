@@ -8,6 +8,7 @@ export const noiseSampleReport: ReportState = {
     industry: "",
   },
   step: 1,
+  reportType: "noise",
   metadata: {
     assignment: "Kartlegging av støy på lab.",
     date: "2025-09-23",
@@ -26,6 +27,15 @@ export const noiseSampleReport: ReportState = {
     methodText:
       "Det ble gjennomført forenklede målinger av støy på arbeidsplasser på laboratoriet. " +
       "Yrkeshygieniker tok målingene da maskinene ga mest lyd, basert på kartlegging sammen med ansatte på lab.",
+    findingsText: "",
+    introExtraText: "",
+    thresholdsExtraText: "",
+    riskExtraText: "",
+    trainingExtraText: "",
+    conclusionsExtraText: "",
+    recommendationsExtraText: "",
+    referencesExtraText: "",
+    appendicesExtraText: "",
   },
   measurements: [
     {

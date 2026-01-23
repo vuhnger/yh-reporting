@@ -103,47 +103,53 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   doc.text("Støy og helseeffekter", 14, finalY);
   finalY += 6;
   renderParagraph(
-    "Støy er uønsket lyd. Den kan være irriterende (for eksempel fra ventilasjon eller vifter) eller skadelig ved høyere nivåer."
-  );
-  renderParagraph(
-    "Arbeidsgiver skal sikre et fullt forsvarlig arbeidsmiljø. Det innebærer å vurdere hvordan støy påvirker helse, sikkerhet og velferd."
-  );
-  renderParagraph(
-    "Lydnivå måles i desibel (dB). En vanlig samtale ligger rundt 65 dB, mens rop kan være rundt 80 dB. Skalaen øker logaritmisk, og en økning på 3 dB tilsvarer omtrent en dobling av lydenergi."
-  );
-  renderParagraph(
-    "Det er ikke bare nivået som betyr noe. Varighet og hyppighet er også viktige, og støy vurderes derfor ofte som samlet eksponering over en hel arbeidsdag."
-  );
-  renderParagraph(
-    "Sterk støy eller høy impulslyd kan gi hørselstap og tinnitus. Støy kan også bidra til stress, konsentrasjonsvansker og andre helseplager."
+    "Støy er definert som uønsket lyd, og deles gjerne inn i to typer:"
   );
   renderBullets([
-    "høyt blodtrykk og påvirkning av hjerte‑ og karsystemet",
-    "stress, irritasjon og redusert konsentrasjon",
-    "muskelspenninger og fordøyelsesplager",
-    "påvirkning av ufødte barn",
+    "Irriterende støy fra for eksempel ventilasjonsanlegg, vifte i PC-en og lignende.",
+    "Skadelig støy fra støyende omgivelser > 80 dB(A) og impulslyd > 130 dB(C).",
   ]);
+  renderParagraph(
+    "Arbeidsgiver skal sikre at arbeidsmiljøet er fullt forsvarlig. Dette gjelder også i hvilken grad støy påvirker arbeidstakernes helse, miljø, sikkerhet og velferd."
+  );
+  renderParagraph(
+    "Lydtrykknivå/støynivå måles i desibel (dB). En alminnelig samtale ligger på omkring 65 dB, mens et rop når opp i ca. 80 dB. Skalaen er slik at hver gang lydtrykknivået dobles øker desibelnivået med tre dB. Lydtrykknivået av for eksempel 83 dB vil derfor være dobbelt så høy som av 80 dB."
+  );
+  renderParagraph(
+    "Det er ikke bare lydtrykknivået som er avgjørende for om en lyd er skadelig eller ikke. Hvor lenge støyen varer og hvor ofte man blir utsatt for den er også viktig. Derfor måles støy over tid. Måling av støy på arbeidsplassen er som regel basert på samlet støyeksponering over en hel arbeidsdag."
+  );
+  renderParagraph(
+    "Opplevelsen av støy er subjektiv, noe som medfører at ulike personer kan ha ulik oppfattelse/sensitivitet av samme støynivå."
+  );
+  renderParagraph(
+    "Sterk støy og/eller høy impulslyd kan gi hørselstap og kronisk øresus (tinitus). I tillegg kan støy også gi andre helseproblemer som:"
+  );
+  renderBullets([
+    "gi høyt blodtrykk",
+    "påvirke hjerte og karsystemet",
+    "bidra til stress",
+    "virke irriterende, trøttende og redusere konsentrasjonsevnen",
+    "bidra til muskelspenninger, fordøyelsesproblem, osv.",
+    "påvirke ufødte barn",
+  ]);
+  renderParagraph(
+    "Flere av disse helseeffektene kan oppstå selv når lydnivået er relativt lavt."
+  );
+  if (state.metadata.introExtraText?.trim()) {
+    renderParagraph(state.metadata.introExtraText.trim());
+  }
 
   doc.setFontSize(12);
   doc.text("Grenseverdier og tiltaksverdier", 14, finalY);
   finalY += 6;
   renderParagraph(
-    "Det er utarbeidet forskrifter som definerer tiltaks- og grenseverdier for støy ved ulikt arbeid. Tiltaksverdier er nivåer som krever at arbeidsgiver vurderer og iverksetter tiltak, mens grenseverdier ikke skal overskrides."
-  );
-  renderParagraph(
-    "Dersom grenseverdiene for støyeksponering overskrides, skal arbeidsgiver sette i verk strakstiltak for å redusere støyen og kartlegge årsakene. Dersom grenseverdiene (øvre tiltaksverdier) ikke kan overholdes med tekniske eller administrative tiltak, skal hensiktsmessig hørselsvern benyttes og området merkes."
-  );
-  renderParagraph(
-    "Dersom nedre tiltaksverdier overskrides, skal arbeidsgiver lage en skriftlig tiltaksplan med tekniske eller administrative tiltak for å redusere støyeksponeringen. Ved LEX,8h = 80 dB(A) eller ved opplevd sjenerende støy skal hørselsvern vurderes i samråd med arbeidstaker."
-  );
-  renderParagraph(
-    "For arbeidsgruppene I og II skal støy fra egen aktivitet ikke inngå i vurderingen av nedre tiltaksverdi dersom arbeidstakeren selv kan avbryte støyen. For spise- og hvilerom skal kun bakgrunnsstøy fra installasjoner, tilstøtende lokaler og omgivelser inngå."
+    "Det er utarbeidet en forskrift hjemlet i arbeidsmiljøloven som definerer tiltaks- og grenseverdier for støy ved ulikt arbeid (tabell 1). Tiltaksverdier er verdier for støyeksponering som krever iverksetting av tiltak for å redusere helserisikoen og uheldig belastning til et minimum. Grenseverdier er verdier for eksponering som ikke skal overskrides. Grenseverdi og øvre tiltaksverdi er det samme."
   );
 
   ensureSpace(60);
   autoTable(doc, {
     startY: finalY + 4,
-    head: [["Støygruppe", "Arbeidsforhold", "Tiltaks-/grenseverdier"]],
+    head: [["Støygruppe", "Arbeidsforhold", "Tiltaksverdi"]],
     body: [
       [
         "I",
@@ -161,9 +167,14 @@ export function createNoiseReportPDFDoc(state: ReportState) {
         "Nedre tiltaksverdi LEX,8h = 80 dB(A)",
       ],
       [
-        "Alle",
-        "Øvre tiltaksverdi / grenseverdi",
-        "LEX,8h = 85 dB(A) og LpC,peak = 130 dB(C)",
+        "III",
+        "Støyende maskiner og utstyr under forhold som ikke går innunder arbeidsgruppe I og II",
+        "Øvre tiltaksverdi og grenseverdi LEX,8h = 85 dB(A)",
+      ],
+      [
+        "III",
+        "Støyende maskiner og utstyr under forhold som ikke går innunder arbeidsgruppe I og II",
+        "Øvre tiltaksverdi og grenseverdi LpC,peak = 130 dB(C)",
       ],
     ],
     styles: { fontSize: 9 },
@@ -176,36 +187,55 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   });
   finalY = (doc as any).lastAutoTable.finalY + 10;
 
-  doc.setFontSize(12);
-  doc.text("Informasjon og opplæring", 14, finalY);
-  finalY += 6;
   renderParagraph(
-    "Arbeidstakere og verneombud skal ha løpende informasjon og opplæring om aktuell risiko i forbindelse med støy dersom arbeidstakerne utsettes for støy som er lik eller overskrider LEX,8h ≥ 80 dB(A) eller LpC,peak ≥ 130 dB(C)."
+    "Dersom grenseverdiene for støyeksponering overskrides, skal arbeidsgiveren sette i verk strakstiltak for å redusere støyen. Årsakene til at grenseverdiene er overskredet skal kartlegges. Dersom grenseverdiene (de øvre tiltaksverdiene) ikke kan overholdes med tekniske eller administrative tiltak skal arbeidsgiveren påse at hensiktsmessig hørselsvern, som gir tilstrekkelig beskyttelse, benyttes. Inngangen til rom eller arbeidsområder med slik støy skal merkes med varselskilt."
   );
+  renderParagraph(
+    "Dersom nedre tiltaksverdier overskrides, skal arbeidsgiveren lage en skriftlig tiltaksplan med tekniske eller administrative tiltak for å redusere støyeksponeringen med minst 10 dB under tiltaksverdien. Når LEX,8h = 80 dB(A) overskrides eller arbeidstakeren opplever lydnivået sjenerende skal hørselsvern velges ut i samråd med arbeidstaker og stilles til rådighet."
+  );
+  renderParagraph(
+    "For arbeidsgruppene I og II, skal støy fra egen aktivitet ikke inngå i vurderingen i forhold til nedre tiltaksverdi så lenge arbeidstakeren selv kan avbryte støyen. For spise- og hvilerom skal kun bakgrunnsstøy fra installasjoner, tilstøtende lokaler og omgivelser inngå i vurderingen."
+  );
+  if (state.metadata.thresholdsExtraText?.trim()) {
+    renderParagraph(state.metadata.thresholdsExtraText.trim());
+  }
 
   doc.setFontSize(12);
   doc.text("Risikovurdering og tiltak", 14, finalY);
   finalY += 6;
   renderParagraph(
-    "Ifølge Forskrift om utførelse av arbeid § 14 skal arbeidsgiver gjennomføre og dokumentere en risikovurdering. Denne skal oppdateres ved endringer i produksjonsforhold eller organisering av arbeidet. På bakgrunn av de helse- og sikkerhetsrisikoer som fremkommer, skal arbeidsgiver sørge for at risiko forårsaket av støy fjernes eller reduseres til et lavest mulig nivå ved å:"
+    "Ifølge Forskrift om utførelse av arbeid, § 14, skal arbeidsgiver gjennomføre og dokumentere en risikovurdering. Denne skal oppdateres ved endringer i produksjonsforhold eller organisering av arbeidet. På bakgrunn av de helse- og sikkerhetsrisikoer som fremkommer, skal arbeidsgiver sørge for at risiko forårsaket av støy fjernes eller reduseres til et lavest mulig nivå, ved å:"
   );
   renderBullets([
     "vurdere alternative arbeidsmetoder",
     "velge hensiktsmessig arbeidsutstyr som gir minst mulig støy",
     "utforme og tilrettelegge arbeidsplassen og arbeidslokalene",
-    "bruke skjermer, innbygging og lydabsorbenter for å dempe lydutbredelse gjennom luft",
+    "bruke skjermer / innbygging / lydabsorbenter etc. for å dempe lydutbredelse gjennom luft",
     "redusere strukturlyd og vibrasjoner ved å avbalansere, dempe eller isolere lydkilder",
     "ha systematisk vedlikehold av arbeidsutstyr, arbeidsplassen og støydempingstiltak",
-    "tilrettelegge for begrensning av eksponeringstid og intensitet, med støyfrie hvileperioder",
-    "sørge for helseundersøkelser",
+    "tilrettelegge for begrensning av eksponeringstid og intensitet, og med støyfrie hvileperioder",
+    "sørge for helseundersøkelser.",
   ]);
+  if (state.metadata.riskExtraText?.trim()) {
+    renderParagraph(state.metadata.riskExtraText.trim());
+  }
+
+  doc.setFontSize(12);
+  doc.text("Informasjon og opplæring", 14, finalY);
+  finalY += 6;
+  renderParagraph(
+    "Arbeidstakere og verneombud skal ha løpende informasjon og opplæring om aktuell risiko i forbindelse med støy dersom arbeidstakerne utsettes for støy som er lik eller overskrider LEX,8h ≥ 80 dB (A) eller LpC,peak ≥ 130 dB (C)."
+  );
+  if (state.metadata.trainingExtraText?.trim()) {
+    renderParagraph(state.metadata.trainingExtraText.trim());
+  }
 
   // --- Method Section + Table ---
   renderHeading("Gjennomføring og metode for målinger");
   renderParagraph(
     `Måling er utført med ${state.metadata.measurementDevice || "-"}, Serienr.: ${state.metadata.measurementSerial || "-"}. ` +
       `Måleren er egenkalibrert før og etter målingene med kalibrator ${state.metadata.calibratorModel || "-"}, ` +
-      `Serial No: ${state.metadata.calibratorSerial || "-"}. Siste laboratoriekontroll og kalibrering på utstyret er ` +
+      `Serial No: ${state.metadata.calibratorSerial || "-"}. Siste kontroll og kalibrering på utstyret er ` +
       `${state.metadata.lastCalibrationDate || "-"}.`
   );
 
@@ -236,8 +266,11 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   doc.setFontSize(12);
   doc.text("Måling av støy", 14, finalY);
   finalY += 6;
+  if (state.metadata.findingsText?.trim()) {
+    renderParagraph(state.metadata.findingsText.trim());
+  }
   renderParagraph(
-    "Måleresultatene er gitt i tabell 2. LAeq (dB) er brukt i resultatene fordi støyen er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
+    "Måleresultatene er gitt i tabell 2. LAeq (dB) er brukt i resultatene fordi støyen i hovedsak er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
   );
   renderParagraph(
     `Lydnivå over grenseverdien (LAeq > ${state.thresholds.lex8h.red} dB(A) eller LPeak > ${state.thresholds.peak.red} dB(C)) vises med rødt. ` +
@@ -282,8 +315,11 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   // --- Conclusions per Measurement ---
   renderHeading("Vurderinger, risikovurdering og konklusjon");
   renderParagraph(
-    "Generelt viste målingene at det ikke er fare for impulsstøy over 130 dB(C). Videre følger en kort vurdering per målepunkt."
+    "Generelt viste målingene at det ikke er registrert impulsstøy over 130 dB(C). Videre følger en kort vurdering per målepunkt, basert på registrerte nivåer, varighet og tilgjengelig informasjon."
   );
+  if (state.metadata.conclusionsExtraText?.trim()) {
+    renderParagraph(state.metadata.conclusionsExtraText.trim());
+  }
   state.measurements.forEach((m) => {
     const lex = Number(m.lex8h);
     const peak = Number(m.maxPeak);
@@ -306,14 +342,19 @@ export function createNoiseReportPDFDoc(state: ReportState) {
         parts.push(`Peak‑nivå (${peak} dB(C)) ligger over anbefalt nivå.`);
       }
     }
+    const durationText = m.duration ? `Varighet: ${m.duration}.` : "";
+    const commentText = m.comment ? `Kommentar: ${m.comment}.` : "";
     const paragraph =
-      `${m.location}: ${parts.join(" ")} ${m.comment ? `Kommentar: ${m.comment}.` : ""}`.trim();
+      `${m.location}: ${parts.join(" ")} ${durationText} ${commentText}`.trim();
     renderParagraph(paragraph);
   });
 
   // --- Recommendations ---
   renderHeading("Anbefalinger");
   renderBullets(buildRecommendations(state));
+  if (state.metadata.recommendationsExtraText?.trim()) {
+    renderParagraph(state.metadata.recommendationsExtraText.trim());
+  }
 
   // --- References ---
   renderHeading("Referanser");
@@ -325,6 +366,9 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     "Forskrift om tekniske krav til byggverk (TEK17).",
     "Forskrift om tiltaks- og grenseverdier § 2 Støy.",
   ]);
+  if (state.metadata.referencesExtraText?.trim()) {
+    renderParagraph(state.metadata.referencesExtraText.trim());
+  }
 
   // --- Appendices ---
   renderHeading("Vedlegg");
@@ -332,6 +376,9 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     renderParagraph("Ingen vedlegg er lagt til.");
   } else {
     renderBullets(state.files.map((file, index) => `Vedlegg ${index + 1} – ${file.name}`));
+  }
+  if (state.metadata.appendicesExtraText?.trim()) {
+    renderParagraph(state.metadata.appendicesExtraText.trim());
   }
 
   return doc;
@@ -373,13 +420,14 @@ function buildSummaryFromMeasurements(state: ReportState) {
 
   const intro =
     `Dr.Dropin BHT har bistått ${client.name} med kartlegging av eksponering for støy. ` +
-    `Stasjonære støymålinger ble gjennomført på relevante arbeidsplasser i virksomheten. ` +
-    `Støymålingene ble utført med stasjonær som var egenkalibrert før og etter målingene. ` +
-    `Formålet var å vurdere de ansattes eksponering for støy.`;
+    `Stasjonære støymålinger ble gjennomført på utvalgte arbeidsområder der ansatte oppholder seg og utfører arbeidsoppgaver. ` +
+    `Målingene er basert på representative aktiviteter og driftssituasjoner, slik at resultatene gir et realistisk bilde av eksponeringen. ` +
+    `Støymålingene ble utført med stasjonær måler som var egenkalibrert før og etter målingene. ` +
+    `Formålet var å vurdere de ansattes eksponering for støy i henhold til gjeldende regelverk og anbefalte tiltaksverdier.`;
 
   const rangeText =
     lexMin !== null && lexMax !== null
-      ? `I hovedsak lå målingene i et område fra ${lexMin} dB(A) til ${lexMax} dB(A).`
+      ? `Målingene viser en variasjon i lydnivå fra ${lexMin} dB(A) til ${lexMax} dB(A), som reflekterer forskjeller i aktivitet, avstand og arbeidsoppgaver mellom målepunktene.`
       : `Måleresultatene viser nivåer innenfor de registrerte målingene.`;
 
   const exceedanceParts: string[] = [];
@@ -402,17 +450,17 @@ function buildSummaryFromMeasurements(state: ReportState) {
   const exceedanceText =
     exceedanceParts.length > 0
       ? `Måleresultatene viser at ${exceedanceParts.join(" ")}`
-      : `Måleresultatene viste at ingen målinger oversteg anbefalte nivåer.`;
+      : `Måleresultatene viste at ingen målinger oversteg anbefalte nivåer eller tiltaksverdier.`;
 
   const peakText =
     peakMax !== null
-      ? `Høyeste registrerte peak‑nivå var ${peakMax} dB(C).`
+      ? `Høyeste registrerte peak‑nivå var ${peakMax} dB(C). Dette indikerer at det ikke er registrert impulsstøy over gjeldende grenseverdier.`
       : `Peak‑nivåer ble ikke registrert.`;
 
   const recommendationText =
     overRed > 0 || overOrange > 0 || overYellow > 0
-      ? `BHT anbefaler å vurdere tiltak i områdene med høyest støynivå, samt jevnlig vedlikehold av maskiner og utstyr.`
-      : `Støynivået fremstår akseptabelt, men BHT anbefaler jevnlig vedlikehold av maskiner og sørge for at alt utstyr er i god stand.`;
+      ? `BHT anbefaler å vurdere tiltak i områder med høyest støynivå, samt systematisk vedlikehold av utstyr og tekniske installasjoner.`
+      : `Støynivået fremstår akseptabelt, men BHT anbefaler systematisk vedlikehold og oppfølging for å sikre stabile nivåer over tid.`;
 
   return `${intro}\n${exceedanceText} ${rangeText} ${peakText}\n${recommendationText}`;
 }
@@ -429,14 +477,14 @@ function buildRecommendations(state: ReportState) {
   const items: string[] = [];
   if (hasRed || hasOrange || hasYellow) {
     items.push("Vurder tiltak i områder med forhøyede støynivåer.");
-    items.push("Sørg for jevnlig vedlikehold av maskiner og utstyr.");
+    items.push("Sørg for jevnlig vedlikehold av utstyr og tekniske installasjoner.");
     items.push("Vurder organisatoriske tiltak som redusert eksponeringstid og rotering.");
     if (hasRed) {
       items.push("Vurder hørselsvern og merk områder med høy støy.");
     }
   } else {
     items.push("Støynivået vurderes som akseptabelt ut fra de registrerte målingene.");
-    items.push("Fortsett med jevnlig vedlikehold av maskiner og sørg for at utstyr er i god stand.");
+    items.push("Fortsett med jevnlig vedlikehold og sørg for at utstyr og installasjoner er i god stand.");
   }
   items.push("Bedriftshelsetjenesten deltar gjerne i det videre arbeidet med tiltak.");
   return items;
