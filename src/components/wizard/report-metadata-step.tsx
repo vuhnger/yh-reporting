@@ -11,11 +11,10 @@ import { AIFillButton } from "./ai-fill-button";
 export function ReportMetadataStep() {
   const { state, updateMetadata, setReportType } = useWizard();
 
-  const appendText = (field: keyof typeof state.metadata, text: string) => {
-    const current = state.metadata[field] as unknown as string;
-    const next = current?.trim() ? `${current.trim()}\n\n${text}` : text;
-    updateMetadata({ [field]: next } as any);
-  };
+  const getValue = (field: keyof typeof state.metadata) =>
+    (state.metadata[field] as unknown as string) ?? "";
+  const setValue = (field: keyof typeof state.metadata, text: string) =>
+    updateMetadata({ [field]: text } as any);
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -160,7 +159,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="summaryText"
                   state={state}
-                  onApply={(text) => appendText("summaryText", text)}
+                  getValue={() => getValue("summaryText")}
+                  setValue={(text) => setValue("summaryText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -187,7 +187,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="introExtraText"
                   state={state}
-                  onApply={(text) => appendText("introExtraText", text)}
+                  getValue={() => getValue("introExtraText")}
+                  setValue={(text) => setValue("introExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -214,7 +215,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="thresholdsExtraText"
                   state={state}
-                  onApply={(text) => appendText("thresholdsExtraText", text)}
+                  getValue={() => getValue("thresholdsExtraText")}
+                  setValue={(text) => setValue("thresholdsExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -241,7 +243,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="riskExtraText"
                   state={state}
-                  onApply={(text) => appendText("riskExtraText", text)}
+                  getValue={() => getValue("riskExtraText")}
+                  setValue={(text) => setValue("riskExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -268,7 +271,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="trainingExtraText"
                   state={state}
-                  onApply={(text) => appendText("trainingExtraText", text)}
+                  getValue={() => getValue("trainingExtraText")}
+                  setValue={(text) => setValue("trainingExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -345,7 +349,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="methodText"
                   state={state}
-                  onApply={(text) => appendText("methodText", text)}
+                  getValue={() => getValue("methodText")}
+                  setValue={(text) => setValue("methodText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -372,7 +377,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="findingsText"
                   state={state}
-                  onApply={(text) => appendText("findingsText", text)}
+                  getValue={() => getValue("findingsText")}
+                  setValue={(text) => setValue("findingsText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -399,7 +405,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="conclusionsExtraText"
                   state={state}
-                  onApply={(text) => appendText("conclusionsExtraText", text)}
+                  getValue={() => getValue("conclusionsExtraText")}
+                  setValue={(text) => setValue("conclusionsExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -426,7 +433,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="recommendationsExtraText"
                   state={state}
-                  onApply={(text) => appendText("recommendationsExtraText", text)}
+                  getValue={() => getValue("recommendationsExtraText")}
+                  setValue={(text) => setValue("recommendationsExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -453,7 +461,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="referencesExtraText"
                   state={state}
-                  onApply={(text) => appendText("referencesExtraText", text)}
+                  getValue={() => getValue("referencesExtraText")}
+                  setValue={(text) => setValue("referencesExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>
@@ -480,7 +489,8 @@ export function ReportMetadataStep() {
                 <AIFillButton
                   field="appendicesExtraText"
                   state={state}
-                  onApply={(text) => appendText("appendicesExtraText", text)}
+                  getValue={() => getValue("appendicesExtraText")}
+                  setValue={(text) => setValue("appendicesExtraText", text)}
                   className="absolute right-2 top-2"
                 />
               </div>

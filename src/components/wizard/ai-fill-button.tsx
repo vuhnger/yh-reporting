@@ -21,7 +21,8 @@ type AllowedField =
 type Props = {
   field: AllowedField;
   state: ReportState;
-  onApply: (text: string) => void;
+  getValue: () => string;
+  setValue: (text: string) => void;
   className?: string;
 };
 
@@ -67,7 +68,7 @@ function buildContext(state: ReportState) {
   };
 }
 
-export function AIFillButton({ field, state, onApply, className }: Props) {
+export function AIFillButton({ field, state, getValue, setValue, className }: Props) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
@@ -78,19 +79,52 @@ export function AIFillButton({ field, state, onApply, className }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field, context: buildContext(state) }),
       });
-      const raw = await response.text();
-      const data = raw ? JSON.parse(raw) : null;
       if (!response.ok) {
+        const raw = await response.text();
+        const data = raw ? JSON.parse(raw) : null;
         console.error("AI fill error", data);
         alert(data?.error || "AI-forslag feilet.");
         return;
       }
-      if (data?.text) {
-        const cleaned = data.text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "").trim();
-        onApply(cleaned);
-      } else {
-        alert("AI-forslag returnerte tomt svar.");
+
+      if (!response.body) {
+        alert("AI-forslag feilet (mangler respons).");
+        return;
       }
+
+      const base = getValue().trim();
+      const basePrefix = base ? `${base}\n\n` : "";
+      setValue(basePrefix);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let buffer = "";
+      let flushHandle: number | null = null;
+
+      const flush = () => {
+        const cleaned = buffer
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "");
+        setValue(`${basePrefix}${cleaned}`);
+        flushHandle = null;
+      };
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: !doneReading });
+        if (chunkValue) {
+          buffer += chunkValue;
+          if (flushHandle === null) {
+            flushHandle = window.setTimeout(flush, 200);
+          }
+        }
+      }
+
+      if (flushHandle !== null) {
+        window.clearTimeout(flushHandle);
+      }
+      flush();
     } finally {
       setIsLoading(false);
     }
