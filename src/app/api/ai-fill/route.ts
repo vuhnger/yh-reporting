@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-export const runtime = "edge";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 type AllowedField =
   | "summaryText"
@@ -99,6 +99,11 @@ ${JSON.stringify(context, null, 2)}
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
+    }
+
     const { field, context } = await req.json();
     if (!field || !(field in FIELD_LABELS)) {
       return NextResponse.json({ error: "Invalid field" }, { status: 400 });
