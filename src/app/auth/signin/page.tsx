@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
 
 const ERROR_MESSAGES: Record<string, string> = {
   OAuthSignin: "Kunne ikke starte innloggingen. Prøv igjen.",
@@ -11,7 +12,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   Configuration: "Feil i serverkonfigurasjon.",
 };
 
-export default function SignInPage() {
+function SignInContent() {
   const params = useSearchParams();
   const error = params.get("error");
   const message = error ? ERROR_MESSAGES[error] ?? "Innlogging feilet." : null;
@@ -33,5 +34,13 @@ export default function SignInPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInContent />
+    </Suspense>
   );
 }
