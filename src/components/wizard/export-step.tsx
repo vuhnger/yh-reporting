@@ -2,19 +2,29 @@
 
 import { useWizard } from "./wizard-context";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileDown, FileText, Download } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileDown, FileText } from "lucide-react";
+import { generateNoiseReportPDF } from "@/lib/reports/pdf-generator";
+import { noiseSampleReport } from "@/lib/reports/sample-report";
 
 export function ExportStep() {
-  const { state } = useWizard();
+  const { state, loadReport } = useWizard();
 
   const handleDownload = (format: "docx" | "pdf") => {
-    // TODO: Implement actual generation
+    if (format === "pdf") {
+      generateNoiseReportPDF(state);
+      return;
+    }
+
     console.log(`Generating ${format} for`, state);
-    alert(`Generating ${format.toUpperCase()}... (Not implemented yet)`);
+    alert(`DOCX-generering er ikke implementert ennå.`);
   };
 
   const isReady = state.client.orgNr && state.measurements.length > 0;
+
+  const handlePrefill = () => {
+    loadReport(noiseSampleReport);
+  };
 
   return (
     <Card className="w-full max-w-2xl mx-auto text-center border-primary/20 shadow-lg bg-slate-50/50">
@@ -53,6 +63,15 @@ export function ExportStep() {
                 Du må fylle ut bedriftsinformasjon og legge til minst én måling før du kan laste ned.
             </p>
         )}
+        <div className="pt-2">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto border-dashed border-primary/40 text-primary"
+            onClick={handlePrefill}
+          >
+            Fyll inn testdata fra ALS‑rapport (23.09.2025)
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

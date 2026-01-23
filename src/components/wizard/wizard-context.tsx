@@ -77,6 +77,7 @@ interface WizardContextType {
   prevStep: () => void;
   setStep: (step: number) => void;
   reset: () => void;
+  loadReport: (report: ReportState) => void;
 }
 
 const defaultState: ReportState = {
@@ -196,6 +197,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const prevStep = useCallback(() => setState((prev) => ({ ...prev, step: Math.max(1, prev.step - 1) })), []);
   const setStep = useCallback((step: number) => setState((prev) => ({ ...prev, step })), []);
   const reset = useCallback(() => setState(defaultState), []);
+  const loadReport = useCallback((report: ReportState) => setState(report), []);
 
   const value = useMemo(() => ({
     state,
@@ -212,7 +214,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     prevStep,
     setStep,
     reset,
-  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset]);
+    loadReport,
+  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
 
   return (
     <WizardContext.Provider value={value}>

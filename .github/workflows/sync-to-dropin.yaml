@@ -1,0 +1,24 @@
+name: Sync to Work Repo
+
+on:
+  push:
+    branches:
+      - main  # or your preferred branch
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Personal Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necessary to fetch all history for mirroring
+
+      - name: Push to Work Repo
+        run: |
+          # Set up the remote URL with the token
+          # Replace 'work-org/work-repo' with your actual org/repo name
+          REMOTE_REPO="https://x-access-token:${{ secrets.WORK_REPO_TOKEN }}@github.com/work-org/work-repo.git"
+          
+          # Force push the local main branch to the work repo's main branch
+          git push --force "$REMOTE_REPO" main:main
