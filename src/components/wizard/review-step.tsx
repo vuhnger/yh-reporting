@@ -5,101 +5,94 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CloudSun, Thermometer } from "lucide-react";
+import { Building2, Calendar, ClipboardList, User } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function ReviewStep() {
   const { state, nextStep, prevStep } = useWizard();
 
-  // Mock parsed data based on uploaded files
-  const mockStats = {
-    temp: { min: 18.2, max: 24.5, avg: 21.3 },
-    co2: { min: 410, max: 1250, avg: 850 },
-    humidity: { min: 30, max: 45, avg: 38 },
+  // Helper to determine color (duplicated from MeasurementStep for consistent preview)
+  const getStatusColor = (lex8h: number | "", peak: number | "") => {
+    if (lex8h === "" && peak === "") return "bg-transparent";
+    const { thresholds } = state;
+    const l = Number(lex8h);
+    const p = Number(peak);
+    if ((l > thresholds.lex8h.red) || (p > thresholds.peak.red)) return "bg-red-50 text-red-900";
+    if (l > thresholds.lex8h.orange) return "bg-orange-50 text-orange-900";
+    if ((l > thresholds.lex8h.yellow) || (p > thresholds.peak.yellow)) return "bg-yellow-50 text-yellow-900";
+    return "bg-green-50 text-green-900";
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
       <CardHeader>
-        <CardTitle>Review Data</CardTitle>
-        <CardDescription>Verify the extracted statistics and external data.</CardDescription>
+        <CardTitle className="text-2xl text-primary">Se over rapport</CardTitle>
+        <CardDescription>Kontroller at alle opplysninger er korrekte før generering.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         
-        {/* Weather Section */}
-        <div className="flex items-start gap-4 p-4 bg-secondary/20 rounded-lg border border-secondary">
-          <CloudSun className="h-8 w-8 text-primary mt-1" />
-          <div className="flex-1">
-            <h3 className="font-semibold text-primary">Weather Data (Auto-fetched)</h3>
-            <p className="text-sm text-muted-foreground mb-2">
-              Oslo, {new Date().toLocaleDateString()}
-            </p>
-            <div className="flex gap-6 text-sm">
-              <span><strong>Temp:</strong> 12°C</span>
-              <span><strong>Precipitation:</strong> 0mm</span>
-              <span><strong>Wind:</strong> 3 m/s SW</span>
+        {/* Project Context Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
+                <h3 className="font-semibold flex items-center gap-2 text-primary"><Building2 className="h-4 w-4"/> Bedrift</h3>
+                <div className="text-sm space-y-1">
+                    <p><span className="font-medium text-muted-foreground">Navn:</span> {state.client.name}</p>
+                    <p><span className="font-medium text-muted-foreground">Org.nr:</span> {state.client.orgNr}</p>
+                    <p><span className="font-medium text-muted-foreground">Adresse:</span> {state.client.address}</p>
+                </div>
             </div>
-          </div>
-          <Button variant="outline" size="sm">Edit</Button>
+            <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
+                <h3 className="font-semibold flex items-center gap-2 text-primary"><ClipboardList className="h-4 w-4"/> Oppdrag</h3>
+                <div className="text-sm space-y-1">
+                    <p><span className="font-medium text-muted-foreground">Tittel:</span> {state.metadata.assignment}</p>
+                    <p><span className="font-medium text-muted-foreground">Dato:</span> {state.metadata.date}</p>
+                    <p><span className="font-medium text-muted-foreground">Forfatter:</span> {state.metadata.author}</p>
+                </div>
+            </div>
         </div>
 
-        {/* Stats Table */}
+        {/* Measurements Table Summary */}
         <div className="space-y-2">
-          <Label>Extracted Measurements</Label>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Parameter</TableHead>
-                <TableHead>Min</TableHead>
-                <TableHead>Max</TableHead>
-                <TableHead>Average</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium flex items-center gap-2">
-                  <Thermometer className="h-4 w-4" /> Temperature
-                </TableCell>
-                <TableCell>{mockStats.temp.min}°C</TableCell>
-                <TableCell>{mockStats.temp.max}°C</TableCell>
-                <TableCell>{mockStats.temp.avg}°C</TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Normal
-                  </span>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">CO2</TableCell>
-                <TableCell>{mockStats.co2.min} ppm</TableCell>
-                <TableCell className="text-destructive font-bold">{mockStats.co2.max} ppm</TableCell>
-                <TableCell>{mockStats.co2.avg} ppm</TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    High
-                  </span>
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Humidity</TableCell>
-                <TableCell>{mockStats.humidity.min}%</TableCell>
-                <TableCell>{mockStats.humidity.max}%</TableCell>
-                <TableCell>{mockStats.humidity.avg}%</TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    Low
-                  </span>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <Label className="text-lg font-semibold text-primary">Måleresultater ({state.measurements.length})</Label>
+          <div className="rounded-md border">
+            <Table>
+                <TableHeader className="bg-slate-50">
+                <TableRow>
+                    <TableHead>Målested</TableHead>
+                    <TableHead>Varighet</TableHead>
+                    <TableHead className="text-right">LAeq</TableHead>
+                    <TableHead className="text-right">LPeak</TableHead>
+                    <TableHead>Kommentar</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {state.measurements.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            Ingen målinger registrert.
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    state.measurements.map((m) => {
+                        const rowClass = getStatusColor(m.lex8h, m.maxPeak);
+                        return (
+                        <TableRow key={m.id} className={cn(rowClass)}>
+                            <TableCell className="font-medium">{m.location}</TableCell>
+                            <TableCell>{m.duration}</TableCell>
+                            <TableCell className="text-right font-mono">{m.lex8h}</TableCell>
+                            <TableCell className="text-right font-mono">{m.maxPeak}</TableCell>
+                            <TableCell className="max-w-[200px] truncate" title={m.comment}>{m.comment}</TableCell>
+                        </TableRow>
+                        );
+                    })
+                )}
+                </TableBody>
+            </Table>
+          </div>
         </div>
 
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={prevStep}>Back</Button>
-        <Button onClick={nextStep}>Generate Report</Button>
-      </CardFooter>
+      {/* Footer removed for single-page layout */}
     </Card>
   );
 }

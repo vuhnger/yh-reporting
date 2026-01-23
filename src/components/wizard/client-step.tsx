@@ -5,20 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Search, Building2, MapPin, Briefcase } from "lucide-react";
 
 export function ClientStep() {
   const { state, updateClient, nextStep } = useWizard();
   const [isLoading, setIsLoading] = useState(false);
+  const lastFetchedOrgNr = useRef<string | null>(null);
 
   const fetchClientData = useCallback(async (orgNr: string) => {
-    const cleanOrgNr = orgNr.replace(/\s/g, "");
-    if (!/^\d{9}$/.test(cleanOrgNr)) return;
-
+    // Prevent re-fetching if we just fetched this number
+    if (orgNr === lastFetchedOrgNr.current && state.client.name) return;
+    
+    lastFetchedOrgNr.current = orgNr;
     setIsLoading(true);
+    
     try {
-      const response = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${cleanOrgNr}`);
+      const response = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgNr}`);
       
       if (!response.ok) return;
 
@@ -43,11 +46,11 @@ export function ClientStep() {
     } finally {
       setIsLoading(false);
     }
-  }, [updateClient]);
+  }, [updateClient, state.client.name]);
 
   useEffect(() => {
     const cleanOrgNr = state.client.orgNr.replace(/\s/g, "");
-    if (cleanOrgNr.length === 9) {
+    if (cleanOrgNr.length === 9 && cleanOrgNr !== lastFetchedOrgNr.current) {
       fetchClientData(cleanOrgNr);
     }
   }, [state.client.orgNr, fetchClientData]);
@@ -127,11 +130,7 @@ export function ClientStep() {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end border-t pt-6 bg-slate-50/50 rounded-b-lg">
-        <Button size="lg" onClick={nextStep} disabled={!isValid} className="px-8">
-          Continue
-        </Button>
-      </CardFooter>
+      {/* Footer removed for single-page layout */}
     </Card>
   );
 }

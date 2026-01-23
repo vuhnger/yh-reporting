@@ -1,6 +1,38 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
+
+// Measurement Data Structure
+export interface Measurement {
+  id: string;
+  location: string;
+  duration: string;
+  lex8h: number | "";
+  maxPeak: number | "";
+  comment: string;
+}
+
+// Threshold Configuration
+export interface Thresholds {
+  lex8h: {
+    red: number;    // > 85
+    orange: number; // > 80
+    yellow: number; // > 70
+  };
+  peak: {
+    red: number;    // > 130
+    yellow: number; // > 120
+  };
+}
+
+// Report Metadata
+export interface ReportMetadata {
+  assignment: string;     // "Oppdrag"
+  date: string;          // "Dato for utførelse"
+  participants: string;   // "Deltakere"
+  contactPerson: string;  // "Kontaktperson"
+  author: string;         // "Rapport skrevet av"
+}
 
 // Define the shape of our report data
 export interface ReportState {
@@ -11,20 +43,34 @@ export interface ReportState {
     industry: string;
   };
   step: number;
-  reportType: "indoor-climate" | "noise" | "chemical" | "light" | "";
+  reportType: "noise" | "indoor-climate" | "chemical" | "light" | "";
+  
+  // Specific Data for Noise Reports
+  metadata: ReportMetadata;
+  measurements: Measurement[];
+  thresholds: Thresholds;
+  
   files: File[];
   weather: {
     include: boolean;
     location: string;
-    date: string; // ISO string
-    data: any; // Placeholder for now
+    date: string;
+    data: any;
   };
 }
 
 interface WizardContextType {
   state: ReportState;
   updateClient: (client: Partial<ReportState["client"]>) => void;
+  updateMetadata: (meta: Partial<ReportMetadata>) => void;
   setReportType: (type: ReportState["reportType"]) => void;
+  
+  // Measurement Actions
+  addMeasurement: () => void;
+  updateMeasurement: (id: string, data: Partial<Measurement>) => void;
+  removeMeasurement: (id: string) => void;
+  updateThresholds: (thresholds: Partial<Thresholds>) => void;
+
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
   nextStep: () => void;
@@ -34,14 +80,25 @@ interface WizardContextType {
 }
 
 const defaultState: ReportState = {
-  client: {
-    orgNr: "",
-    name: "",
-    address: "",
-    industry: "",
-  },
+  client: { orgNr: "", name: "", address: "", industry: "" },
   step: 1,
   reportType: "",
+  
+  metadata: {
+    assignment: "",
+    date: new Date().toISOString().split("T")[0],
+    participants: "",
+    contactPerson: "",
+    author: "Consultant Name", // TODO: Fetch from logged in user
+  },
+  
+  measurements: [],
+  
+  thresholds: {
+    lex8h: { red: 85, orange: 80, yellow: 70 },
+    peak: { red: 130, yellow: 120 },
+  },
+
   files: [],
   weather: {
     include: true,
@@ -56,50 +113,109 @@ const WizardContext = createContext<WizardContextType | undefined>(undefined);
 export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ReportState>(defaultState);
 
-  const updateClient = (client: Partial<ReportState["client"]>) => {
+  const updateClient = useCallback((client: Partial<ReportState["client"]>) => {
     setState((prev) => ({
       ...prev,
       client: { ...prev.client, ...client },
     }));
-  };
+  }, []);
 
-  const setReportType = (type: ReportState["reportType"]) => {
-    setState((prev) => ({ ...prev, reportType: type }));
-  };
-
-  const addFiles = (files: File[]) => {
+  const updateMetadata = useCallback((meta: Partial<ReportMetadata>) => {
     setState((prev) => ({
       ...prev,
-      files: [...prev.files, ...files],
+      metadata: { ...prev.metadata, ...meta },
     }));
-  };
+  }, []);
 
-  const removeFile = (index: number) => {
+  const setReportType = useCallback((type: ReportState["reportType"]) => {
+    setState((prev) => {
+      // Auto-generate assignment title if both client name and type exist
+      let assignment = prev.metadata.assignment;
+      if (!assignment && prev.client.name) {
+         const typeLabel = type === "noise" ? "Støykartlegging" : "Kartlegging";
+         assignment = `${typeLabel} hos ${prev.client.name}`;
+      }
+      
+      return { 
+        ...prev, 
+        reportType: type,
+        metadata: { ...prev.metadata, assignment }
+      };
+    });
+  }, []);
+
+  const addMeasurement = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      files: prev.files.filter((_, i) => i !== index),
+      measurements: [
+        ...prev.measurements,
+        { 
+          id: Math.random().toString(36).substr(2, 9), 
+          location: "", 
+          duration: "", 
+          lex8h: "", 
+          maxPeak: "", 
+          comment: "" 
+        }
+      ]
     }));
-  };
+  }, []);
 
-  const nextStep = () => setState((prev) => ({ ...prev, step: prev.step + 1 }));
-  const prevStep = () => setState((prev) => ({ ...prev, step: Math.max(1, prev.step - 1) }));
-  const setStep = (step: number) => setState((prev) => ({ ...prev, step }));
-  const reset = () => setState(defaultState);
+  const updateMeasurement = useCallback((id: string, data: Partial<Measurement>) => {
+    setState((prev) => ({
+      ...prev,
+      measurements: prev.measurements.map((m) => 
+        m.id === id ? { ...m, ...data } : m
+      )
+    }));
+  }, []);
+
+  const removeMeasurement = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      measurements: prev.measurements.filter((m) => m.id !== id)
+    }));
+  }, []);
+
+  const updateThresholds = useCallback((thresholds: Partial<Thresholds>) => {
+    setState((prev) => ({
+      ...prev,
+      thresholds: { ...prev.thresholds, ...thresholds }
+    }));
+  }, []);
+
+  const addFiles = useCallback((files: File[]) => {
+    setState((prev) => ({ ...prev, files: [...prev.files, ...files] }));
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setState((prev) => ({ ...prev, files: prev.files.filter((_, i) => i !== index) }));
+  }, []);
+
+  const nextStep = useCallback(() => setState((prev) => ({ ...prev, step: prev.step + 1 })), []);
+  const prevStep = useCallback(() => setState((prev) => ({ ...prev, step: Math.max(1, prev.step - 1) })), []);
+  const setStep = useCallback((step: number) => setState((prev) => ({ ...prev, step })), []);
+  const reset = useCallback(() => setState(defaultState), []);
+
+  const value = useMemo(() => ({
+    state,
+    updateClient,
+    updateMetadata,
+    setReportType,
+    addMeasurement,
+    updateMeasurement,
+    removeMeasurement,
+    updateThresholds,
+    addFiles,
+    removeFile,
+    nextStep,
+    prevStep,
+    setStep,
+    reset,
+  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset]);
 
   return (
-    <WizardContext.Provider
-      value={{
-        state,
-        updateClient,
-        setReportType,
-        addFiles,
-        removeFile,
-        nextStep,
-        prevStep,
-        setStep,
-        reset,
-      }}
-    >
+    <WizardContext.Provider value={value}>
       {children}
     </WizardContext.Provider>
   );

@@ -3,38 +3,57 @@
 import { useWizard } from "./wizard-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileDown, FileText, CheckCircle2 } from "lucide-react";
+import { FileDown, FileText, Download } from "lucide-react";
 
 export function ExportStep() {
-  const { state, reset } = useWizard();
+  const { state } = useWizard();
+
+  const handleDownload = (format: "docx" | "pdf") => {
+    // TODO: Implement actual generation
+    console.log(`Generating ${format} for`, state);
+    alert(`Generating ${format.toUpperCase()}... (Not implemented yet)`);
+  };
+
+  const isReady = state.client.orgNr && state.measurements.length > 0;
 
   return (
-    <Card className="w-full max-w-2xl mx-auto text-center">
+    <Card className="w-full max-w-2xl mx-auto text-center border-primary/20 shadow-lg bg-slate-50/50">
       <CardHeader>
-        <div className="mx-auto bg-green-100 text-green-600 rounded-full p-3 w-16 h-16 flex items-center justify-center mb-4">
-          <CheckCircle2 className="h-8 w-8" />
-        </div>
-        <CardTitle>Report Generated!</CardTitle>
-        <CardDescription>Your report for <strong>{state.client.name}</strong> is ready for download.</CardDescription>
+        <CardTitle className="text-2xl text-primary">Ferdigstill Rapport</CardTitle>
+        <CardDescription>
+          Generer rapporten basert på informasjonen du har lagt inn ovenfor.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button className="h-24 flex flex-col items-center justify-center gap-2 text-lg" variant="outline">
+          <Button 
+            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-blue-500/50 hover:bg-blue-50 transition-all" 
+            variant="outline"
+            onClick={() => handleDownload("docx")}
+            disabled={!isReady}
+          >
             <FileText className="h-8 w-8 text-blue-600" />
-            Download .docx
-            <span className="text-xs text-muted-foreground font-normal">Editable Word Document</span>
+            Last ned .docx
+            <span className="text-xs text-muted-foreground font-normal">Redigerbar Word-fil</span>
           </Button>
           
-          <Button className="h-24 flex flex-col items-center justify-center gap-2 text-lg" variant="outline">
+          <Button 
+            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-red-500/50 hover:bg-red-50 transition-all" 
+            variant="outline"
+            onClick={() => handleDownload("pdf")}
+            disabled={!isReady}
+          >
             <FileDown className="h-8 w-8 text-red-600" />
-            Download .pdf
-            <span className="text-xs text-muted-foreground font-normal">Final PDF Document</span>
+            Last ned .pdf
+            <span className="text-xs text-muted-foreground font-normal">Låst PDF-fil</span>
           </Button>
         </div>
+        {!isReady && (
+            <p className="text-sm text-destructive">
+                Du må fylle ut bedriftsinformasjon og legge til minst én måling før du kan laste ned.
+            </p>
+        )}
       </CardContent>
-      <CardFooter className="flex justify-center">
-        <Button variant="ghost" onClick={reset}>Start New Report</Button>
-      </CardFooter>
     </Card>
   );
 }
