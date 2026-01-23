@@ -6,9 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { AIFillButton } from "./ai-fill-button";
 
 export function ReportMetadataStep() {
   const { state, updateMetadata, setReportType } = useWizard();
+
+  const appendText = (field: keyof typeof state.metadata, text: string) => {
+    const current = state.metadata[field] as unknown as string;
+    const next = current?.trim() ? `${current.trim()}\n\n${text}` : text;
+    updateMetadata({ [field]: next } as any);
+  };
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -142,13 +149,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="summary-text">Sammendrag – ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="summary-text"
-                value={state.metadata.summaryText}
-                onChange={(e) => updateMetadata({ summaryText: e.target.value })}
-                placeholder="Legg til ekstra tekst i sammendraget."
-                className="min-h-[140px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="summary-text"
+                  value={state.metadata.summaryText}
+                  onChange={(e) => updateMetadata({ summaryText: e.target.value })}
+                  placeholder="Legg til ekstra tekst i sammendraget."
+                  className="min-h-[140px] pr-10"
+                />
+                <AIFillButton
+                  field="summaryText"
+                  state={state}
+                  onApply={(text) => appendText("summaryText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -161,13 +176,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="intro-extra">Støy og helseeffekter – ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="intro-extra"
-                value={state.metadata.introExtraText}
-                onChange={(e) => updateMetadata({ introExtraText: e.target.value })}
-                placeholder="Tillegg til standardtekst."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="intro-extra"
+                  value={state.metadata.introExtraText}
+                  onChange={(e) => updateMetadata({ introExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="introExtraText"
+                  state={state}
+                  onApply={(text) => appendText("introExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -180,13 +203,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="thresholds-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="thresholds-extra"
-                value={state.metadata.thresholdsExtraText}
-                onChange={(e) => updateMetadata({ thresholdsExtraText: e.target.value })}
-                placeholder="Tillegg til standardtekst om grenseverdier og tiltaksverdier."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="thresholds-extra"
+                  value={state.metadata.thresholdsExtraText}
+                  onChange={(e) => updateMetadata({ thresholdsExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om grenseverdier og tiltaksverdier."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="thresholdsExtraText"
+                  state={state}
+                  onApply={(text) => appendText("thresholdsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -199,13 +230,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="risk-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="risk-extra"
-                value={state.metadata.riskExtraText}
-                onChange={(e) => updateMetadata({ riskExtraText: e.target.value })}
-                placeholder="Tillegg til standardtekst om risikovurdering og tiltak."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="risk-extra"
+                  value={state.metadata.riskExtraText}
+                  onChange={(e) => updateMetadata({ riskExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om risikovurdering og tiltak."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="riskExtraText"
+                  state={state}
+                  onApply={(text) => appendText("riskExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -218,13 +257,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="training-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="training-extra"
-                value={state.metadata.trainingExtraText}
-                onChange={(e) => updateMetadata({ trainingExtraText: e.target.value })}
-                placeholder="Tillegg til standardtekst om informasjon og opplæring."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="training-extra"
+                  value={state.metadata.trainingExtraText}
+                  onChange={(e) => updateMetadata({ trainingExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om informasjon og opplæring."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="trainingExtraText"
+                  state={state}
+                  onApply={(text) => appendText("trainingExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -287,13 +334,21 @@ export function ReportMetadataStep() {
 
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="method-text">Metode / tilleggstekst (valgfritt)</Label>
-              <Textarea
-                id="method-text"
-                value={state.metadata.methodText}
-                onChange={(e) => updateMetadata({ methodText: e.target.value })}
-                placeholder="Skriv eventuelle detaljer om gjennomføring/metode her."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="method-text"
+                  value={state.metadata.methodText}
+                  onChange={(e) => updateMetadata({ methodText: e.target.value })}
+                  placeholder="Skriv eventuelle detaljer om gjennomføring/metode her."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="methodText"
+                  state={state}
+                  onApply={(text) => appendText("methodText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -306,13 +361,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="findings-text">Funn og vurderinger – ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="findings-text"
-                value={state.metadata.findingsText}
-                onChange={(e) => updateMetadata({ findingsText: e.target.value })}
-                placeholder="Skriv eventuelle vurderinger/introduksjon til måleresultatene her."
-                className="min-h-[140px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="findings-text"
+                  value={state.metadata.findingsText}
+                  onChange={(e) => updateMetadata({ findingsText: e.target.value })}
+                  placeholder="Skriv eventuelle vurderinger/introduksjon til måleresultatene her."
+                  className="min-h-[140px] pr-10"
+                />
+                <AIFillButton
+                  field="findingsText"
+                  state={state}
+                  onApply={(text) => appendText("findingsText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -325,13 +388,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="conclusions-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="conclusions-extra"
-                value={state.metadata.conclusionsExtraText}
-                onChange={(e) => updateMetadata({ conclusionsExtraText: e.target.value })}
-                placeholder="Tillegg før per-måling vurderinger."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="conclusions-extra"
+                  value={state.metadata.conclusionsExtraText}
+                  onChange={(e) => updateMetadata({ conclusionsExtraText: e.target.value })}
+                  placeholder="Tillegg før per-måling vurderinger."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="conclusionsExtraText"
+                  state={state}
+                  onApply={(text) => appendText("conclusionsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -344,13 +415,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="recommendations-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="recommendations-extra"
-                value={state.metadata.recommendationsExtraText}
-                onChange={(e) => updateMetadata({ recommendationsExtraText: e.target.value })}
-                placeholder="Tillegg til standard anbefalinger."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="recommendations-extra"
+                  value={state.metadata.recommendationsExtraText}
+                  onChange={(e) => updateMetadata({ recommendationsExtraText: e.target.value })}
+                  placeholder="Tillegg til standard anbefalinger."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="recommendationsExtraText"
+                  state={state}
+                  onApply={(text) => appendText("recommendationsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -363,13 +442,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="references-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="references-extra"
-                value={state.metadata.referencesExtraText}
-                onChange={(e) => updateMetadata({ referencesExtraText: e.target.value })}
-                placeholder="Tillegg til standard referanseliste."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="references-extra"
+                  value={state.metadata.referencesExtraText}
+                  onChange={(e) => updateMetadata({ referencesExtraText: e.target.value })}
+                  placeholder="Tillegg til standard referanseliste."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="referencesExtraText"
+                  state={state}
+                  onApply={(text) => appendText("referencesExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -382,13 +469,21 @@ export function ReportMetadataStep() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="appendices-extra">Ekstra tekst (valgfritt)</Label>
-              <Textarea
-                id="appendices-extra"
-                value={state.metadata.appendicesExtraText}
-                onChange={(e) => updateMetadata({ appendicesExtraText: e.target.value })}
-                placeholder="Tilleggstekst for vedlegg."
-                className="min-h-[120px]"
-              />
+              <div className="relative">
+                <Textarea
+                  id="appendices-extra"
+                  value={state.metadata.appendicesExtraText}
+                  onChange={(e) => updateMetadata({ appendicesExtraText: e.target.value })}
+                  placeholder="Tilleggstekst for vedlegg."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  field="appendicesExtraText"
+                  state={state}
+                  onApply={(text) => appendText("appendicesExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
             </div>
           </div>
         </section>
