@@ -32,6 +32,16 @@ export interface ReportMetadata {
   participants: string;   // "Deltakere"
   contactPerson: string;  // "Kontaktperson"
   author: string;         // "Rapport skrevet av"
+  reportDate: string;     // "Dato for rapport"
+  reportSentTo: string;   // "Rapport sendt til"
+  advisor: string;        // "KAM/HMS-rådgiver"
+  summaryText: string;    // "Sammendrag (valgfri)"
+  measurementDevice: string;     // Måleinstrument
+  measurementSerial: string;     // Serienr. instrument
+  calibratorModel: string;       // Kalibrator
+  calibratorSerial: string;      // Serienr. kalibrator
+  lastCalibrationDate: string;   // Siste kalibrering
+  methodText: string;            // Tilleggstekst metode
 }
 
 // Define the shape of our report data
@@ -91,6 +101,16 @@ const defaultState: ReportState = {
     participants: "",
     contactPerson: "",
     author: "Consultant Name", // TODO: Fetch from logged in user
+    reportDate: new Date().toISOString().split("T")[0],
+    reportSentTo: "",
+    advisor: "",
+    summaryText: "",
+    measurementDevice: "",
+    measurementSerial: "",
+    calibratorModel: "",
+    calibratorSerial: "",
+    lastCalibrationDate: "",
+    methodText: "",
   },
   
   measurements: [],

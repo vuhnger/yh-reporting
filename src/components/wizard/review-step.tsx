@@ -51,6 +51,18 @@ export function ReviewStep() {
             </div>
         </div>
 
+        <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
+          <h3 className="font-semibold flex items-center gap-2 text-primary"><User className="h-4 w-4"/> Rapportdetaljer</h3>
+          <div className="text-sm grid grid-cols-1 md:grid-cols-2 gap-2">
+            <p><span className="font-medium text-muted-foreground">Deltakere:</span> {state.metadata.participants}</p>
+            <p><span className="font-medium text-muted-foreground">Kontaktperson:</span> {state.metadata.contactPerson}</p>
+            <p><span className="font-medium text-muted-foreground">Rapport sendt til:</span> {state.metadata.reportSentTo}</p>
+            <p><span className="font-medium text-muted-foreground">KAM/HMS-rådgiver:</span> {state.metadata.advisor}</p>
+            <p><span className="font-medium text-muted-foreground">Dato for rapport:</span> {state.metadata.reportDate}</p>
+            <p><span className="font-medium text-muted-foreground">Antall vedlegg:</span> {state.files.length}</p>
+          </div>
+        </div>
+
         {/* Measurements Table Summary */}
         <div className="space-y-2">
           <Label className="text-lg font-semibold text-primary">Måleresultater ({state.measurements.length})</Label>

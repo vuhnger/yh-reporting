@@ -96,7 +96,6 @@ export function ClientStep() {
                 <Building2 className="h-5 w-5 text-primary" />
                 <Input
                   id="name"
-                  variant="ghost"
                   className="p-0 h-auto border-none focus-visible:ring-0 text-lg font-semibold"
                   value={state.client.name}
                   onChange={(e) => updateClient({ name: e.target.value })}
@@ -110,7 +109,6 @@ export function ClientStep() {
                 <MapPin className="h-4 w-4" />
                 <Input
                   id="address"
-                  variant="ghost"
                   className="p-0 h-auto border-none focus-visible:ring-0 text-sm"
                   value={state.client.address}
                   onChange={(e) => updateClient({ address: e.target.value })}

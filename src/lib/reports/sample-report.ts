@@ -15,6 +15,18 @@ export const noiseSampleReport: ReportState = {
     participants: "Marie Håland",
     contactPerson: "Irene Furulund",
     author: "Marie Håland",
+    reportDate: "2025-09-23",
+    reportSentTo: "Irene Furulund",
+    advisor: "Ida Lund",
+    summaryText: "",
+    measurementDevice: "Cirrus Optimus Red CR: 161C",
+    measurementSerial: "G304333",
+    calibratorModel: "Cirrus Acoustic Calibrator CR: 515",
+    calibratorSerial: "101825",
+    lastCalibrationDate: "2025-07-07",
+    methodText:
+      "Det ble gjennomført forenklede målinger av støy på arbeidsplasser på laboratoriet. " +
+      "Yrkeshygieniker tok målingene da maskinene ga mest lyd, basert på kartlegging sammen med ansatte på lab.",
   },
   measurements: [
     {
