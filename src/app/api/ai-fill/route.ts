@@ -122,71 +122,36 @@ export async function POST(req: Request) {
       systemInstruction:
         "Du er en teknisk skribent som er ekspert på akustikk og HMS. Du skriver utfyllende, forklarende og detaljerte tekster basert på måledata. Språket er formelt og saklig.",
     });
-    const generate = async (p: string, overrideModel?: string) => {
-      const activeModel = overrideModel
-        ? genAI.getGenerativeModel({
-            model: overrideModel,
-            systemInstruction:
-              "Du er en teknisk skribent som er ekspert på akustikk og HMS. Du skriver utfyllende, forklarende og detaljerte tekster basert på måledata. Språket er formelt og saklig.",
-          })
-        : model;
-      return activeModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: p }] }],
-        generationConfig: {
-          temperature: 0.8,
-          topP: 0.8,
-        },
-      });
-    };
 
-    const result = await generate(prompt);
-    const response = result.response;
-    const finishReason = response.candidates?.[0]?.finishReason;
+    const result = await model.generateContentStream({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        maxOutputTokens: 2048,
+      },
+    });
 
-    console.log("Finish Reason:", finishReason);
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
+            if (chunkText) {
+              controller.enqueue(encoder.encode(chunkText));
+            }
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+    });
 
-    if (finishReason === "SAFETY") {
-      return NextResponse.json({ error: "Blocked by safety filters" }, { status: 400 });
-    }
-
-    let responseText = response.text().trim();
-    console.log("FINAL TEXT LENGTH:", responseText.length);
-
-    if (!responseText) {
-      return NextResponse.json(
-        {
-          error: "Empty response",
-          finishReason: response.candidates?.[0]?.finishReason ?? null,
-          safetyRatings: response.candidates?.[0]?.safetyRatings ?? null,
-          raw: response,
-        },
-        { status: 502 }
-      );
-    }
-
-    if (responseText.length < 250) {
-      const expandPrompt = `${prompt}
-
-EKSTRA INSTRUKS:
-- Teksten er for kort. Utvid med flere setninger og minst to avsnitt.
-- Ikke gjenta første setning ordrett.
-
-DRAFT:
-${responseText}`;
-      const expanded = await generate(expandPrompt);
-      let expandedText = expanded.response.text().trim();
-
-      if (expandedText.length < 250 && modelName === "gemini-3-flash-preview") {
-        const fallback = await generate(expandPrompt, "gemini-2.5-flash");
-        expandedText = fallback.response.text().trim();
-      }
-
-      if (expandedText.length >= 250) {
-        responseText = expandedText;
-      }
-    }
-
-    return NextResponse.json({ text: responseText });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     return NextResponse.json(
