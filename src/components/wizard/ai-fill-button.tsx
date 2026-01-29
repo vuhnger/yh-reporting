@@ -3,81 +3,31 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
-import type { ReportState } from "./wizard-context";
-
-type AllowedField =
-  | "summaryText"
-  | "introExtraText"
-  | "thresholdsExtraText"
-  | "riskExtraText"
-  | "trainingExtraText"
-  | "methodText"
-  | "findingsText"
-  | "conclusionsExtraText"
-  | "recommendationsExtraText"
-  | "referencesExtraText"
-  | "appendicesExtraText";
+import type { ReportState, ReportType } from "@/lib/reports/template-types";
+import { getTemplate } from "@/lib/reports/template-registry";
 
 type Props = {
-  field: AllowedField;
+  reportType: string;
+  field: string;
   state: ReportState;
   getValue: () => string;
   setValue: (text: string) => void;
   className?: string;
 };
 
-function buildContext(state: ReportState) {
-  const measurements = state.measurements.map((m) => ({
-    location: m.location,
-    duration: m.duration,
-    lex8h: m.lex8h,
-    maxPeak: m.maxPeak,
-    comment: m.comment,
-  }));
-
-  const numericLex = measurements
-    .map((m) => Number(m.lex8h))
-    .filter((v) => Number.isFinite(v));
-  const numericPeak = measurements
-    .map((m) => Number(m.maxPeak))
-    .filter((v) => Number.isFinite(v));
-
-  return {
-    reportType: state.reportType,
-    clientName: state.client.name,
-    assignment: state.metadata.assignment,
-    executionDate: state.metadata.date,
-    reportDate: state.metadata.reportDate,
-    participants: state.metadata.participants,
-    measurementCount: measurements.length,
-    measurementSummary: {
-      lexMin: numericLex.length ? Math.min(...numericLex) : null,
-      lexMax: numericLex.length ? Math.max(...numericLex) : null,
-      peakMax: numericPeak.length ? Math.max(...numericPeak) : null,
-      thresholds: state.thresholds,
-    },
-    instrument: {
-      device: state.metadata.measurementDevice,
-      serial: state.metadata.measurementSerial,
-      calibrator: state.metadata.calibratorModel,
-      calibratorSerial: state.metadata.calibratorSerial,
-      lastCalibrationDate: state.metadata.lastCalibrationDate,
-    },
-    attachmentsCount: state.files.length,
-    measurements,
-  };
-}
-
-export function AIFillButton({ field, state, getValue, setValue, className }: Props) {
+export function AIFillButton({ reportType, field, state, getValue, setValue, className }: Props) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
     setIsLoading(true);
     try {
+      const template = getTemplate(reportType as ReportType);
+      const context = template?.ai.buildContext(state) ?? {};
+
       const response = await fetch("/api/ai-fill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field, context: buildContext(state) }),
+        body: JSON.stringify({ reportType, field, context }),
       });
       if (!response.ok) {
         const raw = await response.text();

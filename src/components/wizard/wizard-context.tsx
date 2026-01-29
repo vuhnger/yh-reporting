@@ -1,88 +1,25 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
+import type { ReportState, ReportType, SharedMetadata, TemplateData } from "@/lib/reports/template-types";
+import { createTemplateData } from "@/lib/reports/template-types";
+import { getTemplate } from "@/lib/reports/template-registry";
+import type { NoiseMetadata, Measurement, Thresholds } from "@/lib/reports/templates/noise/schema";
+import { getNoiseData } from "@/lib/reports/templates/noise/schema";
 
-// Measurement Data Structure
-export interface Measurement {
-  id: string;
-  location: string;
-  duration: string;
-  lex8h: number | "";
-  maxPeak: number | "";
-  comment: string;
-}
-
-// Threshold Configuration
-export interface Thresholds {
-  lex8h: {
-    red: number;    // > 85
-    orange: number; // > 80
-    yellow: number; // > 70
-  };
-  peak: {
-    red: number;    // > 130
-    yellow: number; // > 120
-  };
-}
-
-// Report Metadata
-export interface ReportMetadata {
-  assignment: string;     // "Oppdrag"
-  date: string;          // "Dato for utførelse"
-  participants: string;   // "Deltakere"
-  contactPerson: string;  // "Kontaktperson"
-  author: string;         // "Rapport skrevet av"
-  reportDate: string;     // "Dato for rapport"
-  reportSentTo: string;   // "Rapport sendt til"
-  advisor: string;        // "KAM/HMS-rådgiver"
-  summaryText: string;    // "Sammendrag (valgfri)"
-  measurementDevice: string;     // Måleinstrument
-  measurementSerial: string;     // Serienr. instrument
-  calibratorModel: string;       // Kalibrator
-  calibratorSerial: string;      // Serienr. kalibrator
-  lastCalibrationDate: string;   // Siste kalibrering
-  methodText: string;            // Tilleggstekst metode
-  findingsText: string;          // Funn og vurderinger (valgfri)
-  introExtraText: string;        // Innledning (valgfri)
-  thresholdsExtraText: string;   // Grenseverdier (valgfri)
-  riskExtraText: string;         // Risikovurdering (valgfri)
-  trainingExtraText: string;     // Informasjon/opplæring (valgfri)
-  conclusionsExtraText: string;  // Konklusjon (valgfri)
-  recommendationsExtraText: string; // Anbefalinger (valgfri)
-  referencesExtraText: string;   // Referanser (valgfri)
-  appendicesExtraText: string;   // Vedlegg (valgfri)
-}
-
-// Define the shape of our report data
-export interface ReportState {
-  client: {
-    orgNr: string;
-    name: string;
-    address: string;
-    industry: string;
-  };
-  step: number;
-  reportType: "noise" | "indoor-climate" | "chemical" | "light" | "";
-  // Specific Data for Noise Reports
-  metadata: ReportMetadata;
-  measurements: Measurement[];
-  thresholds: Thresholds;
-  
-  files: File[];
-  weather: {
-    include: boolean;
-    location: string;
-    date: string;
-    data: any;
-  };
-}
+// Re-export types so existing consumers keep working
+export type { ReportState, SharedMetadata } from "@/lib/reports/template-types";
+export type { Measurement, Thresholds, NoiseMetadata } from "@/lib/reports/templates/noise/schema";
 
 interface WizardContextType {
   state: ReportState;
   updateClient: (client: Partial<ReportState["client"]>) => void;
-  updateMetadata: (meta: Partial<ReportMetadata>) => void;
+  updateSharedMetadata: (meta: Partial<SharedMetadata>) => void;
   setReportType: (type: ReportState["reportType"]) => void;
-  // Measurement Actions
+  updateTemplateData: (updater: (data: TemplateData) => TemplateData) => void;
+
+  // Noise convenience wrappers
+  updateNoiseMetadata: (meta: Partial<NoiseMetadata>) => void;
   addMeasurement: () => void;
   updateMeasurement: (id: string, data: Partial<Measurement>) => void;
   removeMeasurement: (id: string) => void;
@@ -101,7 +38,7 @@ const defaultState: ReportState = {
   client: { orgNr: "", name: "", address: "", industry: "" },
   step: 1,
   reportType: "",
-  metadata: {
+  sharedMetadata: {
     assignment: "",
     date: new Date().toISOString().split("T")[0],
     participants: "",
@@ -110,31 +47,7 @@ const defaultState: ReportState = {
     reportDate: new Date().toISOString().split("T")[0],
     reportSentTo: "",
     advisor: "",
-    summaryText: "",
-    measurementDevice: "",
-    measurementSerial: "",
-    calibratorModel: "",
-    calibratorSerial: "",
-    lastCalibrationDate: "",
-    methodText: "",
-    findingsText: "",
-    introExtraText: "",
-    thresholdsExtraText: "",
-    riskExtraText: "",
-    trainingExtraText: "",
-    conclusionsExtraText: "",
-    recommendationsExtraText: "",
-    referencesExtraText: "",
-    appendicesExtraText: "",
   },
-  
-  measurements: [],
-  
-  thresholds: {
-    lex8h: { red: 85, orange: 80, yellow: 70 },
-    peak: { red: 130, yellow: 120 },
-  },
-
   files: [],
   weather: {
     include: true,
@@ -142,6 +55,7 @@ const defaultState: ReportState = {
     date: new Date().toISOString().split("T")[0],
     data: null,
   },
+  data: null,
 };
 
 const WizardContext = createContext<WizardContextType | undefined>(undefined);
@@ -150,81 +64,158 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ReportState>(defaultState);
 
   const updateClient = useCallback((client: Partial<ReportState["client"]>) => {
-    setState((prev) => ({
-      ...prev,
-      client: { ...prev.client, ...client },
-      metadata: {
-        ...prev.metadata,
-        assignment: prev.metadata.assignment
-          ? prev.metadata.assignment
-          : client.name || prev.client.name
-            ? `${prev.reportType === "noise" ? "Støykartlegging" : "Kartlegging"} hos ${client.name ?? prev.client.name}`
-            : prev.metadata.assignment,
-      },
-    }));
+    setState((prev) => {
+      const template = prev.reportType ? getTemplate(prev.reportType as ReportType) : undefined;
+      const prefix = template?.assignmentPrefix || "Kartlegging";
+      return {
+        ...prev,
+        client: { ...prev.client, ...client },
+        sharedMetadata: {
+          ...prev.sharedMetadata,
+          assignment: prev.sharedMetadata.assignment
+            ? prev.sharedMetadata.assignment
+            : client.name || prev.client.name
+              ? `${prefix} hos ${client.name ?? prev.client.name}`
+              : prev.sharedMetadata.assignment,
+        },
+      };
+    });
   }, []);
 
-  const updateMetadata = useCallback((meta: Partial<ReportMetadata>) => {
+  const updateSharedMetadata = useCallback((meta: Partial<SharedMetadata>) => {
     setState((prev) => ({
       ...prev,
-      metadata: { ...prev.metadata, ...meta },
+      sharedMetadata: { ...prev.sharedMetadata, ...meta },
     }));
   }, []);
 
   const setReportType = useCallback((type: ReportState["reportType"]) => {
     setState((prev) => {
-      let assignment = prev.metadata.assignment;
-      if (!assignment && prev.client.name) {
-        const typeLabel = type === "noise" ? "Støykartlegging" : "Kartlegging";
-        assignment = `${typeLabel} hos ${prev.client.name}`;
+      let assignment = prev.sharedMetadata.assignment;
+      if (!assignment && prev.client.name && type) {
+        const template = getTemplate(type as ReportType);
+        const prefix = template?.assignmentPrefix || "Kartlegging";
+        assignment = `${prefix} hos ${prev.client.name}`;
+      }
+
+      let data: TemplateData = null;
+      if (type) {
+        const template = getTemplate(type as ReportType);
+        if (template) {
+          data = createTemplateData(type as ReportType, template.defaultData);
+        }
       }
 
       return {
         ...prev,
         reportType: type,
-        metadata: { ...prev.metadata, assignment },
+        sharedMetadata: { ...prev.sharedMetadata, assignment },
+        data,
+      };
+    });
+  }, []);
+
+  const updateTemplateData = useCallback((updater: (data: TemplateData) => TemplateData) => {
+    setState((prev) => ({
+      ...prev,
+      data: updater(prev.data),
+    }));
+  }, []);
+
+  // --- Noise convenience wrappers ---
+
+  const updateNoiseMetadata = useCallback((meta: Partial<NoiseMetadata>) => {
+    setState((prev) => {
+      const noise = getNoiseData(prev);
+      if (!noise) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "noise" as const,
+          noise: { ...noise, metadata: { ...noise.metadata, ...meta } },
+        },
       };
     });
   }, []);
 
   const addMeasurement = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      measurements: [
-        ...prev.measurements,
-        { 
-          id: Math.random().toString(36).substr(2, 9), 
-          location: "", 
-          duration: "", 
-          lex8h: "", 
-          maxPeak: "", 
-          comment: "" 
-        }
-      ]
-    }));
+    setState((prev) => {
+      const noise = getNoiseData(prev);
+      if (!noise) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "noise" as const,
+          noise: {
+            ...noise,
+            measurements: [
+              ...noise.measurements,
+              {
+                id: Math.random().toString(36).substr(2, 9),
+                location: "",
+                duration: "",
+                lex8h: "",
+                maxPeak: "",
+                comment: "",
+              },
+            ],
+          },
+        },
+      };
+    });
   }, []);
 
   const updateMeasurement = useCallback((id: string, data: Partial<Measurement>) => {
-    setState((prev) => ({
-      ...prev,
-      measurements: prev.measurements.map((m) => 
-        m.id === id ? { ...m, ...data } : m
-      )
-    }));
+    setState((prev) => {
+      const noise = getNoiseData(prev);
+      if (!noise) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "noise" as const,
+          noise: {
+            ...noise,
+            measurements: noise.measurements.map((m) =>
+              m.id === id ? { ...m, ...data } : m
+            ),
+          },
+        },
+      };
+    });
   }, []);
 
   const removeMeasurement = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      measurements: prev.measurements.filter((m) => m.id !== id)
-    }));
+    setState((prev) => {
+      const noise = getNoiseData(prev);
+      if (!noise) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "noise" as const,
+          noise: {
+            ...noise,
+            measurements: noise.measurements.filter((m) => m.id !== id),
+          },
+        },
+      };
+    });
   }, []);
 
   const updateThresholds = useCallback((thresholds: Partial<Thresholds>) => {
-    setState((prev) => ({
-      ...prev,
-      thresholds: { ...prev.thresholds, ...thresholds }
-    }));
+    setState((prev) => {
+      const noise = getNoiseData(prev);
+      if (!noise) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "noise" as const,
+          noise: {
+            ...noise,
+            thresholds: { ...noise.thresholds, ...thresholds },
+          },
+        },
+      };
+    });
   }, []);
 
   const addFiles = useCallback((files: File[]) => {
@@ -244,8 +235,10 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     state,
     updateClient,
-    updateMetadata,
+    updateSharedMetadata,
     setReportType,
+    updateTemplateData,
+    updateNoiseMetadata,
     addMeasurement,
     updateMeasurement,
     removeMeasurement,
@@ -257,7 +250,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setStep,
     reset,
     loadReport,
-  }), [state, updateClient, updateMetadata, setReportType, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
+  }), [state, updateClient, updateSharedMetadata, setReportType, updateTemplateData, updateNoiseMetadata, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
 
   return (
     <WizardContext.Provider value={value}>

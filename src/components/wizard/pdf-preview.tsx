@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useWizard } from "./wizard-context";
-import { generateNoiseReportPDFBlob } from "@/lib/reports/pdf-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ReportType } from "@/lib/reports/template-types";
+import { getTemplate } from "@/lib/reports/template-registry";
 
 const PREVIEW_DEBOUNCE_MS = 800;
 
@@ -13,8 +14,12 @@ export function PDFPreview() {
   const [isLoading, setIsLoading] = useState(false);
   const prevUrlRef = useRef<string | null>(null);
 
+  const template = state.reportType
+    ? getTemplate(state.reportType as ReportType)
+    : undefined;
+
   useEffect(() => {
-    if (state.reportType !== "noise") {
+    if (!template) {
       setUrl(null);
       setIsLoading(false);
       return;
@@ -22,7 +27,7 @@ export function PDFPreview() {
 
     setIsLoading(true);
     const handle = window.setTimeout(() => {
-      const blob = generateNoiseReportPDFBlob(state);
+      const blob = template.generatePDFBlob(state);
       const nextUrl = URL.createObjectURL(blob);
       if (prevUrlRef.current) {
         URL.revokeObjectURL(prevUrlRef.current);
@@ -35,7 +40,7 @@ export function PDFPreview() {
     return () => {
       window.clearTimeout(handle);
     };
-  }, [state]);
+  }, [state, template]);
 
   useEffect(() => {
     return () => {
@@ -45,14 +50,14 @@ export function PDFPreview() {
     };
   }, []);
 
-  if (state.reportType !== "noise") {
+  if (!template) {
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="text-base">PDF‑forhåndsvisning</CardTitle>
+          <CardTitle className="text-base">PDF-forhåndsvisning</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Forhåndsvisning støtter foreløpig kun støyrapport.
+          Velg en rapporttype for å se forhåndsvisning.
         </CardContent>
       </Card>
     );
@@ -61,11 +66,11 @@ export function PDFPreview() {
   return (
     <Card className="h-full">
       <CardHeader>
-        <CardTitle className="text-base">PDF‑forhåndsvisning</CardTitle>
+        <CardTitle className="text-base">PDF-forhåndsvisning</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading && (
-          <div className="p-4 text-sm text-muted-foreground">Oppdaterer forhåndsvisning…</div>
+          <div className="p-4 text-sm text-muted-foreground">Oppdaterer forhåndsvisning...</div>
         )}
         {url ? (
           <iframe
