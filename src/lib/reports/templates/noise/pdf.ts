@@ -308,6 +308,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
           data.cell.styles.fillColor = [255, 230, 200];
         } else if (lex > thresholds.lex8h.yellow || peak > thresholds.peak.yellow) {
           data.cell.styles.fillColor = [255, 255, 200];
+        } else {
+          data.cell.styles.fillColor = [200, 240, 200];
         }
       }
     },
