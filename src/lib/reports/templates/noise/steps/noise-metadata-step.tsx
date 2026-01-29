@@ -1,0 +1,401 @@
+"use client";
+
+import { useWizard } from "@/components/wizard/wizard-context";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { AIFillButton } from "@/components/wizard/ai-fill-button";
+import { getNoiseData } from "../schema";
+import type { NoiseMetadata } from "../schema";
+
+export function NoiseMetadataStep() {
+  const { state, updateNoiseMetadata } = useWizard();
+  const noise = getNoiseData(state);
+  if (!noise) return null;
+
+  const getValue = (field: keyof NoiseMetadata) => noise.metadata[field] ?? "";
+  const setValue = (field: keyof NoiseMetadata, text: string) =>
+    updateNoiseMetadata({ [field]: text });
+
+  return (
+    <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
+      <CardHeader>
+        <CardTitle className="text-2xl text-primary">Støyrapport – detaljer</CardTitle>
+        <CardDescription>
+          Fyll ut støyspesifikke felter. AI kan hjelpe deg med å generere tekst.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-8">
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Sammendrag</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standard sammendrag.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="summary-text">Sammendrag – ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="summary-text"
+                  value={noise.metadata.summaryText}
+                  onChange={(e) => updateNoiseMetadata({ summaryText: e.target.value })}
+                  placeholder="Legg til ekstra tekst i sammendraget."
+                  className="min-h-[140px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="summaryText"
+                  state={state}
+                  getValue={() => getValue("summaryText")}
+                  setValue={(text) => setValue("summaryText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Innledning</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standard innledning.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="intro-extra">Støy og helseeffekter – ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="intro-extra"
+                  value={noise.metadata.introExtraText}
+                  onChange={(e) => updateNoiseMetadata({ introExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="introExtraText"
+                  state={state}
+                  getValue={() => getValue("introExtraText")}
+                  setValue={(text) => setValue("introExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Grenseverdier og tiltaksverdier</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standardtekst og tabell 1.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="thresholds-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="thresholds-extra"
+                  value={noise.metadata.thresholdsExtraText}
+                  onChange={(e) => updateNoiseMetadata({ thresholdsExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om grenseverdier og tiltaksverdier."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="thresholdsExtraText"
+                  state={state}
+                  getValue={() => getValue("thresholdsExtraText")}
+                  setValue={(text) => setValue("thresholdsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Risikovurdering og tiltak</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standardtekst og punktlisten.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="risk-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="risk-extra"
+                  value={noise.metadata.riskExtraText}
+                  onChange={(e) => updateNoiseMetadata({ riskExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om risikovurdering og tiltak."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="riskExtraText"
+                  state={state}
+                  getValue={() => getValue("riskExtraText")}
+                  setValue={(text) => setValue("riskExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Informasjon og opplæring</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standardtekst.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="training-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="training-extra"
+                  value={noise.metadata.trainingExtraText}
+                  onChange={(e) => updateNoiseMetadata({ trainingExtraText: e.target.value })}
+                  placeholder="Tillegg til standardtekst om informasjon og opplæring."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="trainingExtraText"
+                  state={state}
+                  getValue={() => getValue("trainingExtraText")}
+                  setValue={(text) => setValue("trainingExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Gjennomføring og metode</h3>
+            <p className="text-xs text-muted-foreground">Vises i &quot;Gjennomføring og metode for målinger&quot;.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="measurement-device">Måleinstrument</Label>
+              <Input
+                id="measurement-device"
+                value={noise.metadata.measurementDevice}
+                onChange={(e) => updateNoiseMetadata({ measurementDevice: e.target.value })}
+                placeholder="F.eks. Cirrus Optimus Red CR: 161C"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="measurement-serial">Serienr. instrument</Label>
+              <Input
+                id="measurement-serial"
+                value={noise.metadata.measurementSerial}
+                onChange={(e) => updateNoiseMetadata({ measurementSerial: e.target.value })}
+                placeholder="F.eks. G304333"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="calibrator-model">Kalibrator</Label>
+              <Input
+                id="calibrator-model"
+                value={noise.metadata.calibratorModel}
+                onChange={(e) => updateNoiseMetadata({ calibratorModel: e.target.value })}
+                placeholder="F.eks. Cirrus Acoustic Calibrator CR: 515"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="calibrator-serial">Serienr. kalibrator</Label>
+              <Input
+                id="calibrator-serial"
+                value={noise.metadata.calibratorSerial}
+                onChange={(e) => updateNoiseMetadata({ calibratorSerial: e.target.value })}
+                placeholder="F.eks. 101825"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="last-calibration">Siste kalibrering</Label>
+              <Input
+                id="last-calibration"
+                type="date"
+                value={noise.metadata.lastCalibrationDate}
+                onChange={(e) => updateNoiseMetadata({ lastCalibrationDate: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="method-text">Metode / tilleggstekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="method-text"
+                  value={noise.metadata.methodText}
+                  onChange={(e) => updateNoiseMetadata({ methodText: e.target.value })}
+                  placeholder="Skriv eventuelle detaljer om gjennomføring/metode her."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="methodText"
+                  state={state}
+                  getValue={() => getValue("methodText")}
+                  setValue={(text) => setValue("methodText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Funn og vurderinger</h3>
+            <p className="text-xs text-muted-foreground">Legges til under &quot;Måling av støy&quot;.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="findings-text">Funn og vurderinger – ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="findings-text"
+                  value={noise.metadata.findingsText}
+                  onChange={(e) => updateNoiseMetadata({ findingsText: e.target.value })}
+                  placeholder="Skriv eventuelle vurderinger/introduksjon til måleresultatene her."
+                  className="min-h-[140px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="findingsText"
+                  state={state}
+                  getValue={() => getValue("findingsText")}
+                  setValue={(text) => setValue("findingsText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Vurderinger, risikovurdering og konklusjon</h3>
+            <p className="text-xs text-muted-foreground">Legges til før per-måling vurderinger.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="conclusions-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="conclusions-extra"
+                  value={noise.metadata.conclusionsExtraText}
+                  onChange={(e) => updateNoiseMetadata({ conclusionsExtraText: e.target.value })}
+                  placeholder="Tillegg før per-måling vurderinger."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="conclusionsExtraText"
+                  state={state}
+                  getValue={() => getValue("conclusionsExtraText")}
+                  setValue={(text) => setValue("conclusionsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Anbefalinger</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standard anbefalinger.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="recommendations-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="recommendations-extra"
+                  value={noise.metadata.recommendationsExtraText}
+                  onChange={(e) => updateNoiseMetadata({ recommendationsExtraText: e.target.value })}
+                  placeholder="Tillegg til standard anbefalinger."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="recommendationsExtraText"
+                  state={state}
+                  getValue={() => getValue("recommendationsExtraText")}
+                  setValue={(text) => setValue("recommendationsExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Referanser</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter standard referanseliste.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="references-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="references-extra"
+                  value={noise.metadata.referencesExtraText}
+                  onChange={(e) => updateNoiseMetadata({ referencesExtraText: e.target.value })}
+                  placeholder="Tillegg til standard referanseliste."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="referencesExtraText"
+                  state={state}
+                  getValue={() => getValue("referencesExtraText")}
+                  setValue={(text) => setValue("referencesExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary">Vedlegg</h3>
+            <p className="text-xs text-muted-foreground">Legges til etter listen over vedlegg.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="appendices-extra">Ekstra tekst (valgfritt)</Label>
+              <div className="relative">
+                <Textarea
+                  id="appendices-extra"
+                  value={noise.metadata.appendicesExtraText}
+                  onChange={(e) => updateNoiseMetadata({ appendicesExtraText: e.target.value })}
+                  placeholder="Tilleggstekst for vedlegg."
+                  className="min-h-[120px] pr-10"
+                />
+                <AIFillButton
+                  reportType="noise"
+                  field="appendicesExtraText"
+                  state={state}
+                  getValue={() => getValue("appendicesExtraText")}
+                  setValue={(text) => setValue("appendicesExtraText", text)}
+                  className="absolute right-2 top-2"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
