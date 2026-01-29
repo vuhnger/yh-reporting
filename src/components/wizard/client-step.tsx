@@ -4,34 +4,33 @@ import { useWizard } from "./wizard-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Search, Building2 } from "lucide-react";
-import { noiseSampleReport } from "@/lib/reports/sample-report";
+import { noiseSampleReport } from "@/lib/reports/templates/noise/sample";
 
 export function ClientStep() {
-  const { state, updateClient, nextStep, loadReport } = useWizard();
+  const { state, updateClient, loadReport } = useWizard();
   const [isLoading, setIsLoading] = useState(false);
   const lastFetchedOrgNr = useRef<string | null>(null);
 
   const fetchClientData = useCallback(async (orgNr: string) => {
-    // Prevent re-fetching if we just fetched this number
     if (orgNr === lastFetchedOrgNr.current && state.client.name) return;
-    
+
     lastFetchedOrgNr.current = orgNr;
     setIsLoading(true);
-    
+
     try {
       const response = await fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${orgNr}`);
-      
+
       if (!response.ok) return;
 
       const data = await response.json();
-      
+
       const name = data.navn || "";
       const addr = data.forretningsadresse;
       let addressString = "";
-      
+
       if (addr) {
         const lines = addr.adresse || [];
         addressString = `${lines.join(", ")}, ${addr.postnummer} ${addr.poststed}`;
@@ -59,8 +58,6 @@ export function ClientStep() {
   const handleOrgNrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateClient({ orgNr: e.target.value });
   };
-
-  const isValid = state.client.orgNr.replace(/\s/g, "").length === 9 && state.client.name.length > 0;
 
   return (
     <Card className="w-full max-w-2xl mx-auto border-primary/20 shadow-lg">
@@ -97,7 +94,7 @@ export function ClientStep() {
               loadReport(noiseSampleReport);
             }}
           >
-            Fyll inn testdata fra ALS‑rapport (23.09.2025)
+            Fyll inn testdata fra ALS-rapport (23.09.2025)
           </Button>
         </div>
 
@@ -115,11 +112,9 @@ export function ClientStep() {
                 />
               </div>
             </div>
-
           </div>
         )}
       </CardContent>
-      {/* Footer removed for single-page layout */}
     </Card>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import "@/lib/reports/register-templates";
 import { WizardProvider } from "@/components/wizard/wizard-context";
 import { ReportWizardContent } from "@/components/wizard/report-wizard";
 import { PDFPreview } from "@/components/wizard/pdf-preview";
@@ -13,7 +14,7 @@ export default function Home() {
           Follow the steps below to automatically generate a report from measurement data.
         </p>
       </div>
-      
+
       <WizardProvider>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] gap-8 items-start">
           <ReportWizardContent />

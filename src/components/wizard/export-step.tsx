@@ -4,15 +4,19 @@ import { useWizard } from "./wizard-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileDown, FileText } from "lucide-react";
-import { generateNoiseReportPDF } from "@/lib/reports/pdf-generator";
-import { noiseSampleReport } from "@/lib/reports/sample-report";
+import type { ReportType } from "@/lib/reports/template-types";
+import { getTemplate } from "@/lib/reports/template-registry";
 
 export function ExportStep() {
   const { state, loadReport } = useWizard();
 
+  const template = state.reportType
+    ? getTemplate(state.reportType as ReportType)
+    : undefined;
+
   const handleDownload = (format: "docx" | "pdf") => {
-    if (format === "pdf") {
-      generateNoiseReportPDF(state);
+    if (format === "pdf" && template) {
+      template.generatePDF(state);
       return;
     }
 
@@ -20,11 +24,7 @@ export function ExportStep() {
     alert(`DOCX-generering er ikke implementert ennå.`);
   };
 
-  const isReady = state.client.orgNr && state.measurements.length > 0;
-
-  const handlePrefill = () => {
-    loadReport(noiseSampleReport);
-  };
+  const isReady = template ? template.isReadyForExport(state) : false;
 
   return (
     <Card className="w-full max-w-2xl mx-auto text-center border-primary/20 shadow-lg bg-slate-50/50">
@@ -36,8 +36,8 @@ export function ExportStep() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Button 
-            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-blue-500/50 hover:bg-blue-50 transition-all" 
+          <Button
+            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-blue-500/50 hover:bg-blue-50 transition-all"
             variant="outline"
             onClick={() => handleDownload("docx")}
             disabled={!isReady}
@@ -46,9 +46,9 @@ export function ExportStep() {
             Last ned .docx
             <span className="text-xs text-muted-foreground font-normal">Redigerbar Word-fil</span>
           </Button>
-          
-          <Button 
-            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-red-500/50 hover:bg-red-50 transition-all" 
+
+          <Button
+            className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-red-500/50 hover:bg-red-50 transition-all"
             variant="outline"
             onClick={() => handleDownload("pdf")}
             disabled={!isReady}
@@ -59,9 +59,10 @@ export function ExportStep() {
           </Button>
         </div>
         {!isReady && (
-            <p className="text-sm text-destructive">
-                Du må fylle ut bedriftsinformasjon og legge til minst én måling før du kan laste ned.
-            </p>
+          <p className="text-sm text-destructive">
+            {template?.exportValidationMessage ||
+              "Du må fylle ut bedriftsinformasjon og velge rapporttype før du kan laste ned."}
+          </p>
         )}
       </CardContent>
     </Card>
