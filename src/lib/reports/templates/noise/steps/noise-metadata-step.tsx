@@ -29,7 +29,20 @@ export function NoiseMetadataStep() {
     } else {
       delete next[field];
     }
-    updateNoiseMetadata({ textImages: next });
+    const nextScale = { ...(noise.metadata.textImageScale ?? {}) };
+    if (!image) {
+      delete nextScale[field];
+    } else if (!nextScale[field]) {
+      nextScale[field] = 100;
+    }
+    updateNoiseMetadata({ textImages: next, textImageScale: nextScale });
+  };
+
+  const getImageScale = (field: string) => noise.metadata.textImageScale?.[field] || 100;
+  const setImageScale = (field: string, scale: number) => {
+    const next = { ...(noise.metadata.textImageScale ?? {}) };
+    next[field] = scale;
+    updateNoiseMetadata({ textImageScale: next });
   };
 
   return (
@@ -58,6 +71,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[140px] pr-10"
                   imageSrc={getImage("summaryText")}
                   onImageChange={(image) => setImage("summaryText", image)}
+                  imageScale={getImageScale("summaryText")}
+                  onImageScaleChange={(scale) => setImageScale("summaryText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -90,6 +105,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("introExtraText")}
                   onImageChange={(image) => setImage("introExtraText", image)}
+                  imageScale={getImageScale("introExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("introExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -122,6 +139,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("thresholdsExtraText")}
                   onImageChange={(image) => setImage("thresholdsExtraText", image)}
+                  imageScale={getImageScale("thresholdsExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("thresholdsExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -154,6 +173,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("riskExtraText")}
                   onImageChange={(image) => setImage("riskExtraText", image)}
+                  imageScale={getImageScale("riskExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("riskExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -186,6 +207,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("trainingExtraText")}
                   onImageChange={(image) => setImage("trainingExtraText", image)}
+                  imageScale={getImageScale("trainingExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("trainingExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -268,6 +291,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("methodText")}
                   onImageChange={(image) => setImage("methodText", image)}
+                  imageScale={getImageScale("methodText")}
+                  onImageScaleChange={(scale) => setImageScale("methodText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -300,6 +325,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[140px] pr-10"
                   imageSrc={getImage("findingsText")}
                   onImageChange={(image) => setImage("findingsText", image)}
+                  imageScale={getImageScale("findingsText")}
+                  onImageScaleChange={(scale) => setImageScale("findingsText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -332,6 +359,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("conclusionsExtraText")}
                   onImageChange={(image) => setImage("conclusionsExtraText", image)}
+                  imageScale={getImageScale("conclusionsExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("conclusionsExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -364,6 +393,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("recommendationsExtraText")}
                   onImageChange={(image) => setImage("recommendationsExtraText", image)}
+                  imageScale={getImageScale("recommendationsExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("recommendationsExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -395,6 +426,8 @@ export function NoiseMetadataStep() {
                 className="min-h-[120px]"
                 imageSrc={getImage("referencesText")}
                 onImageChange={(image) => setImage("referencesText", image)}
+                imageScale={getImageScale("referencesText")}
+                onImageScaleChange={(scale) => setImageScale("referencesText", scale)}
               />
               <p className="text-xs text-muted-foreground">Legges til som egne punkter under referanser.</p>
             </div>
@@ -409,6 +442,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("referencesExtraText")}
                   onImageChange={(image) => setImage("referencesExtraText", image)}
+                  imageScale={getImageScale("referencesExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("referencesExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -441,6 +476,8 @@ export function NoiseMetadataStep() {
                   className="min-h-[120px] pr-10"
                   imageSrc={getImage("appendicesExtraText")}
                   onImageChange={(image) => setImage("appendicesExtraText", image)}
+                  imageScale={getImageScale("appendicesExtraText")}
+                  onImageScaleChange={(scale) => setImageScale("appendicesExtraText", scale)}
                   actions={
                     <AIFillButton
                       reportType="noise"
