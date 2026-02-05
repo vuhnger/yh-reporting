@@ -44,6 +44,7 @@ export interface NoiseMetadata {
   referencesText: string;
   referencesExtraText: string;
   appendicesExtraText: string;
+  textImages: Record<string, string>;
 }
 
 export interface NoiseReportData {
@@ -71,6 +72,7 @@ export const defaultNoiseMetadata: NoiseMetadata = {
   referencesText: "",
   referencesExtraText: "",
   appendicesExtraText: "",
+  textImages: {},
 };
 
 export const defaultThresholds: Thresholds = {
