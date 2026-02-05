@@ -253,12 +253,12 @@ export function NoiseMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Funn og vurderinger</h3>
+            <h3 className="text-lg font-semibold text-primary">Resultater</h3>
             <p className="text-xs text-muted-foreground">Legges til under &quot;Måling av støy&quot;.</p>
           </div>
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="findings-text">Funn og vurderinger – ekstra tekst (valgfritt)</Label>
+              <Label htmlFor="findings-text">Resultater – ekstra tekst (valgfritt)</Label>
               <div className="relative">
                 <Textarea
                   id="findings-text"
@@ -282,7 +282,7 @@ export function NoiseMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Vurderinger, risikovurdering og konklusjon</h3>
+            <h3 className="text-lg font-semibold text-primary">Diskusjon</h3>
             <p className="text-xs text-muted-foreground">Legges til før per-måling vurderinger.</p>
           </div>
           <div className="grid grid-cols-1 gap-6">
@@ -344,6 +344,17 @@ export function NoiseMetadataStep() {
             <p className="text-xs text-muted-foreground">Legges til etter standard referanseliste.</p>
           </div>
           <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="references-text">Manuelle referanser</Label>
+              <Textarea
+                id="references-text"
+                value={noise.metadata.referencesText}
+                onChange={(e) => updateNoiseMetadata({ referencesText: e.target.value })}
+                placeholder="Legg til egne referanser (en per linje)."
+                className="min-h-[120px]"
+              />
+              <p className="text-xs text-muted-foreground">Legges til som egne punkter under referanser.</p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="references-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">

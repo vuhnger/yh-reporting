@@ -29,6 +29,7 @@ export interface NoiseMetadata {
   summaryText: string;
   introExtraText: string;
   thresholdsExtraText: string;
+  noiseGroup: "I" | "II" | "III";
   riskExtraText: string;
   trainingExtraText: string;
   measurementDevice: string;
@@ -40,6 +41,7 @@ export interface NoiseMetadata {
   findingsText: string;
   conclusionsExtraText: string;
   recommendationsExtraText: string;
+  referencesText: string;
   referencesExtraText: string;
   appendicesExtraText: string;
 }
@@ -54,6 +56,7 @@ export const defaultNoiseMetadata: NoiseMetadata = {
   summaryText: "",
   introExtraText: "",
   thresholdsExtraText: "",
+  noiseGroup: "II",
   riskExtraText: "",
   trainingExtraText: "",
   measurementDevice: "",
@@ -65,6 +68,7 @@ export const defaultNoiseMetadata: NoiseMetadata = {
   findingsText: "",
   conclusionsExtraText: "",
   recommendationsExtraText: "",
+  referencesText: "",
   referencesExtraText: "",
   appendicesExtraText: "",
 };
