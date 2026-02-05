@@ -30,12 +30,14 @@ export function NoiseMetadataStep() {
       delete next[field];
     }
     const nextScale = { ...(noise.metadata.textImageScale ?? {}) };
+    const nextCaptions = { ...(noise.metadata.textImageCaptions ?? {}) };
     if (!image) {
       delete nextScale[field];
+      delete nextCaptions[field];
     } else if (!nextScale[field]) {
       nextScale[field] = 100;
     }
-    updateNoiseMetadata({ textImages: next, textImageScale: nextScale });
+    updateNoiseMetadata({ textImages: next, textImageScale: nextScale, textImageCaptions: nextCaptions });
   };
 
   const getImageScale = (field: string) => noise.metadata.textImageScale?.[field] || 100;
@@ -43,6 +45,17 @@ export function NoiseMetadataStep() {
     const next = { ...(noise.metadata.textImageScale ?? {}) };
     next[field] = scale;
     updateNoiseMetadata({ textImageScale: next });
+  };
+
+  const getImageCaption = (field: string) => noise.metadata.textImageCaptions?.[field] || "";
+  const setImageCaption = (field: string, caption: string) => {
+    const next = { ...(noise.metadata.textImageCaptions ?? {}) };
+    if (caption.trim()) {
+      next[field] = caption;
+    } else {
+      delete next[field];
+    }
+    updateNoiseMetadata({ textImageCaptions: next });
   };
 
   return (
@@ -73,6 +86,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("summaryText", image)}
                   imageScale={getImageScale("summaryText")}
                   onImageScaleChange={(scale) => setImageScale("summaryText", scale)}
+                  imageCaption={getImageCaption("summaryText")}
+                  onImageCaptionChange={(caption) => setImageCaption("summaryText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -107,6 +122,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("introExtraText", image)}
                   imageScale={getImageScale("introExtraText")}
                   onImageScaleChange={(scale) => setImageScale("introExtraText", scale)}
+                  imageCaption={getImageCaption("introExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("introExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -141,6 +158,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("thresholdsExtraText", image)}
                   imageScale={getImageScale("thresholdsExtraText")}
                   onImageScaleChange={(scale) => setImageScale("thresholdsExtraText", scale)}
+                  imageCaption={getImageCaption("thresholdsExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("thresholdsExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -175,6 +194,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("riskExtraText", image)}
                   imageScale={getImageScale("riskExtraText")}
                   onImageScaleChange={(scale) => setImageScale("riskExtraText", scale)}
+                  imageCaption={getImageCaption("riskExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("riskExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -209,6 +230,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("trainingExtraText", image)}
                   imageScale={getImageScale("trainingExtraText")}
                   onImageScaleChange={(scale) => setImageScale("trainingExtraText", scale)}
+                  imageCaption={getImageCaption("trainingExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("trainingExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -293,6 +316,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("methodText", image)}
                   imageScale={getImageScale("methodText")}
                   onImageScaleChange={(scale) => setImageScale("methodText", scale)}
+                  imageCaption={getImageCaption("methodText")}
+                  onImageCaptionChange={(caption) => setImageCaption("methodText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -327,6 +352,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("findingsText", image)}
                   imageScale={getImageScale("findingsText")}
                   onImageScaleChange={(scale) => setImageScale("findingsText", scale)}
+                  imageCaption={getImageCaption("findingsText")}
+                  onImageCaptionChange={(caption) => setImageCaption("findingsText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -361,6 +388,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("conclusionsExtraText", image)}
                   imageScale={getImageScale("conclusionsExtraText")}
                   onImageScaleChange={(scale) => setImageScale("conclusionsExtraText", scale)}
+                  imageCaption={getImageCaption("conclusionsExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("conclusionsExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -395,6 +424,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("recommendationsExtraText", image)}
                   imageScale={getImageScale("recommendationsExtraText")}
                   onImageScaleChange={(scale) => setImageScale("recommendationsExtraText", scale)}
+                  imageCaption={getImageCaption("recommendationsExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("recommendationsExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -428,6 +459,8 @@ export function NoiseMetadataStep() {
                 onImageChange={(image) => setImage("referencesText", image)}
                 imageScale={getImageScale("referencesText")}
                 onImageScaleChange={(scale) => setImageScale("referencesText", scale)}
+                imageCaption={getImageCaption("referencesText")}
+                onImageCaptionChange={(caption) => setImageCaption("referencesText", caption)}
               />
               <p className="text-xs text-muted-foreground">Legges til som egne punkter under referanser.</p>
             </div>
@@ -444,6 +477,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("referencesExtraText", image)}
                   imageScale={getImageScale("referencesExtraText")}
                   onImageScaleChange={(scale) => setImageScale("referencesExtraText", scale)}
+                  imageCaption={getImageCaption("referencesExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("referencesExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"
@@ -478,6 +513,8 @@ export function NoiseMetadataStep() {
                   onImageChange={(image) => setImage("appendicesExtraText", image)}
                   imageScale={getImageScale("appendicesExtraText")}
                   onImageScaleChange={(scale) => setImageScale("appendicesExtraText", scale)}
+                  imageCaption={getImageCaption("appendicesExtraText")}
+                  onImageCaptionChange={(caption) => setImageCaption("appendicesExtraText", caption)}
                   actions={
                     <AIFillButton
                       reportType="noise"

@@ -34,6 +34,9 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   const selectedGroup = noiseGroupDetails[noiseMeta.noiseGroup];
   const getImage = (field: string) => noiseMeta.textImages?.[field] || "";
   const getImageScale = (field: string) => noiseMeta.textImageScale?.[field] || 100;
+  const getImageCaption = (field: string) => noiseMeta.textImageCaptions?.[field] || "";
+
+  const IMAGE_MAX_HEIGHT = 120;
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
@@ -138,16 +141,31 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     finalY += targetHeight + 4;
   };
 
-  const renderParagraphWithImage = (text: string, imageSrc: string, scale = 100, minHeight = 0) => {
+  const renderParagraphWithImage = (
+    text: string,
+    imageSrc: string,
+    scale = 100,
+    caption = "",
+    minHeight = 0
+  ) => {
     const content = text?.trim() ? text : "";
+    const imageCaption = caption?.trim() ? caption.trim() : "";
     if (!content && !imageSrc) return;
     doc.setFontSize(10);
     const lines = doc.splitTextToSize(content || " ", pageWidth - 28);
     const textHeight = Math.max(lines.length * 5 + 4, minHeight);
-    const imageHeight = imageSrc ? Math.min(120, pageHeight / 3) : 0;
-    ensureSpace(textHeight + imageHeight + 8);
+    const imageHeight = imageSrc ? Math.min(IMAGE_MAX_HEIGHT, pageHeight / 3) : 0;
+    const captionHeight = imageCaption ? 6 : 0;
+    ensureSpace(textHeight + imageHeight + captionHeight + 8);
     if (imageSrc) {
       renderImage(imageSrc, imageHeight, scale);
+    }
+    if (imageCaption) {
+      doc.setFontSize(9);
+      const captionLines = doc.splitTextToSize(imageCaption, pageWidth - 28);
+      doc.text(captionLines, 14, finalY);
+      finalY += captionLines.length * 4 + 2;
+      doc.setFontSize(10);
     }
     doc.text(lines, 14, finalY);
     finalY += textHeight + 4;
@@ -163,14 +181,29 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     return height;
   };
 
-  const renderBulletsWithImage = (items: string[], imageSrc: string, scale = 100, minHeight = 0) => {
+  const renderBulletsWithImage = (
+    items: string[],
+    imageSrc: string,
+    scale = 100,
+    caption = "",
+    minHeight = 0
+  ) => {
     if (items.length === 0 && !imageSrc) return;
     doc.setFontSize(10);
     const bulletsHeight = Math.max(getBulletsHeight(items), minHeight);
-    const imageHeight = imageSrc ? Math.min(120, pageHeight / 3) : 0;
-    ensureSpace(bulletsHeight + imageHeight + 8);
+    const imageHeight = imageSrc ? Math.min(IMAGE_MAX_HEIGHT, pageHeight / 3) : 0;
+    const imageCaption = caption?.trim() ? caption.trim() : "";
+    const captionHeight = imageCaption ? 6 : 0;
+    ensureSpace(bulletsHeight + imageHeight + captionHeight + 8);
     if (imageSrc) {
       renderImage(imageSrc, imageHeight, scale);
+    }
+    if (imageCaption) {
+      doc.setFontSize(9);
+      const captionLines = doc.splitTextToSize(imageCaption, pageWidth - 28);
+      doc.text(captionLines, 14, finalY);
+      finalY += captionLines.length * 4 + 2;
+      doc.setFontSize(10);
     }
     items.forEach((item) => {
       const lines = doc.splitTextToSize(item, pageWidth - 36);
@@ -195,7 +228,13 @@ export function createNoiseReportPDFDoc(state: ReportState) {
 
   // --- Summary ---
   renderHeading("Sammendrag");
-  renderParagraphWithImage(summaryText, getImage("summaryText"), getImageScale("summaryText"), 60);
+  renderParagraphWithImage(
+    summaryText,
+    getImage("summaryText"),
+    getImageScale("summaryText"),
+    getImageCaption("summaryText"),
+    60
+  );
 
   // --- Introduction ---
   renderHeading("Innledning");
@@ -239,7 +278,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.introExtraText?.trim() || "",
     getImage("introExtraText"),
-    getImageScale("introExtraText")
+    getImageScale("introExtraText"),
+    getImageCaption("introExtraText")
   );
 
   doc.setFontSize(12);
@@ -296,7 +336,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.thresholdsExtraText?.trim() || "",
     getImage("thresholdsExtraText"),
-    getImageScale("thresholdsExtraText")
+    getImageScale("thresholdsExtraText"),
+    getImageCaption("thresholdsExtraText")
   );
 
   doc.setFontSize(12);
@@ -318,7 +359,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.riskExtraText?.trim() || "",
     getImage("riskExtraText"),
-    getImageScale("riskExtraText")
+    getImageScale("riskExtraText"),
+    getImageCaption("riskExtraText")
   );
 
   doc.setFontSize(12);
@@ -330,7 +372,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.trainingExtraText?.trim() || "",
     getImage("trainingExtraText"),
-    getImageScale("trainingExtraText")
+    getImageScale("trainingExtraText"),
+    getImageCaption("trainingExtraText")
   );
 
   // --- Method Section + Table ---
@@ -345,7 +388,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.methodText?.trim() || "",
     getImage("methodText"),
-    getImageScale("methodText")
+    getImageScale("methodText"),
+    getImageCaption("methodText")
   );
 
   const tableBody = measurements.map((m) => [
@@ -374,7 +418,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.findingsText?.trim() || "",
     getImage("findingsText"),
-    getImageScale("findingsText")
+    getImageScale("findingsText"),
+    getImageCaption("findingsText")
   );
   renderParagraph(
     "Måleresultatene er gitt i tabell 2. LAeq (dB A) er brukt i resultatene fordi støyen i hovedsak er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
@@ -440,7 +485,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.conclusionsExtraText?.trim() || "",
     getImage("conclusionsExtraText"),
-    getImageScale("conclusionsExtraText")
+    getImageScale("conclusionsExtraText"),
+    getImageCaption("conclusionsExtraText")
   );
 
   // --- Conclusions per Measurement ---
@@ -480,7 +526,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.recommendationsExtraText?.trim() || "",
     getImage("recommendationsExtraText"),
-    getImageScale("recommendationsExtraText")
+    getImageScale("recommendationsExtraText"),
+    getImageCaption("recommendationsExtraText")
   );
 
   // --- References ---
@@ -502,12 +549,14 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderBulletsWithImage(
     manualReferences,
     getImage("referencesText"),
-    getImageScale("referencesText")
+    getImageScale("referencesText"),
+    getImageCaption("referencesText")
   );
   renderParagraphWithImage(
     noiseMeta.referencesExtraText?.trim() || "",
     getImage("referencesExtraText"),
-    getImageScale("referencesExtraText")
+    getImageScale("referencesExtraText"),
+    getImageCaption("referencesExtraText")
   );
 
   // --- Appendices ---
@@ -520,7 +569,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraphWithImage(
     noiseMeta.appendicesExtraText?.trim() || "",
     getImage("appendicesExtraText"),
-    getImageScale("appendicesExtraText")
+    getImageScale("appendicesExtraText"),
+    getImageCaption("appendicesExtraText")
   );
 
   return doc;

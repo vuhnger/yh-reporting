@@ -3,6 +3,7 @@
 import { useId } from "react";
 import type { ReactNode, ChangeEvent, TextareaHTMLAttributes } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,8 @@ type Props = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   onImageChange?: (image: string | null) => void;
   imageScale?: number;
   onImageScaleChange?: (scale: number) => void;
+  imageCaption?: string;
+  onImageCaptionChange?: (caption: string) => void;
   actions?: ReactNode;
 };
 
@@ -19,6 +22,8 @@ export function ImageTextarea({
   onImageChange,
   imageScale = 100,
   onImageScaleChange,
+  imageCaption,
+  onImageCaptionChange,
   actions,
   className,
   ...props
@@ -72,8 +77,7 @@ export function ImageTextarea({
           <img
             src={imageSrc}
             alt="Opplastet vedlegg"
-            className="rounded-md border border-muted object-contain"
-            style={{ width: `${imageScale}%` }}
+            className="w-full rounded-md border border-muted object-contain"
           />
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">Størrelse</span>
@@ -86,7 +90,14 @@ export function ImageTextarea({
               className="w-40"
             />
             <span className="text-xs text-muted-foreground w-10 text-right">{imageScale}%</span>
+            <span className="text-xs text-muted-foreground">Brukes i PDF</span>
           </div>
+          <Input
+            value={imageCaption ?? ""}
+            onChange={(event) => onImageCaptionChange?.(event.target.value)}
+            placeholder="Bildetekst (valgfritt)"
+            className="max-w-md"
+          />
         </div>
       )}
       <div className="relative">
