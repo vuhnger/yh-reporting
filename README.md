@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YH Auto-Reporter
 
-## Getting Started
+Rapportverktøy for yrkeshygienikere i Dr. Dropin Bedrift. Automatiserer rapportskriving for HMS-kartlegginger ved å fylle inn data, generere tekst med AI, og produsere profesjonelle PDF-rapporter.
 
-First, run the development server:
+**Codeowner:** victor.uhnger@drdropin.no
+
+## Tech stack
+
+- **Framework:** Next.js 16 (App Router), React 19, TypeScript
+- **Styling:** Tailwind CSS 4, shadcn/ui (Radix UI)
+- **Auth:** NextAuth med Google OAuth, domenerestriksjon
+- **AI:** Google Gemini API (streaming tekstgenerering)
+- **Google Sheets:** Utstyrsoversikt via service account
+- **PDF:** jsPDF + jspdf-autotable
+- **Ikoner:** Lucide React
+
+## Rapporttyper
+
+| Type | Status |
+|------|--------|
+| Støy | Implementert |
+| Inneklima | Placeholder |
+| Kjemisk helsefare | Placeholder |
+| Belysning | Placeholder |
+
+## Kom i gang
+
+### 1. Klon og installer
+
+```bash
+git clone <repo-url>
+cd yh
+npm install
+```
+
+### 2. Sett opp miljøvariabler
+
+Kopier `.env.local.example` til `.env.local` og fyll inn verdiene:
+
+```bash
+cp .env.local.example .env.local
+```
+
+| Variabel | Beskrivelse |
+|----------|-------------|
+| `GOOGLE_CLIENT_ID` | OAuth client ID for innlogging |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
+| `NEXTAUTH_SECRET` | Tilfeldig secret for NextAuth-sessions |
+| `NEXTAUTH_URL` | App-URL (http://localhost:3000 lokalt) |
+| `GOOGLE_ALLOWED_DOMAIN` | Domenerestriksjon for innlogging (f.eks. `drdropin.no`) |
+| `GEMINI_API_KEY` | API-nøkkel for Google Gemini |
+| `GEMINI_MODEL` | Gemini-modell (standard: `gemini-3-flash-preview`) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account JSON for Sheets-tilgang |
+| `GOOGLE_SHEETS_ID` | Spreadsheet-ID for utstyrsoversikten |
+| `GOOGLE_SHEETS_GID` | GID for det spesifikke arket |
+
+### 3. Start utviklingsserver
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Åpne [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Secrets
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Alle secrets ligger i **1Password** under vaultet **bht-vertexai-production**.
 
-## Learn More
+Dette inkluderer Google OAuth-credentials, NextAuth secret, Gemini API-nøkkel og service account JSON for Google Sheets.
 
-To learn more about Next.js, take a look at the following resources:
+## Prosjektstruktur
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── ai-fill/              # AI-tekstgenerering (streaming)
+│   │   ├── auth/[...nextauth]/   # NextAuth API-rute
+│   │   └── instruments/          # Utstyrsoversikt fra Google Sheets
+│   ├── auth/signin/              # Innloggingsside
+│   ├── layout.tsx                # Root layout
+│   └── page.tsx                  # Hovedside (wizard)
+├── components/
+│   ├── layout/                   # Header med auth
+│   ├── ui/                       # shadcn/ui-komponenter
+│   └── wizard/                   # Rapportveiviser
+│       ├── wizard-context.tsx    # Global state for wizard
+│       ├── report-wizard.tsx     # Hovedkomponent
+│       ├── instrument-selector.tsx # Utstyrstabell
+│       ├── ai-fill-button.tsx    # AI-genereringsknapp
+│       └── pdf-preview.tsx       # Live PDF-forhåndsvisning
+└── lib/
+    ├── auth.ts                   # NextAuth-konfigurasjon
+    ├── google-sheets.ts          # Google Sheets-klient
+    └── reports/
+        ├── template-types.ts     # Felles typer
+        ├── template-registry.ts  # Mal-register
+        └── templates/
+            └── noise/            # Støyrapport
+                ├── schema.ts     # Typer og defaults
+                ├── sample.ts     # Eksempeldata
+                ├── pdf.ts        # PDF-generering
+                ├── ai.ts         # AI-kontekst og felter
+                └── steps/        # Wizard-steg
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Arkitektur
 
-## Deploy on Vercel
+### Template-system
+Hver rapporttype implementerer `ReportTemplate`-interfacet og registreres i template-registeret. En mal definerer:
+- **Schema** — typer, defaults, valideringslogikk
+- **Steps** — wizard-steg (React-komponenter)
+- **PDF** — PDF-generering med jsPDF
+- **AI** — feltkonfigurasjon og kontekstbygging for Gemini
+- **Sample** — eksempeldata for utvikling/testing
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Wizard-flyt
+1. Velg rapporttype
+2. Fyll inn kundeinformasjon
+3. Fyll inn felles metadata (oppdrag, dato, deltakere)
+4. Rapportspesifikke steg (f.eks. målinger, utstyr, tekster)
+5. Gjennomgang med live PDF-forhåndsvisning
+6. Eksport (PDF-nedlasting)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Google Sheets-integrasjon
+Utstyrsoversikten hentes fra et Google Sheet via service account. API-ruten (`/api/instruments`) cacher resultatet i 5 minutter. Brukes for å velge måleinstrumenter, kalibratorer, etc. i rapportene.
+
+### AI-tekstgenerering
+Gemini API brukes til å generere felttekster basert på rapportdata. Hver mal definerer hvilke felter som støtter AI-generering, med spesifikk veiledning og kontekst. Responsen streames direkte til klienten.
+
+## Scripts
+
+```bash
+npm run dev       # Utviklingsserver
+npm run build     # Produksjonsbuild
+npm run start     # Produksjonsserver
+npm run lint      # Kjør ESLint
+```
+
+## CI/CD
+
+GitHub Actions-workflow (`.github/workflows/sync-to-dropin.yaml`) synkroniserer `main`-branchen til work-repoet ved push. Krever `WORK_REPO_TOKEN` som GitHub secret.
