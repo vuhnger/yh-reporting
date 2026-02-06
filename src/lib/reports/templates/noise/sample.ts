@@ -24,6 +24,8 @@ const noiseSampleData: NoiseReportData = {
     referencesExtraText: "",
     appendicesExtraText: "",
     textImages: {},
+    textImageScale: {},
+    textImageCaptions: {},
   },
   measurements: [
     {

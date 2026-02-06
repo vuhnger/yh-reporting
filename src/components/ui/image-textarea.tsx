@@ -3,18 +3,27 @@
 import { useId } from "react";
 import type { ReactNode, ChangeEvent, TextareaHTMLAttributes } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type Props = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   imageSrc?: string;
   onImageChange?: (image: string | null) => void;
+  imageScale?: number;
+  onImageScaleChange?: (scale: number) => void;
+  imageCaption?: string;
+  onImageCaptionChange?: (caption: string) => void;
   actions?: ReactNode;
 };
 
 export function ImageTextarea({
   imageSrc,
   onImageChange,
+  imageScale = 100,
+  onImageScaleChange,
+  imageCaption,
+  onImageCaptionChange,
   actions,
   className,
   ...props
@@ -63,19 +72,40 @@ export function ImageTextarea({
           </Button>
         )}
       </div>
-      <div className="relative">
-        {imageSrc && (
+      {imageSrc && (
+        <div className="space-y-2">
           <img
             src={imageSrc}
             alt="Opplastet vedlegg"
-            className="absolute inset-0 h-full w-full object-contain opacity-30 pointer-events-none"
+            className="w-full rounded-md border border-muted object-contain"
           />
-        )}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">Størrelse</span>
+            <input
+              type="range"
+              min={40}
+              max={140}
+              value={imageScale}
+              onChange={(event) => onImageScaleChange?.(Number(event.target.value))}
+              className="w-40"
+            />
+            <span className="text-xs text-muted-foreground w-10 text-right">{imageScale}%</span>
+            <span className="text-xs text-muted-foreground">Brukes i PDF</span>
+          </div>
+          <Input
+            value={imageCaption ?? ""}
+            onChange={(event) => onImageCaptionChange?.(event.target.value)}
+            placeholder="Bildetekst (valgfritt)"
+            className="max-w-md"
+          />
+        </div>
+      )}
+      <div className="relative">
         <Textarea
           {...props}
-          className={cn("relative z-10 bg-white/70", className)}
+          className={cn("bg-white", className)}
         />
-        {actions && <div className="absolute right-2 top-2 z-20">{actions}</div>}
+        {actions && <div className="absolute right-2 top-2">{actions}</div>}
       </div>
     </div>
   );

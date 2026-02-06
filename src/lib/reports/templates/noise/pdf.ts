@@ -32,6 +32,11 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     },
   } as const;
   const selectedGroup = noiseGroupDetails[noiseMeta.noiseGroup];
+  const getImage = (field: string) => noiseMeta.textImages?.[field] || "";
+  const getImageScale = (field: string) => noiseMeta.textImageScale?.[field] || 100;
+  const getImageCaption = (field: string) => noiseMeta.textImageCaptions?.[field] || "";
+
+  const IMAGE_MAX_HEIGHT = 120;
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
@@ -108,6 +113,107 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     finalY += lines.length * 5 + 4;
   };
 
+  const getImageFormat = (imageSrc: string) => {
+    if (imageSrc.startsWith("data:image/png")) return "PNG";
+    if (imageSrc.startsWith("data:image/jpeg") || imageSrc.startsWith("data:image/jpg")) return "JPEG";
+    return null;
+  };
+
+  const renderImage = (imageSrc: string, maxHeight: number, scale = 100) => {
+    const format = getImageFormat(imageSrc);
+    if (!format) return;
+
+    const props = (doc as any).getImageProperties?.(imageSrc);
+    if (!props) return;
+
+    const availableWidth = (pageWidth - 28) * (scale / 100);
+    const ratio = props.height / props.width;
+    let targetWidth = availableWidth;
+    let targetHeight = targetWidth * ratio;
+    if (targetHeight > maxHeight) {
+      targetHeight = maxHeight;
+      targetWidth = targetHeight / ratio;
+    }
+
+    const x = 14 + (pageWidth - 28 - targetWidth) / 2;
+    const y = finalY;
+    doc.addImage(imageSrc, format, x, y, targetWidth, targetHeight);
+    finalY += targetHeight + 4;
+  };
+
+  const renderParagraphWithImage = (
+    text: string,
+    imageSrc: string,
+    scale = 100,
+    caption = "",
+    minHeight = 0
+  ) => {
+    const content = text?.trim() ? text : "";
+    const imageCaption = caption?.trim() ? caption.trim() : "";
+    if (!content && !imageSrc) return;
+    doc.setFontSize(10);
+    const lines = doc.splitTextToSize(content || " ", pageWidth - 28);
+    const textHeight = Math.max(lines.length * 5 + 4, minHeight);
+    const imageHeight = imageSrc ? Math.min(IMAGE_MAX_HEIGHT, pageHeight / 3) : 0;
+    const captionHeight = imageCaption ? 6 : 0;
+    ensureSpace(textHeight + imageHeight + captionHeight + 8);
+    if (imageSrc) {
+      renderImage(imageSrc, imageHeight, scale);
+    }
+    if (imageCaption) {
+      doc.setFontSize(9);
+      const captionLines = doc.splitTextToSize(imageCaption, pageWidth - 28);
+      doc.text(captionLines, 14, finalY);
+      finalY += captionLines.length * 4 + 2;
+      doc.setFontSize(10);
+    }
+    doc.text(lines, 14, finalY);
+    finalY += textHeight + 4;
+  };
+
+  const getBulletsHeight = (items: string[]) => {
+    let height = 0;
+    items.forEach((item) => {
+      const lines = doc.splitTextToSize(item, pageWidth - 36);
+      height += lines.length * 5 + 2;
+    });
+    height += 2;
+    return height;
+  };
+
+  const renderBulletsWithImage = (
+    items: string[],
+    imageSrc: string,
+    scale = 100,
+    caption = "",
+    minHeight = 0
+  ) => {
+    if (items.length === 0 && !imageSrc) return;
+    doc.setFontSize(10);
+    const bulletsHeight = Math.max(getBulletsHeight(items), minHeight);
+    const imageHeight = imageSrc ? Math.min(IMAGE_MAX_HEIGHT, pageHeight / 3) : 0;
+    const imageCaption = caption?.trim() ? caption.trim() : "";
+    const captionHeight = imageCaption ? 6 : 0;
+    ensureSpace(bulletsHeight + imageHeight + captionHeight + 8);
+    if (imageSrc) {
+      renderImage(imageSrc, imageHeight, scale);
+    }
+    if (imageCaption) {
+      doc.setFontSize(9);
+      const captionLines = doc.splitTextToSize(imageCaption, pageWidth - 28);
+      doc.text(captionLines, 14, finalY);
+      finalY += captionLines.length * 4 + 2;
+      doc.setFontSize(10);
+    }
+    items.forEach((item) => {
+      const lines = doc.splitTextToSize(item, pageWidth - 36);
+      doc.text("•", 16, finalY);
+      doc.text(lines, 20, finalY);
+      finalY += lines.length * 5 + 2;
+    });
+    finalY += 2;
+  };
+
   const renderBullets = (items: string[]) => {
     doc.setFontSize(10);
     items.forEach((item) => {
@@ -122,7 +228,13 @@ export function createNoiseReportPDFDoc(state: ReportState) {
 
   // --- Summary ---
   renderHeading("Sammendrag");
-  renderParagraph(summaryText);
+  renderParagraphWithImage(
+    summaryText,
+    getImage("summaryText"),
+    getImageScale("summaryText"),
+    getImageCaption("summaryText"),
+    60
+  );
 
   // --- Introduction ---
   renderHeading("Innledning");
@@ -163,9 +275,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraph(
     "Flere av disse helseeffektene kan oppstå selv når lydnivået er relativt lavt."
   );
-  if (noiseMeta.introExtraText?.trim()) {
-    renderParagraph(noiseMeta.introExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.introExtraText?.trim() || "",
+    getImage("introExtraText"),
+    getImageScale("introExtraText"),
+    getImageCaption("introExtraText")
+  );
 
   doc.setFontSize(12);
   doc.text("Grenseverdier og tiltaksverdier", 14, finalY);
@@ -218,9 +333,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraph(
     "For arbeidsgruppene I og II, skal støy fra egen aktivitet ikke inngå i vurderingen i forhold til nedre tiltaksverdi så lenge arbeidstakeren selv kan avbryte støyen. For spise- og hvilerom skal kun bakgrunnsstøy fra installasjoner, tilstøtende lokaler og omgivelser inngå i vurderingen."
   );
-  if (noiseMeta.thresholdsExtraText?.trim()) {
-    renderParagraph(noiseMeta.thresholdsExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.thresholdsExtraText?.trim() || "",
+    getImage("thresholdsExtraText"),
+    getImageScale("thresholdsExtraText"),
+    getImageCaption("thresholdsExtraText")
+  );
 
   doc.setFontSize(12);
   doc.text("Risikovurdering og tiltak", 14, finalY);
@@ -238,9 +356,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     "tilrettelegge for begrensning av eksponeringstid og intensitet, og med støyfrie hvileperioder",
     "sørge for helseundersøkelser.",
   ]);
-  if (noiseMeta.riskExtraText?.trim()) {
-    renderParagraph(noiseMeta.riskExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.riskExtraText?.trim() || "",
+    getImage("riskExtraText"),
+    getImageScale("riskExtraText"),
+    getImageCaption("riskExtraText")
+  );
 
   doc.setFontSize(12);
   doc.text("Informasjon og opplæring", 14, finalY);
@@ -248,9 +369,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraph(
     "Arbeidstakere og verneombud skal ha løpende informasjon og opplæring om aktuell risiko i forbindelse med støy dersom arbeidstakerne utsettes for støy som er lik eller overskrider LEX,8h ≥ 80 dB (A) eller LpC,peak ≥ 130 dB (C)."
   );
-  if (noiseMeta.trainingExtraText?.trim()) {
-    renderParagraph(noiseMeta.trainingExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.trainingExtraText?.trim() || "",
+    getImage("trainingExtraText"),
+    getImageScale("trainingExtraText"),
+    getImageCaption("trainingExtraText")
+  );
 
   // --- Method Section + Table ---
   renderHeading("Gjennomføring og metode for målinger");
@@ -261,9 +385,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
       `${noiseMeta.lastCalibrationDate || "-"}.`
   );
 
-  if (noiseMeta.methodText?.trim()) {
-    renderParagraph(noiseMeta.methodText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.methodText?.trim() || "",
+    getImage("methodText"),
+    getImageScale("methodText"),
+    getImageCaption("methodText")
+  );
 
   const tableBody = measurements.map((m) => [
     m.location,
@@ -288,9 +415,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   doc.setFontSize(12);
   doc.text("Måling av støy", 14, finalY);
   finalY += 6;
-  if (noiseMeta.findingsText?.trim()) {
-    renderParagraph(noiseMeta.findingsText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.findingsText?.trim() || "",
+    getImage("findingsText"),
+    getImageScale("findingsText"),
+    getImageCaption("findingsText")
+  );
   renderParagraph(
     "Måleresultatene er gitt i tabell 2. LAeq (dB A) er brukt i resultatene fordi støyen i hovedsak er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
   );
@@ -354,9 +484,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   renderParagraph(
     "Generelt viste målingene at det ikke er registrert impulsstøy over 130 dB(C). Videre følger en kort vurdering per målepunkt, basert på registrerte nivåer, varighet og tilgjengelig informasjon."
   );
-  if (noiseMeta.conclusionsExtraText?.trim()) {
-    renderParagraph(noiseMeta.conclusionsExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.conclusionsExtraText?.trim() || "",
+    getImage("conclusionsExtraText"),
+    getImageScale("conclusionsExtraText"),
+    getImageCaption("conclusionsExtraText")
+  );
 
   // --- Conclusions per Measurement ---
   renderHeading("Konklusjon");
@@ -392,9 +525,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   // --- Recommendations ---
   renderHeading("Anbefalinger");
   renderBullets(buildRecommendations(measurements, thresholds));
-  if (noiseMeta.recommendationsExtraText?.trim()) {
-    renderParagraph(noiseMeta.recommendationsExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.recommendationsExtraText?.trim() || "",
+    getImage("recommendationsExtraText"),
+    getImageScale("recommendationsExtraText"),
+    getImageCaption("recommendationsExtraText")
+  );
 
   // --- References ---
   renderHeading("Referanser");
@@ -406,18 +542,24 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     "Forskrift om tekniske krav til byggverk (TEK17).",
     "Forskrift om tiltaks- og grenseverdier § 2 Støy.",
   ]);
-  if (noiseMeta.referencesText?.trim()) {
-    const manualReferences = noiseMeta.referencesText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    if (manualReferences.length > 0) {
-      renderBullets(manualReferences);
-    }
-  }
-  if (noiseMeta.referencesExtraText?.trim()) {
-    renderParagraph(noiseMeta.referencesExtraText.trim());
-  }
+  const manualReferences = noiseMeta.referencesText
+    ? noiseMeta.referencesText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : [];
+  renderBulletsWithImage(
+    manualReferences,
+    getImage("referencesText"),
+    getImageScale("referencesText"),
+    getImageCaption("referencesText")
+  );
+  renderParagraphWithImage(
+    noiseMeta.referencesExtraText?.trim() || "",
+    getImage("referencesExtraText"),
+    getImageScale("referencesExtraText"),
+    getImageCaption("referencesExtraText")
+  );
 
   // --- Appendices ---
   renderHeading("Vedlegg");
@@ -426,9 +568,12 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   } else {
     renderBullets(state.files.map((file, index) => `Vedlegg ${index + 1} – ${file.name}`));
   }
-  if (noiseMeta.appendicesExtraText?.trim()) {
-    renderParagraph(noiseMeta.appendicesExtraText.trim());
-  }
+  renderParagraphWithImage(
+    noiseMeta.appendicesExtraText?.trim() || "",
+    getImage("appendicesExtraText"),
+    getImageScale("appendicesExtraText"),
+    getImageCaption("appendicesExtraText")
+  );
 
   return doc;
 }
