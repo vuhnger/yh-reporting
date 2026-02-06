@@ -2,14 +2,16 @@ import type { AIFieldConfig, ReportState } from "../../template-types";
 import { getNoiseData } from "./schema";
 
 export const noiseSystemInstruction =
-  "Du er en teknisk skribent som er ekspert på akustikk og HMS. Du skriver utfyllende, forklarende og detaljerte tekster basert på måledata. Språket er formelt og saklig.";
+  "Du er en teknisk skribent som er ekspert på akustikk og HMS. Du skriver presise, forklarende tekster basert på måledata og tilpasser lengde og detaljeringsgrad til feltets krav. Språket er formelt og saklig.";
 
 export const noiseAIFields: Record<string, AIFieldConfig> = {
   summaryText: {
     label: "Sammendrag (ekstra tekst)",
     purpose: "Dette feltet skal utdype sammendraget med relevant, nøytral vurdering.",
+    length: "Kort og konsist: 3–5 setninger i ett avsnitt.",
+    structure: "Sammenhengende tekst i 1 avsnitt. Ingen lister.",
     guidance:
-      "Skriv 2–3 avsnitt som utdyper sammendraget med måleresultater (intervall, høyeste peak, ev. overskridelser) og vurdering. Ikke gjenta standardtekst ordrett.",
+      "Skriv et kort sammendrag som inkluderer måleresultater (intervall, høyeste peak, ev. overskridelser) og vurdering. Hvis recommendationsExtraText er fylt inn, trekk inn konkrete tiltak kort.",
   },
   introExtraText: {
     label: "Innledning – Støy og helseeffekter (ekstra tekst)",
@@ -119,6 +121,7 @@ export function buildNoiseAIContext(state: ReportState): Record<string, unknown>
       sistKalibrert: inst.sistKalibrert,
     })),
     attachmentsCount: state.files.length,
+    recommendationsExtraText: noise.metadata.recommendationsExtraText,
     measurements: mapped,
   };
 }

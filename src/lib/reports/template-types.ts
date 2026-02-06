@@ -29,6 +29,8 @@ export interface AIFieldConfig {
   label: string;
   purpose: string;
   guidance: string;
+  length?: string;
+  structure?: string;
 }
 
 // ---------------------------------------------------------------------------
