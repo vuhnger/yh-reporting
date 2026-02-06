@@ -119,6 +119,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     });
     finalY += 2;
   };
+  const getLastAutoTableY = () =>
+    (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY;
 
   // --- Summary ---
   renderHeading("Sammendrag");
@@ -203,7 +205,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
       2: { cellWidth: 70 },
     },
   });
-  finalY = (doc as any).lastAutoTable.finalY + 10;
+  const lastAutoTable = (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable;
+  finalY = (lastAutoTable?.finalY ?? finalY) + 10;
 
   renderParagraph(
     `${selectedGroup.label} er valgt for denne rapporten. Maksnivå for ${selectedGroup.basis} er ${selectedGroup.max} dB(A). ${selectedGroup.description}`
@@ -273,7 +276,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
       styles: { fontSize: 10 },
       headStyles: { fillColor: TEAL },
     });
-    finalY = (doc as any).lastAutoTable.finalY + 10;
+    const lastY = getLastAutoTableY();
+    finalY = (lastY ?? finalY) + 10;
   }
 
   if (noiseMeta.methodText?.trim()) {
@@ -296,7 +300,10 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     styles: { fontSize: 10 },
     headStyles: { fillColor: TEAL },
   });
-  finalY = (doc as any).lastAutoTable.finalY + 10;
+  {
+    const lastY = getLastAutoTableY();
+    finalY = (lastY ?? finalY) + 10;
+  }
 
   // --- Findings Section ---
   renderHeading("Resultater");
@@ -362,7 +369,10 @@ export function createNoiseReportPDFDoc(state: ReportState) {
       }
     },
   });
-  finalY = (doc as any).lastAutoTable.finalY + 10;
+  {
+    const lastY = getLastAutoTableY();
+    finalY = (lastY ?? finalY) + 10;
+  }
 
   // --- Discussion ---
   renderHeading("Diskusjon");

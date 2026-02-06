@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useWizard } from "./wizard-context";
+import type { ReportType } from "@/lib/reports/template-types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 export function SharedMetadataStep() {
   const { state, updateSharedMetadata, setReportType } = useWizard();
+  useEffect(() => {
+    if (state.sharedMetadata.reportDate) return;
+    const today = new Date().toISOString().split("T")[0];
+    updateSharedMetadata({ reportDate: today });
+  }, [state.sharedMetadata.reportDate, updateSharedMetadata]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -26,7 +33,10 @@ export function SharedMetadataStep() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label>Rapporttype</Label>
-              <Select value={state.reportType} onValueChange={(val: any) => setReportType(val)}>
+              <Select
+                value={state.reportType}
+                onValueChange={(val: ReportType) => setReportType(val)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Velg type..." />
                 </SelectTrigger>
