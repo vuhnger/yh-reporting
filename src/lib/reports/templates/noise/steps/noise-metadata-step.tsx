@@ -2,12 +2,12 @@
 
 import { useWizard } from "@/components/wizard/wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageTextarea } from "@/components/ui/image-textarea";
 import { AIFillButton } from "@/components/wizard/ai-fill-button";
+import { InstrumentSelector } from "@/components/wizard/instrument-selector";
 import { getNoiseData } from "../schema";
-import type { NoiseMetadata } from "../schema";
+import type { NoiseMetadata, SelectedInstrument } from "../schema";
 
 export function NoiseMetadataStep() {
   const { state, updateNoiseMetadata } = useWizard();
@@ -206,58 +206,16 @@ export function NoiseMetadataStep() {
             <h3 className="text-lg font-semibold text-primary">Gjennomføring og metode</h3>
             <p className="text-xs text-muted-foreground">Vises i &quot;Gjennomføring og metode for målinger&quot;.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="measurement-device">Måleinstrument</Label>
-              <Input
-                id="measurement-device"
-                value={noise.metadata.measurementDevice}
-                onChange={(e) => updateNoiseMetadata({ measurementDevice: e.target.value })}
-                placeholder="F.eks. Cirrus Optimus Red CR: 161C"
-              />
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="measurement-serial">Serienr. instrument</Label>
-              <Input
-                id="measurement-serial"
-                value={noise.metadata.measurementSerial}
-                onChange={(e) => updateNoiseMetadata({ measurementSerial: e.target.value })}
-                placeholder="F.eks. G304333"
-              />
-            </div>
+          <InstrumentSelector
+            selectedInstruments={noise.metadata.selectedInstruments}
+            onChange={(instruments: SelectedInstrument[]) =>
+              updateNoiseMetadata({ selectedInstruments: instruments })
+            }
+          />
 
+          <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="calibrator-model">Kalibrator</Label>
-              <Input
-                id="calibrator-model"
-                value={noise.metadata.calibratorModel}
-                onChange={(e) => updateNoiseMetadata({ calibratorModel: e.target.value })}
-                placeholder="F.eks. Cirrus Acoustic Calibrator CR: 515"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="calibrator-serial">Serienr. kalibrator</Label>
-              <Input
-                id="calibrator-serial"
-                value={noise.metadata.calibratorSerial}
-                onChange={(e) => updateNoiseMetadata({ calibratorSerial: e.target.value })}
-                placeholder="F.eks. 101825"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="last-calibration">Siste kalibrering</Label>
-              <Input
-                id="last-calibration"
-                type="date"
-                value={noise.metadata.lastCalibrationDate}
-                onChange={(e) => updateNoiseMetadata({ lastCalibrationDate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="method-text">Metode / tilleggstekst (valgfritt)</Label>
               <div className="relative">
                 <ImageTextarea

@@ -25,6 +25,15 @@ export interface Thresholds {
   };
 }
 
+export interface SelectedInstrument {
+  id: string;
+  hva: string;
+  modell: string;
+  serienr: string;
+  sistKalibrert: string | null;
+  kilde: "sheets" | "manuell";
+}
+
 export interface NoiseMetadata {
   summaryText: string;
   introExtraText: string;
@@ -32,11 +41,7 @@ export interface NoiseMetadata {
   noiseGroup: "I" | "II" | "III";
   riskExtraText: string;
   trainingExtraText: string;
-  measurementDevice: string;
-  measurementSerial: string;
-  calibratorModel: string;
-  calibratorSerial: string;
-  lastCalibrationDate: string;
+  selectedInstruments: SelectedInstrument[];
   methodText: string;
   findingsText: string;
   conclusionsExtraText: string;
@@ -60,11 +65,7 @@ export const defaultNoiseMetadata: NoiseMetadata = {
   noiseGroup: "II",
   riskExtraText: "",
   trainingExtraText: "",
-  measurementDevice: "",
-  measurementSerial: "",
-  calibratorModel: "",
-  calibratorSerial: "",
-  lastCalibrationDate: "",
+  selectedInstruments: [],
   methodText: "",
   findingsText: "",
   conclusionsExtraText: "",

@@ -112,13 +112,12 @@ export function buildNoiseAIContext(state: ReportState): Record<string, unknown>
       peakMax: numericPeak.length ? Math.max(...numericPeak) : null,
       thresholds,
     },
-    instrument: {
-      device: noise.metadata.measurementDevice,
-      serial: noise.metadata.measurementSerial,
-      calibrator: noise.metadata.calibratorModel,
-      calibratorSerial: noise.metadata.calibratorSerial,
-      lastCalibrationDate: noise.metadata.lastCalibrationDate,
-    },
+    instruments: noise.metadata.selectedInstruments.map((inst) => ({
+      hva: inst.hva,
+      modell: inst.modell,
+      serienr: inst.serienr,
+      sistKalibrert: inst.sistKalibrert,
+    })),
     attachmentsCount: state.files.length,
     measurements: mapped,
   };

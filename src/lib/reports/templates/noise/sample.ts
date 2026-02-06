@@ -9,11 +9,24 @@ const noiseSampleData: NoiseReportData = {
     noiseGroup: "II",
     riskExtraText: "",
     trainingExtraText: "",
-    measurementDevice: "Cirrus Optimus Red CR: 161C",
-    measurementSerial: "G304333",
-    calibratorModel: "Cirrus Acoustic Calibrator CR: 515",
-    calibratorSerial: "101825",
-    lastCalibrationDate: "2025-07-07",
+    selectedInstruments: [
+      {
+        id: "sample-inst-1",
+        hva: "Støymåler",
+        modell: "Cirrus Optimus Red CR: 161C",
+        serienr: "G304333",
+        sistKalibrert: "2025-07-07",
+        kilde: "sheets",
+      },
+      {
+        id: "sample-inst-2",
+        hva: "Kalibrator",
+        modell: "Cirrus Acoustic Calibrator CR: 515",
+        serienr: "101825",
+        sistKalibrert: "2025-07-07",
+        kilde: "sheets",
+      },
+    ],
     methodText:
       "Det ble gjennomført forenklede målinger av støy på arbeidsplasser på laboratoriet. " +
       "Yrkeshygieniker tok målingene da maskinene ga mest lyd, basert på kartlegging sammen med ansatte på lab.",

@@ -254,12 +254,27 @@ export function createNoiseReportPDFDoc(state: ReportState) {
 
   // --- Method Section + Table ---
   renderHeading("Gjennomføring og metode for målinger");
-  renderParagraph(
-    `Måling er utført med ${noiseMeta.measurementDevice || "-"}, Serienr.: ${noiseMeta.measurementSerial || "-"}. ` +
-      `Måleren er egenkalibrert før og etter målingene med kalibrator ${noiseMeta.calibratorModel || "-"}, ` +
-      `Serial No: ${noiseMeta.calibratorSerial || "-"}. Siste kontroll og kalibrering på utstyret er ` +
-      `${noiseMeta.lastCalibrationDate || "-"}.`
-  );
+
+  if (noiseMeta.selectedInstruments.length > 0) {
+    renderParagraph("Følgende utstyr ble benyttet ved målingene. Utstyret er egenkalibrert før og etter målingene.");
+
+    const instrumentBody = noiseMeta.selectedInstruments.map((inst) => [
+      inst.hva || "-",
+      inst.modell || "-",
+      inst.serienr || "-",
+      inst.sistKalibrert || "-",
+    ]);
+
+    ensureSpace(60);
+    autoTable(doc, {
+      startY: finalY + 4,
+      head: [["Instrument", "Modell", "Serienr.", "Sist kalibrert"]],
+      body: instrumentBody,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: TEAL },
+    });
+    finalY = (doc as any).lastAutoTable.finalY + 10;
+  }
 
   if (noiseMeta.methodText?.trim()) {
     renderParagraph(noiseMeta.methodText.trim());
