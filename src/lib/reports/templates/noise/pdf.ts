@@ -361,10 +361,10 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   // --- Conclusions per Measurement ---
   renderHeading("Konklusjon");
   measurements.forEach((m) => {
-    const lex = Number(m.lex8h);
-    const peak = Number(m.maxPeak);
+    const lex = m.lex8h !== "" ? Number(m.lex8h) : null;
+    const peak = m.maxPeak !== "" ? Number(m.maxPeak) : null;
     const parts: string[] = [];
-    if (Number.isFinite(lex)) {
+    if (lex !== null && Number.isFinite(lex)) {
       if (lex > thresholds.lex8h.red) {
         parts.push(`LAeq (${lex} dB) overstiger øvre tiltaksverdi.`);
       } else if (lex > thresholds.lex8h.orange) {
@@ -375,7 +375,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
         parts.push(`LAeq (${lex} dB) ligger under anbefalte nivåer.`);
       }
     }
-    if (Number.isFinite(peak)) {
+    if (peak !== null && Number.isFinite(peak)) {
       if (peak > thresholds.peak.red) {
         parts.push(`LCpeak‑nivå (${peak} dB(C)) overstiger grenseverdi.`);
       } else if (peak > thresholds.peak.yellow) {
@@ -450,9 +450,11 @@ function buildSummaryFromMeasurements(state: ReportState) {
   const { client } = state;
 
   const numericLex = measurements
+    .filter((m) => m.lex8h !== "")
     .map((m) => Number(m.lex8h))
     .filter((v) => Number.isFinite(v));
   const numericPeak = measurements
+    .filter((m) => m.maxPeak !== "")
     .map((m) => Number(m.maxPeak))
     .filter((v) => Number.isFinite(v));
 

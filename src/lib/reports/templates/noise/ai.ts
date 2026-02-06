@@ -89,9 +89,11 @@ export function buildNoiseAIContext(state: ReportState): Record<string, unknown>
   }));
 
   const numericLex = mapped
+    .filter((m) => m.lex8h !== "")
     .map((m) => Number(m.lex8h))
     .filter((v) => Number.isFinite(v));
   const numericPeak = mapped
+    .filter((m) => m.maxPeak !== "")
     .map((m) => Number(m.maxPeak))
     .filter((v) => Number.isFinite(v));
 

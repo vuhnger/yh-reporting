@@ -19,20 +19,21 @@ export function NoiseMeasurementStep() {
 
   const { measurements, thresholds } = noise;
 
-  const noiseGroupMax = {
-    I: 55,
-    II: 70,
-    III: 85,
+  // Anbefalt nivå = 10 dB under gruppemaks iht. Arbeidstilsynet
+  const noiseGroupYellow = {
+    I: 45,  // 10 dB under maks 55 dB
+    II: 60, // 10 dB under maks 70 dB
+    III: 75, // 10 dB under maks 85 dB
   } as const;
 
   const handleNoiseGroupChange = (group: "I" | "II" | "III") => {
-    const groupMax = noiseGroupMax[group];
+    const yellowThreshold = noiseGroupYellow[group];
     updateNoiseMetadata({ noiseGroup: group });
     updateThresholds({
       lex8h: {
         red: 85,
         orange: 80,
-        yellow: groupMax,
+        yellow: yellowThreshold,
       },
       peak: {
         red: 130,

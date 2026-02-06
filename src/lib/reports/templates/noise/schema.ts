@@ -76,7 +76,7 @@ export const defaultNoiseMetadata: NoiseMetadata = {
 };
 
 export const defaultThresholds: Thresholds = {
-  lex8h: { red: 85, orange: 80, yellow: 70 },
+  lex8h: { red: 85, orange: 80, yellow: 60 }, // Default gruppe II: 10 dB under maks (70)
   peak: { red: 130, yellow: 120 },
 };
 
