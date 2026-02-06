@@ -318,10 +318,11 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     didParseCell: (data) => {
       if (data.section === "body") {
         const rawRow = measurements[data.row.index];
-        const lex = Number(rawRow.lex8h);
-        const peak = Number(rawRow.maxPeak);
+        const lex = rawRow.lex8h !== "" ? Number(rawRow.lex8h) : null;
+        const peak = rawRow.maxPeak !== "" ? Number(rawRow.maxPeak) : null;
 
         if (data.column.index === 2) {
+          if (lex === null) return;
           if (lex > thresholds.lex8h.red) {
             data.cell.styles.fillColor = [255, 200, 200];
           } else if (lex > thresholds.lex8h.orange) {
@@ -334,6 +335,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
         }
 
         if (data.column.index === 3) {
+          if (peak === null) return;
           if (peak > thresholds.peak.red) {
             data.cell.styles.fillColor = [255, 200, 200];
           } else if (peak > thresholds.peak.yellow) {
