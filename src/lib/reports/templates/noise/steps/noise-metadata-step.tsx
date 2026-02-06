@@ -4,7 +4,7 @@ import { useWizard } from "@/components/wizard/wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { ImageTextarea } from "@/components/ui/image-textarea";
 import { AIFillButton } from "@/components/wizard/ai-fill-button";
 import { getNoiseData } from "../schema";
 import type { NoiseMetadata } from "../schema";
@@ -14,9 +14,23 @@ export function NoiseMetadataStep() {
   const noise = getNoiseData(state);
   if (!noise) return null;
 
-  const getValue = (field: keyof NoiseMetadata) => noise.metadata[field] ?? "";
+  const getValue = (field: keyof NoiseMetadata) => {
+    const value = noise.metadata[field];
+    return typeof value === "string" ? value : "";
+  };
   const setValue = (field: keyof NoiseMetadata, text: string) =>
     updateNoiseMetadata({ [field]: text });
+
+  const getImage = (field: string) => noise.metadata.textImages?.[field] || "";
+  const setImage = (field: string, image: string | null) => {
+    const next = { ...(noise.metadata.textImages ?? {}) };
+    if (image) {
+      next[field] = image;
+    } else {
+      delete next[field];
+    }
+    updateNoiseMetadata({ textImages: next });
+  };
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -36,20 +50,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="summary-text">Sammendrag – ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="summary-text"
                   value={noise.metadata.summaryText}
                   onChange={(e) => updateNoiseMetadata({ summaryText: e.target.value })}
                   placeholder="Legg til ekstra tekst i sammendraget."
                   className="min-h-[140px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="summaryText"
-                  state={state}
-                  getValue={() => getValue("summaryText")}
-                  setValue={(text) => setValue("summaryText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("summaryText")}
+                  onImageChange={(image) => setImage("summaryText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="summaryText"
+                      state={state}
+                      getValue={() => getValue("summaryText")}
+                      setValue={(text) => setValue("summaryText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -65,20 +82,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="intro-extra">Støy og helseeffekter – ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="intro-extra"
                   value={noise.metadata.introExtraText}
                   onChange={(e) => updateNoiseMetadata({ introExtraText: e.target.value })}
                   placeholder="Tillegg til standardtekst."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="introExtraText"
-                  state={state}
-                  getValue={() => getValue("introExtraText")}
-                  setValue={(text) => setValue("introExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("introExtraText")}
+                  onImageChange={(image) => setImage("introExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="introExtraText"
+                      state={state}
+                      getValue={() => getValue("introExtraText")}
+                      setValue={(text) => setValue("introExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -94,20 +114,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="thresholds-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="thresholds-extra"
                   value={noise.metadata.thresholdsExtraText}
                   onChange={(e) => updateNoiseMetadata({ thresholdsExtraText: e.target.value })}
                   placeholder="Tillegg til standardtekst om grenseverdier og tiltaksverdier."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="thresholdsExtraText"
-                  state={state}
-                  getValue={() => getValue("thresholdsExtraText")}
-                  setValue={(text) => setValue("thresholdsExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("thresholdsExtraText")}
+                  onImageChange={(image) => setImage("thresholdsExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="thresholdsExtraText"
+                      state={state}
+                      getValue={() => getValue("thresholdsExtraText")}
+                      setValue={(text) => setValue("thresholdsExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -123,20 +146,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="risk-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="risk-extra"
                   value={noise.metadata.riskExtraText}
                   onChange={(e) => updateNoiseMetadata({ riskExtraText: e.target.value })}
                   placeholder="Tillegg til standardtekst om risikovurdering og tiltak."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="riskExtraText"
-                  state={state}
-                  getValue={() => getValue("riskExtraText")}
-                  setValue={(text) => setValue("riskExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("riskExtraText")}
+                  onImageChange={(image) => setImage("riskExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="riskExtraText"
+                      state={state}
+                      getValue={() => getValue("riskExtraText")}
+                      setValue={(text) => setValue("riskExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -152,20 +178,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="training-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="training-extra"
                   value={noise.metadata.trainingExtraText}
                   onChange={(e) => updateNoiseMetadata({ trainingExtraText: e.target.value })}
                   placeholder="Tillegg til standardtekst om informasjon og opplæring."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="trainingExtraText"
-                  state={state}
-                  getValue={() => getValue("trainingExtraText")}
-                  setValue={(text) => setValue("trainingExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("trainingExtraText")}
+                  onImageChange={(image) => setImage("trainingExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="trainingExtraText"
+                      state={state}
+                      getValue={() => getValue("trainingExtraText")}
+                      setValue={(text) => setValue("trainingExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -231,20 +260,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="method-text">Metode / tilleggstekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="method-text"
                   value={noise.metadata.methodText}
                   onChange={(e) => updateNoiseMetadata({ methodText: e.target.value })}
                   placeholder="Skriv eventuelle detaljer om gjennomføring/metode her."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="methodText"
-                  state={state}
-                  getValue={() => getValue("methodText")}
-                  setValue={(text) => setValue("methodText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("methodText")}
+                  onImageChange={(image) => setImage("methodText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="methodText"
+                      state={state}
+                      getValue={() => getValue("methodText")}
+                      setValue={(text) => setValue("methodText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -253,27 +285,30 @@ export function NoiseMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Funn og vurderinger</h3>
+            <h3 className="text-lg font-semibold text-primary">Resultater</h3>
             <p className="text-xs text-muted-foreground">Legges til under &quot;Måling av støy&quot;.</p>
           </div>
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="findings-text">Funn og vurderinger – ekstra tekst (valgfritt)</Label>
+              <Label htmlFor="findings-text">Resultater – ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="findings-text"
                   value={noise.metadata.findingsText}
                   onChange={(e) => updateNoiseMetadata({ findingsText: e.target.value })}
                   placeholder="Skriv eventuelle vurderinger/introduksjon til måleresultatene her."
                   className="min-h-[140px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="findingsText"
-                  state={state}
-                  getValue={() => getValue("findingsText")}
-                  setValue={(text) => setValue("findingsText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("findingsText")}
+                  onImageChange={(image) => setImage("findingsText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="findingsText"
+                      state={state}
+                      getValue={() => getValue("findingsText")}
+                      setValue={(text) => setValue("findingsText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -282,27 +317,30 @@ export function NoiseMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Vurderinger, risikovurdering og konklusjon</h3>
+            <h3 className="text-lg font-semibold text-primary">Diskusjon</h3>
             <p className="text-xs text-muted-foreground">Legges til før per-måling vurderinger.</p>
           </div>
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
               <Label htmlFor="conclusions-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="conclusions-extra"
                   value={noise.metadata.conclusionsExtraText}
                   onChange={(e) => updateNoiseMetadata({ conclusionsExtraText: e.target.value })}
                   placeholder="Tillegg før per-måling vurderinger."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="conclusionsExtraText"
-                  state={state}
-                  getValue={() => getValue("conclusionsExtraText")}
-                  setValue={(text) => setValue("conclusionsExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("conclusionsExtraText")}
+                  onImageChange={(image) => setImage("conclusionsExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="conclusionsExtraText"
+                      state={state}
+                      getValue={() => getValue("conclusionsExtraText")}
+                      setValue={(text) => setValue("conclusionsExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -318,20 +356,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="recommendations-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="recommendations-extra"
                   value={noise.metadata.recommendationsExtraText}
                   onChange={(e) => updateNoiseMetadata({ recommendationsExtraText: e.target.value })}
                   placeholder="Tillegg til standard anbefalinger."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="recommendationsExtraText"
-                  state={state}
-                  getValue={() => getValue("recommendationsExtraText")}
-                  setValue={(text) => setValue("recommendationsExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("recommendationsExtraText")}
+                  onImageChange={(image) => setImage("recommendationsExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="recommendationsExtraText"
+                      state={state}
+                      getValue={() => getValue("recommendationsExtraText")}
+                      setValue={(text) => setValue("recommendationsExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -345,22 +386,38 @@ export function NoiseMetadataStep() {
           </div>
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2">
+              <Label htmlFor="references-text">Manuelle referanser</Label>
+              <ImageTextarea
+                id="references-text"
+                value={noise.metadata.referencesText}
+                onChange={(e) => updateNoiseMetadata({ referencesText: e.target.value })}
+                placeholder="Legg til egne referanser (en per linje)."
+                className="min-h-[120px]"
+                imageSrc={getImage("referencesText")}
+                onImageChange={(image) => setImage("referencesText", image)}
+              />
+              <p className="text-xs text-muted-foreground">Legges til som egne punkter under referanser.</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="references-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="references-extra"
                   value={noise.metadata.referencesExtraText}
                   onChange={(e) => updateNoiseMetadata({ referencesExtraText: e.target.value })}
                   placeholder="Tillegg til standard referanseliste."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="referencesExtraText"
-                  state={state}
-                  getValue={() => getValue("referencesExtraText")}
-                  setValue={(text) => setValue("referencesExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("referencesExtraText")}
+                  onImageChange={(image) => setImage("referencesExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="referencesExtraText"
+                      state={state}
+                      getValue={() => getValue("referencesExtraText")}
+                      setValue={(text) => setValue("referencesExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -376,20 +433,23 @@ export function NoiseMetadataStep() {
             <div className="space-y-2">
               <Label htmlFor="appendices-extra">Ekstra tekst (valgfritt)</Label>
               <div className="relative">
-                <Textarea
+                <ImageTextarea
                   id="appendices-extra"
                   value={noise.metadata.appendicesExtraText}
                   onChange={(e) => updateNoiseMetadata({ appendicesExtraText: e.target.value })}
                   placeholder="Tilleggstekst for vedlegg."
                   className="min-h-[120px] pr-10"
-                />
-                <AIFillButton
-                  reportType="noise"
-                  field="appendicesExtraText"
-                  state={state}
-                  getValue={() => getValue("appendicesExtraText")}
-                  setValue={(text) => setValue("appendicesExtraText", text)}
-                  className="absolute right-2 top-2"
+                  imageSrc={getImage("appendicesExtraText")}
+                  onImageChange={(image) => setImage("appendicesExtraText", image)}
+                  actions={
+                    <AIFillButton
+                      reportType="noise"
+                      field="appendicesExtraText"
+                      state={state}
+                      getValue={() => getValue("appendicesExtraText")}
+                      setValue={(text) => setValue("appendicesExtraText", text)}
+                    />
+                  }
                 />
               </div>
             </div>

@@ -13,13 +13,20 @@ export function NoiseReviewSection() {
 
   const { measurements, thresholds } = noise;
 
-  const getStatusColor = (lex8h: number | "", peak: number | "") => {
-    if (lex8h === "" && peak === "") return "bg-transparent";
+  const getLexColor = (lex8h: number | "") => {
+    if (lex8h === "") return "bg-transparent";
     const l = Number(lex8h);
-    const p = Number(peak);
-    if ((l > thresholds.lex8h.red) || (p > thresholds.peak.red)) return "bg-red-50 text-red-900";
+    if (l > thresholds.lex8h.red) return "bg-red-50 text-red-900";
     if (l > thresholds.lex8h.orange) return "bg-orange-50 text-orange-900";
-    if ((l > thresholds.lex8h.yellow) || (p > thresholds.peak.yellow)) return "bg-yellow-50 text-yellow-900";
+    if (l > thresholds.lex8h.yellow) return "bg-yellow-50 text-yellow-900";
+    return "bg-green-50 text-green-900";
+  };
+
+  const getPeakColor = (peak: number | "") => {
+    if (peak === "") return "bg-transparent";
+    const p = Number(peak);
+    if (p > thresholds.peak.red) return "bg-red-50 text-red-900";
+    if (p > thresholds.peak.yellow) return "bg-yellow-50 text-yellow-900";
     return "bg-green-50 text-green-900";
   };
 
@@ -32,8 +39,8 @@ export function NoiseReviewSection() {
             <TableRow>
               <TableHead>Målested</TableHead>
               <TableHead>Varighet</TableHead>
-              <TableHead className="text-right">LAeq</TableHead>
-              <TableHead className="text-right">LPeak</TableHead>
+              <TableHead className="text-right">LAeq (dB A)</TableHead>
+              <TableHead className="text-right">LCpeak (dB C)</TableHead>
               <TableHead>Kommentar</TableHead>
             </TableRow>
           </TableHeader>
@@ -46,13 +53,14 @@ export function NoiseReviewSection() {
               </TableRow>
             ) : (
               measurements.map((m) => {
-                const rowClass = getStatusColor(m.lex8h, m.maxPeak);
+                const lexClass = getLexColor(m.lex8h);
+                const peakClass = getPeakColor(m.maxPeak);
                 return (
-                  <TableRow key={m.id} className={cn(rowClass)}>
+                  <TableRow key={m.id}>
                     <TableCell className="font-medium">{m.location}</TableCell>
                     <TableCell>{m.duration}</TableCell>
-                    <TableCell className="text-right font-mono">{m.lex8h}</TableCell>
-                    <TableCell className="text-right font-mono">{m.maxPeak}</TableCell>
+                    <TableCell className={cn("text-right font-mono", lexClass !== "bg-transparent" && lexClass)}>{m.lex8h}</TableCell>
+                    <TableCell className={cn("text-right font-mono", peakClass !== "bg-transparent" && peakClass)}>{m.maxPeak}</TableCell>
                     <TableCell className="max-w-[200px] truncate" title={m.comment}>{m.comment}</TableCell>
                   </TableRow>
                 );

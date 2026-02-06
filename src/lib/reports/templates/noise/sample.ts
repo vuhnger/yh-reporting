@@ -6,6 +6,7 @@ const noiseSampleData: NoiseReportData = {
     summaryText: "",
     introExtraText: "",
     thresholdsExtraText: "",
+    noiseGroup: "II",
     riskExtraText: "",
     trainingExtraText: "",
     measurementDevice: "Cirrus Optimus Red CR: 161C",
@@ -19,8 +20,10 @@ const noiseSampleData: NoiseReportData = {
     findingsText: "",
     conclusionsExtraText: "",
     recommendationsExtraText: "",
+    referencesText: "",
     referencesExtraText: "",
     appendicesExtraText: "",
+    textImages: {},
   },
   measurements: [
     {

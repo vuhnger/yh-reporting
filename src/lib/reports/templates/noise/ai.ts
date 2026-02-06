@@ -42,23 +42,23 @@ export const noiseAIFields: Record<string, AIFieldConfig> = {
       "Skriv 1–2 avsnitt om gjennomføring basert på instrumentdata og antall målinger. Ikke oppfinn detaljer.",
   },
   findingsText: {
-    label: "Funn og vurderinger (ekstra tekst)",
+    label: "Resultater (ekstra tekst)",
     purpose: "Dette feltet skal introdusere måleresultatene før tabellen.",
     guidance:
       "Skriv 2–3 avsnitt som introduksjon til tabellen. Nevn variasjon mellom målepunkter og evt. overskridelser basert på tallene.",
   },
   conclusionsExtraText: {
-    label: "Vurderinger, risikovurdering og konklusjon (ekstra tekst)",
+    label: "Diskusjon (ekstra tekst)",
     purpose: "Dette feltet skal gi en samlet vurdering før per‑måling avsnitt.",
     guidance:
-      "Skriv 2–3 avsnitt som binder målingene sammen. Referer til målepunkter og nivåer (LAeq/LPeak) og pek på hovedmønster.",
+      "Skriv 2–3 avsnitt som binder målingene sammen. Referer til målepunkter og nivåer (LAeq/LCpeak) og pek på hovedmønster.",
   },
   recommendationsExtraText: {
     label: "Anbefalinger (ekstra tekst)",
     purpose:
       "Dette feltet skal være medarbeiderens konkrete anbefalinger/tiltak (formulert som forslag). Unngå vage formuleringer.",
     guidance:
-      "Skriv 1–2 avsnitt med konkrete tiltak/forbedringer basert på måledata (f.eks. vedlikehold, skjerming, avstand, organisatoriske tiltak). Unngå vage formuleringer som «bør vurderes». Ikke kall det impulsstøy med mindre LPeak > 130 dB(C). Knytt tiltak til faktiske målepunkter/kommentarer.",
+      "Skriv 1–2 avsnitt med konkrete tiltak/forbedringer basert på måledata (f.eks. vedlikehold, skjerming, avstand, organisatoriske tiltak). Unngå vage formuleringer som «bør vurderes». Ikke kall det impulsstøy med mindre LCpeak > 130 dB(C). Knytt tiltak til faktiske målepunkter/kommentarer.",
   },
   referencesExtraText: {
     label: "Referanser (ekstra tekst)",
@@ -103,6 +103,7 @@ export function buildNoiseAIContext(state: ReportState): Record<string, unknown>
     reportDate: state.sharedMetadata.reportDate,
     participants: state.sharedMetadata.participants,
     measurementCount: measurements.length,
+    noiseGroup: noise.metadata.noiseGroup,
     measurementSummary: {
       lexMin: numericLex.length ? Math.min(...numericLex) : null,
       lexMax: numericLex.length ? Math.max(...numericLex) : null,

@@ -8,6 +8,31 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   if (!noise) throw new Error("Cannot generate noise PDF without noise data");
   const { metadata: noiseMeta, measurements, thresholds } = noise;
 
+  const noiseGroupDetails = {
+    I: {
+      label: "Støygruppe I",
+      max: 55,
+      basis: "LAeq,1h",
+      description:
+        "Arbeidsforhold med store krav til vedvarende konsentrasjon eller behov for uanstrengt samtale (kontor, undervisningsrom, møterom, spise- og hvilerom).",
+    },
+    II: {
+      label: "Støygruppe II",
+      max: 70,
+      basis: "LAeq,1h",
+      description:
+        "Arbeidsforhold der det er viktig å føre samtale, eller vedvarende store krav til presisjon, hurtighet eller oppmerksomhet (kontrollrom, laboratorier, lett monteringsarbeid).",
+    },
+    III: {
+      label: "Støygruppe III",
+      max: 85,
+      basis: "LAeq,8h",
+      description:
+        "Arbeidsforhold med støyende maskiner og utstyr som ikke går under gruppe I og II (maskinverksteder, byggeplasser, produksjonshaller).",
+    },
+  } as const;
+  const selectedGroup = noiseGroupDetails[noiseMeta.noiseGroup];
+
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -152,32 +177,22 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   ensureSpace(60);
   autoTable(doc, {
     startY: finalY + 4,
-    head: [["Støygruppe", "Arbeidsforhold", "Tiltaksverdi"]],
+    head: [["Støygruppe", "Arbeidsforhold", "Maks LAeq"]],
     body: [
       [
         "I",
         "Stiller store krav til vedvarende konsentrasjon eller behov for å føre uanstrengt samtale og i spise- og hvilerom",
-        "Nedre tiltaksverdi LEX,1h = 55 dB(A)",
+        "55 dB(A) (LAeq,1h)",
       ],
       [
         "II",
         "Viktig å føre samtale eller vedvarende store krav til presisjon, hurtighet eller oppmerksomhet",
-        "Nedre tiltaksverdi LEX,1h = 70 dB(A)",
+        "70 dB(A) (LAeq,1h)",
       ],
       [
         "III",
         "Støyende maskiner og utstyr under forhold som ikke går innunder arbeidsgruppe I og II",
-        "Nedre tiltaksverdi LEX,8h = 80 dB(A)",
-      ],
-      [
-        "III",
-        "Støyende maskiner og utstyr under forhold som ikke går innunder arbeidsgruppe I og II",
-        "Øvre tiltaksverdi og grenseverdi LEX,8h = 85 dB(A)",
-      ],
-      [
-        "III",
-        "Støyende maskiner og utstyr under forhold som ikke går innunder arbeidsgruppe I og II",
-        "Øvre tiltaksverdi og grenseverdi LpC,peak = 130 dB(C)",
+        "85 dB(A) (LAeq,8h)",
       ],
     ],
     styles: { fontSize: 9 },
@@ -189,6 +204,10 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     },
   });
   finalY = (doc as any).lastAutoTable.finalY + 10;
+
+  renderParagraph(
+    `${selectedGroup.label} er valgt for denne rapporten. Maksnivå for ${selectedGroup.basis} er ${selectedGroup.max} dB(A). ${selectedGroup.description}`
+  );
 
   renderParagraph(
     "Dersom grenseverdiene for støyeksponering overskrides, skal arbeidsgiveren sette i verk strakstiltak for å redusere støyen. Årsakene til at grenseverdiene er overskredet skal kartlegges. Dersom grenseverdiene (de øvre tiltaksverdiene) ikke kan overholdes med tekniske eller administrative tiltak skal arbeidsgiveren påse at hensiktsmessig hørselsvern, som gir tilstrekkelig beskyttelse, benyttes. Inngangen til rom eller arbeidsområder med slik støy skal merkes med varselskilt."
@@ -265,7 +284,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   finalY = (doc as any).lastAutoTable.finalY + 10;
 
   // --- Findings Section ---
-  renderHeading("Funn og vurderinger");
+  renderHeading("Resultater");
   doc.setFontSize(12);
   doc.text("Måling av støy", 14, finalY);
   finalY += 6;
@@ -273,57 +292,74 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     renderParagraph(noiseMeta.findingsText.trim());
   }
   renderParagraph(
-    "Måleresultatene er gitt i tabell 2. LAeq (dB) er brukt i resultatene fordi støyen i hovedsak er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
+    "Måleresultatene er gitt i tabell 2. LAeq (dB A) er brukt i resultatene fordi støyen i hovedsak er kontinuerlig over tid, og LAeq‑verdiene gir dermed en god indikasjon på 8‑timers eksponering."
   );
   renderParagraph(
-    `Lydnivå over grenseverdien (LAeq > ${thresholds.lex8h.red} dB(A) eller LPeak > ${thresholds.peak.red} dB(C)) vises med rødt. ` +
+    `Lydnivå over grenseverdien (LAeq > ${thresholds.lex8h.red} dB(A) eller LCpeak > ${thresholds.peak.red} dB(C)) vises med rødt. ` +
       `Lydnivå over nedre tiltaksverdi (LAeq > ${thresholds.lex8h.orange} dB(A)) vises med oransje. ` +
-      `Lydnivå over anbefalt nivå (LAeq > ${thresholds.lex8h.yellow} dB(A) eller LPeak > ${thresholds.peak.yellow} dB(C)) vises med gult.`
+      `Lydnivå over anbefalt nivå (LAeq > ${thresholds.lex8h.yellow} dB(A) eller LCpeak > ${thresholds.peak.yellow} dB(C)) vises med gult.`
   );
 
   const resultBody = measurements.map((m) => [
     m.location,
     m.duration,
-    m.lex8h !== "" ? `${m.lex8h} dB` : "-",
-    m.maxPeak !== "" ? `${m.maxPeak} dB` : "-",
+    m.lex8h !== "" ? `${m.lex8h} dB A` : "-",
+    m.maxPeak !== "" ? `${m.maxPeak} dB C` : "-",
     m.comment,
   ]);
 
   ensureSpace(60);
   autoTable(doc, {
     startY: finalY + 4,
-    head: [["Målested", "Varighet", "LAeq (dB)", "LPeak (dB)", "Kommentar"]],
+    head: [["Målested", "Varighet", "LAeq (dB A)", "LCpeak (dB C)", "Kommentar"]],
     body: resultBody,
     styles: { fontSize: 10 },
     headStyles: { fillColor: TEAL },
     didParseCell: (data) => {
       if (data.section === "body") {
         const rawRow = measurements[data.row.index];
-        const lex = Number(rawRow.lex8h);
-        const peak = Number(rawRow.maxPeak);
+        const lex = rawRow.lex8h !== "" ? Number(rawRow.lex8h) : null;
+        const peak = rawRow.maxPeak !== "" ? Number(rawRow.maxPeak) : null;
 
-        if (lex > thresholds.lex8h.red || peak > thresholds.peak.red) {
-          data.cell.styles.fillColor = [255, 200, 200];
-        } else if (lex > thresholds.lex8h.orange) {
-          data.cell.styles.fillColor = [255, 230, 200];
-        } else if (lex > thresholds.lex8h.yellow || peak > thresholds.peak.yellow) {
-          data.cell.styles.fillColor = [255, 255, 200];
-        } else {
-          data.cell.styles.fillColor = [200, 240, 200];
+        if (data.column.index === 2) {
+          if (lex === null) return;
+          if (lex > thresholds.lex8h.red) {
+            data.cell.styles.fillColor = [255, 200, 200];
+          } else if (lex > thresholds.lex8h.orange) {
+            data.cell.styles.fillColor = [255, 230, 200];
+          } else if (lex > thresholds.lex8h.yellow) {
+            data.cell.styles.fillColor = [255, 255, 200];
+          } else {
+            data.cell.styles.fillColor = [200, 240, 200];
+          }
+        }
+
+        if (data.column.index === 3) {
+          if (peak === null) return;
+          if (peak > thresholds.peak.red) {
+            data.cell.styles.fillColor = [255, 200, 200];
+          } else if (peak > thresholds.peak.yellow) {
+            data.cell.styles.fillColor = [255, 255, 200];
+          } else {
+            data.cell.styles.fillColor = [200, 240, 200];
+          }
         }
       }
     },
   });
   finalY = (doc as any).lastAutoTable.finalY + 10;
 
-  // --- Conclusions per Measurement ---
-  renderHeading("Vurderinger, risikovurdering og konklusjon");
+  // --- Discussion ---
+  renderHeading("Diskusjon");
   renderParagraph(
     "Generelt viste målingene at det ikke er registrert impulsstøy over 130 dB(C). Videre følger en kort vurdering per målepunkt, basert på registrerte nivåer, varighet og tilgjengelig informasjon."
   );
   if (noiseMeta.conclusionsExtraText?.trim()) {
     renderParagraph(noiseMeta.conclusionsExtraText.trim());
   }
+
+  // --- Conclusions per Measurement ---
+  renderHeading("Konklusjon");
   measurements.forEach((m) => {
     const lex = Number(m.lex8h);
     const peak = Number(m.maxPeak);
@@ -341,9 +377,9 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     }
     if (Number.isFinite(peak)) {
       if (peak > thresholds.peak.red) {
-        parts.push(`Peak‑nivå (${peak} dB(C)) overstiger grenseverdi.`);
+        parts.push(`LCpeak‑nivå (${peak} dB(C)) overstiger grenseverdi.`);
       } else if (peak > thresholds.peak.yellow) {
-        parts.push(`Peak‑nivå (${peak} dB(C)) ligger over anbefalt nivå.`);
+        parts.push(`LCpeak‑nivå (${peak} dB(C)) ligger over anbefalt nivå.`);
       }
     }
     const durationText = m.duration ? `Varighet: ${m.duration}.` : "";
@@ -370,6 +406,15 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     "Forskrift om tekniske krav til byggverk (TEK17).",
     "Forskrift om tiltaks- og grenseverdier § 2 Støy.",
   ]);
+  if (noiseMeta.referencesText?.trim()) {
+    const manualReferences = noiseMeta.referencesText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (manualReferences.length > 0) {
+      renderBullets(manualReferences);
+    }
+  }
   if (noiseMeta.referencesExtraText?.trim()) {
     renderParagraph(noiseMeta.referencesExtraText.trim());
   }
@@ -460,9 +505,9 @@ function buildSummaryFromMeasurements(state: ReportState) {
       : `Måleresultatene viste at ingen målinger oversteg anbefalte nivåer eller tiltaksverdier.`;
 
   const peakText =
-    peakMax !== null
-      ? `Høyeste registrerte peak‑nivå var ${peakMax} dB(C). Dette indikerer at det ikke er registrert impulsstøy over gjeldende grenseverdier.`
-      : `Peak‑nivåer ble ikke registrert.`;
+     peakMax !== null
+      ? `Høyeste registrerte LCpeak‑nivå var ${peakMax} dB(C). Dette indikerer at det ikke er registrert impulsstøy over gjeldende grenseverdier.`
+      : `LCpeak‑nivåer ble ikke registrert.`;
 
   const recommendationText =
     overRed > 0 || overOrange > 0 || overYellow > 0
