@@ -22,6 +22,11 @@ function buildPrompt(
   fieldConfig: AIFieldConfig,
   context: Record<string, unknown>
 ) {
+  const lengthHint =
+    fieldConfig.length ?? "Skriv utfyllende tekst (1–3 avsnitt). Ikke avslutt etter én setning.";
+  const structureHint =
+    fieldConfig.structure ?? "Sammenhengende tekst (ingen lister).";
+
   return `
 OPPGAVE: Generer en utdypende fagtekst til feltet "${fieldConfig.label}" i en rapport.
 
@@ -30,8 +35,8 @@ Denne teksten skal være detaljert og profesjonell. Den skal fungere som en fork
 
 KRAV:
 - SPRÅK: Profesjonell norsk bokmål.
-- LENGDE: Skriv utfyllende tekst (1–3 avsnitt). Ikke avslutt etter én setning.
-- STRUKTUR: Sammenhengende tekst (ingen lister).
+- LENGDE: ${lengthHint}
+- STRUKTUR: ${structureHint}
 - IKKE overskrifter eller punktlister.
 - IKKE antagelser om bransje/arbeidssted utover data.
 - DATA: Bruk spesifikke verdier og målepunkter fra JSON-dataene.
