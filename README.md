@@ -19,7 +19,7 @@ Rapportverktøy for yrkeshygienikere i Dr. Dropin Bedrift. Automatiserer rapport
 | Type | Status |
 |------|--------|
 | Støy | Implementert |
-| Inneklima | Placeholder |
+| Inneklima | Implementert |
 | Kjemisk helsefare | Placeholder |
 | Belysning | Placeholder |
 
