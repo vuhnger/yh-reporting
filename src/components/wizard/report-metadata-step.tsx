@@ -25,7 +25,6 @@ export function SharedMetadataStep() {
   const weatherInclude = indoor?.metadata.weatherInclude ?? false;
   const weatherLat = indoor?.metadata.weatherLat ?? null;
   const weatherLon = indoor?.metadata.weatherLon ?? null;
-  const weatherSnapshot = indoor?.metadata.weatherSnapshot ?? null;
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
@@ -33,6 +32,8 @@ export function SharedMetadataStep() {
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState(() => weatherAddress || state.client.address || "");
   const weatherInFlightKeyRef = useRef<string | null>(null);
+  const completedWeatherRequestsRef = useRef<Set<string>>(new Set());
+  const weatherRequestContextRef = useRef<string>("");
 
   useEffect(() => {
     if (state.sharedMetadata.reportDate) return;
@@ -150,16 +151,17 @@ export function SharedMetadataStep() {
     }
 
     const executionDate = state.sharedMetadata.date;
-    if (
-      weatherSnapshot &&
-      weatherSnapshot.date === executionDate &&
-      weatherSnapshot.address.trim() === address
-    ) {
+    const requestKey = `${address}|${executionDate}|${weatherLat}|${weatherLon}`;
+    if (weatherRequestContextRef.current !== requestKey) {
+      weatherRequestContextRef.current = requestKey;
+      completedWeatherRequestsRef.current.clear();
+    }
+
+    if (completedWeatherRequestsRef.current.has(requestKey)) {
       setWeatherError(null);
       return;
     }
 
-    const requestKey = `${address}|${executionDate}|${weatherLat}|${weatherLon}`;
     if (weatherInFlightKeyRef.current === requestKey) {
       return;
     }
@@ -192,6 +194,7 @@ export function SharedMetadataStep() {
 
         if (!cancelled) {
           setWeatherError(null);
+          completedWeatherRequestsRef.current.add(requestKey);
           updateIndoorClimateMetadata({
             weatherAddress: address,
             weatherDate: executionDate,
@@ -227,7 +230,6 @@ export function SharedMetadataStep() {
     weatherInclude,
     weatherLat,
     weatherLon,
-    weatherSnapshot,
   ]);
 
   return (

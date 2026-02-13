@@ -71,6 +71,19 @@ const OBSERVATION_SOURCE_LIMIT_BY_GROUP: Record<WeatherGroupKey, number> = {
 };
 const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente vaerdata.";
 
+function getSafeWeatherErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === "object" &&
+    "safeMessage" in error &&
+    typeof (error as { safeMessage?: unknown }).safeMessage === "string"
+  ) {
+    const safe = (error as { safeMessage: string }).safeMessage.trim();
+    if (safe) return safe;
+  }
+  return USER_VISIBLE_WEATHER_ERROR;
+}
+
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -895,8 +908,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json(snapshot);
   } catch (error: unknown) {
-    console.error("Weather API error:", error);
-    const message = error instanceof Error ? error.message : USER_VISIBLE_WEATHER_ERROR;
-    return NextResponse.json({ error: message || USER_VISIBLE_WEATHER_ERROR }, { status: 500 });
+    if (error instanceof Error) {
+      console.error("Weather API error:", {
+        message: error.message,
+        stack: error.stack,
+      });
+    } else {
+      console.error("Weather API error:", error);
+    }
+    return NextResponse.json({ error: getSafeWeatherErrorMessage(error) }, { status: 500 });
   }
 }
