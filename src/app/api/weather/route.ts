@@ -43,14 +43,32 @@ interface FrostSourceCandidate extends FrostSourceSelection {
   normalizedSourceId: string;
 }
 
+interface ObservationPayloadResult {
+  payload: unknown;
+  warning: string | null;
+}
+
 const WEATHER_GROUP_ELEMENTS: Record<WeatherGroupKey, string[]> = {
   temperature: ["air_temperature"],
   wind: ["wind_speed", "wind_speed_of_gust"],
-  precipitation: ["precipitation_amount", "sum(precipitation_amount P1D)"],
+  precipitation: ["precipitation_amount"],
   snow: ["surface_snow_thickness"],
 };
 
+const WEATHER_GROUP_LABELS: Record<WeatherGroupKey, string> = {
+  temperature: "Temperatur",
+  wind: "Vind",
+  precipitation: "Nedbor",
+  snow: "Snodybde",
+};
+
 const FROST_NEAREST_MAX_COUNT = 20;
+const OBSERVATION_SOURCE_LIMIT_BY_GROUP: Record<WeatherGroupKey, number> = {
+  temperature: 10,
+  wind: 10,
+  precipitation: 6,
+  snow: 6,
+};
 const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente vaerdata.";
 
 function toNumber(value: unknown): number | null {
@@ -173,6 +191,30 @@ function describeWeather(
   if (temp >= 20) return { emoji: "☀️", description: "Varmt og tørt" };
   if (temp <= -5) return { emoji: "🥶", description: "Kaldt" };
   return { emoji: "⛅", description: "Opphold" };
+}
+
+function buildObservationWarning(group: WeatherGroupKey, error: unknown): string {
+  const label = WEATHER_GROUP_LABELS[group];
+  const message = error instanceof Error ? error.message : String(error);
+  const statusCode = Number((message.match(/Request failed \((\d+)\)/)?.[1] ?? ""));
+  const reason =
+    message.match(/"reason"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
+    message.match(/"message"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
+    "";
+
+  if (statusCode === 429) {
+    return `${label}: Frost svarte 429 (for mange foresporsler). Prov igjen om litt.`;
+  }
+  if (statusCode === 500) {
+    return `${label}: Frost svarte 500 (intern feil hos datakilde).`;
+  }
+  if (statusCode > 0 && reason) {
+    return `${label}: Kunne ikke hente data (${statusCode}). ${reason}`;
+  }
+  if (statusCode > 0) {
+    return `${label}: Kunne ikke hente data (${statusCode}).`;
+  }
+  return `${label}: Kunne ikke hente data fra Frost.`;
 }
 
 async function geocodeNorwegianAddress(address: string): Promise<{ lat: number; lon: number }> {
@@ -331,33 +373,42 @@ function collectObservationMetricsFromPayload(
 }
 
 async function getObservationPayload(
+  group: WeatherGroupKey,
   sourceIds: string[],
   date: string,
   elements: string[],
   frostAuth: string
-): Promise<unknown> {
+): Promise<ObservationPayloadResult> {
   if (sourceIds.length === 0) {
-    return { data: [] };
+    return { payload: { data: [] }, warning: `${WEATHER_GROUP_LABELS[group]}: Ingen stasjonskandidater.` };
   }
 
   const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
   const url =
     `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceIds.join(","))}` +
     `&referencetime=${encodeURIComponent(referenceTime)}` +
-    `&elements=${encodeURIComponent(elements.join(","))}` +
-    "&levels=default&timeoffsets=default&qualities=0,1,2,3,4";
+    `&elements=${encodeURIComponent(elements.join(","))}`;
 
   try {
-    return await fetchJson(url, {
-      Authorization: frostAuth,
-    });
+    return {
+      payload: await fetchJson(url, {
+        Authorization: frostAuth,
+      }),
+      warning: null,
+    };
   } catch (error) {
+    const warning = buildObservationWarning(group, error);
     console.warn("Weather observation fetch failed", {
+      group,
       sourceCount: sourceIds.length,
       elements: elements.join(","),
+      warning,
       error: error instanceof Error ? error.message : String(error),
     });
-    return { data: [] };
+    return {
+      payload: { data: [] },
+      warning,
+    };
   }
 }
 
@@ -484,22 +535,38 @@ function getObservationSnapshot(
 
   const hourly = Array.from(accumulator.buckets.values())
     .sort((a, b) => a.hour - b.hour)
-    .map<IndoorClimateWeatherHour>((bucket) => ({
-      date: bucket.date,
-      hour: bucket.hour,
-      timeLabel: bucket.timeLabel,
-      temperatureC: average(bucket.temperatureValues),
-      precipitationMm: bucket.hasPrecipitation ? bucket.precipitationSum : null,
-      windMs: average(bucket.windValues),
-      maxWindMs:
+    .map<IndoorClimateWeatherHour>((bucket) => {
+      const temperatureC = average(bucket.temperatureValues);
+      const precipitationMm = bucket.hasPrecipitation ? bucket.precipitationSum : null;
+      const windMs = average(bucket.windValues);
+      const maxWindMs =
         [...bucket.windValues, ...bucket.gustValues].length > 0
           ? Math.max(...bucket.windValues, ...bucket.gustValues)
-          : null,
-      snowDepthCm:
+          : null;
+      const snowDepthCm =
         bucket.snowDepthValues.length > 0
           ? bucket.snowDepthValues[bucket.snowDepthValues.length - 1]
-          : null,
-    }));
+          : null;
+      const hourlyWeather = describeWeather(
+        temperatureC,
+        precipitationMm,
+        maxWindMs,
+        snowDepthCm
+      );
+
+      return {
+        date: bucket.date,
+        hour: bucket.hour,
+        timeLabel: bucket.timeLabel,
+        weatherEmoji: hourlyWeather.emoji,
+        weatherDescription: hourlyWeather.description,
+        temperatureC,
+        precipitationMm,
+        windMs,
+        maxWindMs,
+        snowDepthCm,
+      };
+    });
 
   const hourlyPrecipSum = hourly
     .map((row) => row.precipitationMm)
@@ -644,46 +711,65 @@ export async function GET(request: Request) {
       ),
     ]);
 
-    const [temperaturePayload, windPayload, precipitationPayload, snowPayload] =
+    const [temperatureResult, windResult, precipitationResult, snowResult] =
       await Promise.all([
         getObservationPayload(
-          temperatureCandidates.map((candidate) => candidate.sourceId),
+          "temperature",
+          temperatureCandidates
+            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.temperature)
+            .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.temperature,
           frostAuth
         ),
         getObservationPayload(
-          windCandidates.map((candidate) => candidate.sourceId),
+          "wind",
+          windCandidates
+            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
+            .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.wind,
           frostAuth
         ),
         getObservationPayload(
-          precipitationCandidates.map((candidate) => candidate.sourceId),
+          "precipitation",
+          precipitationCandidates
+            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.precipitation)
+            .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.precipitation,
           frostAuth
         ),
         getObservationPayload(
-          snowCandidates.map((candidate) => candidate.sourceId),
+          "snow",
+          snowCandidates
+            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
+            .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.snow,
           frostAuth
         ),
       ]);
 
+    const observationWarnings = [
+      temperatureResult.warning,
+      windResult.warning,
+      precipitationResult.warning,
+      snowResult.warning,
+    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
     const temperatureSource = pickNearestSourceWithData(
       temperatureCandidates,
-      temperaturePayload,
+      temperatureResult.payload,
       date
     );
-    const windSource = pickNearestSourceWithData(windCandidates, windPayload, date);
+    const windSource = pickNearestSourceWithData(windCandidates, windResult.payload, date);
     const precipitationSource = pickNearestSourceWithData(
       precipitationCandidates,
-      precipitationPayload,
+      precipitationResult.payload,
       date
     );
-    const snowSource = pickNearestSourceWithData(snowCandidates, snowPayload, date);
+    const snowSource = pickNearestSourceWithData(snowCandidates, snowResult.payload, date);
 
     const selectedSources: Record<WeatherGroupKey, FrostSourceSelection> = {
       temperature: {
@@ -706,15 +792,18 @@ export async function GET(request: Request) {
 
     const observation = getObservationSnapshot(
       {
-        temperature: { payload: temperaturePayload, source: temperatureSource },
-        wind: { payload: windPayload, source: windSource },
-        precipitation: { payload: precipitationPayload, source: precipitationSource },
-        snow: { payload: snowPayload, source: snowSource },
+        temperature: { payload: temperatureResult.payload, source: temperatureSource },
+        wind: { payload: windResult.payload, source: windSource },
+        precipitation: { payload: precipitationResult.payload, source: precipitationSource },
+        snow: { payload: snowResult.payload, source: snowSource },
       },
       date
     );
     if (!hasAnyObservationData(observation)) {
-      throw new Error(USER_VISIBLE_WEATHER_ERROR);
+      throw new Error(
+        observationWarnings[0] ??
+          "Kunne ikke hente brukbare observasjoner fra Frost for valgt dato."
+      );
     }
     const normalTempC = await getClimateNormalTemperature(
       selectedSources.temperature.sourceId,
@@ -735,6 +824,7 @@ export async function GET(request: Request) {
       sourceName,
       weatherEmoji: weatherDescription.emoji,
       weatherDescription: weatherDescription.description,
+      warnings: observationWarnings,
       maxTempC: roundOne(observation.maxTempC),
       minTempC: roundOne(observation.minTempC),
       avgTempC: roundOne(observation.avgTempC),
@@ -756,6 +846,7 @@ export async function GET(request: Request) {
     return NextResponse.json(snapshot);
   } catch (error: unknown) {
     console.error("Weather API error:", error);
-    return NextResponse.json({ error: USER_VISIBLE_WEATHER_ERROR }, { status: 500 });
+    const message = error instanceof Error ? error.message : USER_VISIBLE_WEATHER_ERROR;
+    return NextResponse.json({ error: message || USER_VISIBLE_WEATHER_ERROR }, { status: 500 });
   }
 }

@@ -1,6 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ReportState } from "../../template-types";
+import { applyGraphikPdfFont } from "../../pdf-font";
+import { addStandardFooter } from "../../pdf-footer";
+import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
 import {
   DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
   INDOOR_CLIMATE_REFERENCES,
@@ -9,6 +12,8 @@ import {
   getIndoorClimateData,
 } from "./schema";
 
+const emojiImageCache = new Map<string, string | null>();
+
 function getLastAutoTableY(doc: jsPDF): number | null {
   return (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? null;
 }
@@ -16,6 +21,38 @@ function getLastAutoTableY(doc: jsPDF): number | null {
 function formatValue(value: number | null, suffix = ""): string {
   if (value === null) return "-";
   return `${value}${suffix}`;
+}
+
+function getEmojiImageDataUrl(emoji: string): string | null {
+  if (!emoji.trim()) return null;
+  if (emojiImageCache.has(emoji)) return emojiImageCache.get(emoji) ?? null;
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    emojiImageCache.set(emoji, null);
+    return null;
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      emojiImageCache.set(emoji, null);
+      return null;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '50px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.fillText(emoji, canvas.width / 2, canvas.height / 2 + 2);
+    const dataUrl = canvas.toDataURL("image/png");
+    emojiImageCache.set(emoji, dataUrl);
+    return dataUrl;
+  } catch {
+    emojiImageCache.set(emoji, null);
+    return null;
+  }
 }
 
 function getDefaultSummary(state: ReportState): string {
@@ -75,6 +112,7 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
 
   const metadata = indoor.metadata;
   const doc = new jsPDF();
+  applyGraphikPdfFont(doc);
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   const TEAL = "#005041";
@@ -155,9 +193,13 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
   doc.setTextColor("#FFFFFF");
   doc.setFontSize(24);
   doc.text("Rapport etter kartlegging av inneklima", 14, 25);
-  doc.setFontSize(10);
-  doc.text("Dr. Dropin Bedrift", pageWidth - 45, 15);
-  doc.text("Inneklimarapport", pageWidth - 45, 20);
+  try {
+    doc.addImage(LIGHT_LOGO_PNG_DATA_URL, "PNG", pageWidth - 48, 8, 34, 29);
+  } catch {
+    doc.setFontSize(10);
+    doc.text("Dr. Dropin Bedrift", pageWidth - 45, 15);
+    doc.text("Inneklimarapport", pageWidth - 45, 20);
+  }
 
   doc.setTextColor("#000000");
 
@@ -394,11 +436,13 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
       renderParagraph("Ingen timedata tilgjengelig for valgt tidsrom.");
     } else {
       ensureSpace(40);
+      const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Tid", "Temp C", "Nedbor mm", "Snodybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        head: [["Tid", "Vaer", "Temp C", "Nedbor mm", "Snodybde cm", "Vind m/s", "Kraftigste vind m/s"]],
         body: hourlyRows.map((row) => [
           row.timeLabel,
+          row.weatherDescription ?? "-",
           formatValue(row.temperatureC),
           formatValue(row.precipitationMm),
           formatValue(row.snowDepthCm),
@@ -407,6 +451,30 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
         ]),
         styles: { fontSize: 8.5 },
         headStyles: { fillColor: TEAL },
+        didParseCell: (hookData) => {
+          if (hookData.section === "body" && hookData.column.index === 1) {
+            hookData.cell.styles.cellPadding = {
+              top: 1.5,
+              right: 1.5,
+              bottom: 1.5,
+              left: 9,
+            };
+          }
+        },
+        didDrawCell: (hookData) => {
+          if (hookData.section !== "body" || hookData.column.index !== 1) return;
+          const image = hourlyEmojiImages[hookData.row.index];
+          if (!image) return;
+
+          const iconSize = Math.min(4.2, Math.max(2.8, hookData.cell.height - 2));
+          const iconX = hookData.cell.x + 1.4;
+          const iconY = hookData.cell.y + (hookData.cell.height - iconSize) / 2;
+          try {
+            doc.addImage(image, "PNG", iconX, iconY, iconSize, iconSize);
+          } catch {
+            // best-effort icon rendering
+          }
+        },
       });
       finalY = (getLastAutoTableY(doc) ?? finalY) + 5;
     }
@@ -415,6 +483,7 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
     renderParagraph(metadata.appendicesIntroText.trim());
   }
 
+  addStandardFooter(doc);
   return doc;
 }
 

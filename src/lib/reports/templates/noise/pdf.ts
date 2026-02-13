@@ -1,6 +1,9 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ReportState } from "../../template-types";
+import { applyGraphikPdfFont } from "../../pdf-font";
+import { addStandardFooter } from "../../pdf-footer";
+import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
 import { getNoiseData } from "./schema";
 
 export function createNoiseReportPDFDoc(state: ReportState) {
@@ -34,6 +37,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   const selectedGroup = noiseGroupDetails[noiseMeta.noiseGroup];
 
   const doc = new jsPDF();
+  applyGraphikPdfFont(doc);
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
 
@@ -51,9 +55,13 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   doc.setFontSize(24);
   doc.text("Rapport etter kartlegging av støy", 14, 25);
 
-  doc.setFontSize(10);
-  doc.text("Dr. Dropin Bedrift", pageWidth - 40, 15);
-  doc.text("Støyrapport", pageWidth - 40, 20);
+  try {
+    doc.addImage(LIGHT_LOGO_PNG_DATA_URL, "PNG", pageWidth - 48, 8, 34, 29);
+  } catch {
+    doc.setFontSize(10);
+    doc.text("Dr. Dropin Bedrift", pageWidth - 40, 15);
+    doc.text("Støyrapport", pageWidth - 40, 20);
+  }
 
   // --- Cover: Client Info Table ---
   doc.setTextColor("#000000");
@@ -455,6 +463,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     renderParagraph(noiseMeta.appendicesExtraText.trim());
   }
 
+  addStandardFooter(doc);
   return doc;
 }
 

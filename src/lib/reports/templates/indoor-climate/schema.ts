@@ -47,6 +47,7 @@ export interface IndoorClimateWeatherSnapshot {
   sourceName: string;
   weatherEmoji: string;
   weatherDescription: string;
+  warnings?: string[];
   maxTempC: number | null;
   minTempC: number | null;
   avgTempC: number | null;
@@ -62,6 +63,8 @@ export interface IndoorClimateWeatherHour {
   date: string;
   hour: number;
   timeLabel: string;
+  weatherEmoji?: string;
+  weatherDescription?: string;
   temperatureC: number | null;
   precipitationMm: number | null;
   windMs: number | null;
@@ -85,6 +88,7 @@ export interface IndoorClimateMetadata {
   weatherLat: number | null;
   weatherLon: number | null;
   weatherDate: string;
+  weatherFetchError: string;
   weatherHourFrom: number;
   weatherHourTo: number;
   weatherSnapshot: IndoorClimateWeatherSnapshot | null;
@@ -198,6 +202,7 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   weatherLat: null,
   weatherLon: null,
   weatherDate: new Date().toISOString().split("T")[0],
+  weatherFetchError: "",
   weatherHourFrom: 8,
   weatherHourTo: 20,
   weatherSnapshot: null,

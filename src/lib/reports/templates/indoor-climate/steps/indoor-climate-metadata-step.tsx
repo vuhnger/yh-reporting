@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId } from "react";
 import { useWizard } from "@/components/wizard/wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -16,13 +16,6 @@ import {
   getIndoorClimateData,
   type IndoorClimateWeatherHour,
 } from "../schema";
-
-interface AddressSuggestion {
-  id: string;
-  label: string;
-  lat: number | null;
-  lon: number | null;
-}
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({
   value: hour,
@@ -60,14 +53,6 @@ export function IndoorClimateMetadataStep() {
   const { state, updateIndoorClimateMetadata } = useWizard();
   const indoor = getIndoorClimateData(state);
   const metadata = indoor?.metadata;
-  const weatherInclude = metadata?.weatherInclude ?? false;
-  const weatherAddress = metadata?.weatherAddress ?? "";
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherError, setWeatherError] = useState<string | null>(null);
-  const [addressLoading, setAddressLoading] = useState(false);
-  const [addressError, setAddressError] = useState<string | null>(null);
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-  const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
   const customerImageInputId = useId();
 
   useEffect(() => {
@@ -76,77 +61,19 @@ export function IndoorClimateMetadataStep() {
     updateIndoorClimateMetadata({ weatherDate: state.sharedMetadata.date });
   }, [indoor, state.sharedMetadata.date, updateIndoorClimateMetadata]);
 
-  useEffect(() => {
-    if (!weatherInclude) {
-      setAddressSuggestions([]);
-      setAddressError(null);
-      setAddressDropdownOpen(false);
-      setAddressLoading(false);
-      return;
-    }
-
-    const query = weatherAddress.trim();
-    if (query.length < 3) {
-      setAddressSuggestions([]);
-      setAddressError(null);
-      setAddressLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setAddressLoading(true);
-    setAddressError(null);
-
-    const handle = window.setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/address-search?q=${encodeURIComponent(query)}`);
-        const payload = await response.json();
-
-        if (!response.ok) {
-          if (!cancelled) {
-            setAddressError(payload?.error || "Kunne ikke hente adresseforslag.");
-            setAddressSuggestions([]);
-          }
-          return;
-        }
-
-        if (!cancelled) {
-          const suggestions = Array.isArray(payload.results)
-            ? (payload.results as AddressSuggestion[])
-            : [];
-          setAddressSuggestions(suggestions);
-          setAddressDropdownOpen(true);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error(error);
-          setAddressError("Kunne ikke hente adresseforslag.");
-          setAddressSuggestions([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setAddressLoading(false);
-        }
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(handle);
-    };
-  }, [weatherAddress, weatherInclude]);
-
   if (!indoor || !metadata) return null;
 
   const recommendationsText = metadata.recommendations.join("\n");
   const manualReferencesText = metadata.manualReferences.join("\n");
   const weatherHourFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
   const weatherHourTo = Math.min(23, Math.max(weatherHourFrom, metadata.weatherHourTo));
+  const weatherSnapshotForDate =
+    metadata.weatherSnapshot?.date === state.sharedMetadata.date ? metadata.weatherSnapshot : null;
   const weatherHourlyRows: IndoorClimateWeatherHour[] = (() => {
-    if (!metadata.weatherSnapshot) return [];
+    if (!weatherSnapshotForDate) return [];
 
     const rowsByHour = new Map<number, IndoorClimateWeatherHour>();
-    for (const row of metadata.weatherSnapshot.hourly) {
+    for (const row of weatherSnapshotForDate.hourly) {
       rowsByHour.set(row.hour, row);
     }
 
@@ -155,7 +82,7 @@ export function IndoorClimateMetadataStep() {
       const existing = rowsByHour.get(hour);
       rows.push(
         existing ?? {
-          date: metadata.weatherSnapshot.date,
+          date: weatherSnapshotForDate.date,
           hour,
           timeLabel: formatHourLabel(hour),
           temperatureC: null,
@@ -180,46 +107,6 @@ export function IndoorClimateMetadataStep() {
     } catch (error) {
       console.error(error);
       alert("Kunne ikke lese bilde.");
-    }
-  };
-
-  const fetchWeather = async () => {
-    const address = (metadata.weatherAddress || state.client.address || "").trim();
-    if (!address) {
-      setWeatherError("Legg inn adresse for vaeroppslag.");
-      return;
-    }
-
-    setWeatherLoading(true);
-    setWeatherError(null);
-
-    try {
-      const params = new URLSearchParams({
-        address,
-        date: state.sharedMetadata.date,
-      });
-      if (metadata.weatherLat !== null && metadata.weatherLon !== null) {
-        params.set("lat", String(metadata.weatherLat));
-        params.set("lon", String(metadata.weatherLon));
-      }
-      const response = await fetch(`/api/weather?${params.toString()}`);
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setWeatherError(payload?.error || "Kunne ikke hente vaerdata.");
-        return;
-      }
-
-      updateIndoorClimateMetadata({
-        weatherAddress: address,
-        weatherDate: state.sharedMetadata.date,
-        weatherSnapshot: payload,
-      });
-    } catch (error) {
-      console.error(error);
-      setWeatherError("Kunne ikke hente vaerdata.");
-    } finally {
-      setWeatherLoading(false);
     }
   };
 
@@ -472,66 +359,14 @@ export function IndoorClimateMetadataStep() {
           </div>
           {metadata.weatherInclude && (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 relative">
-                  <Label htmlFor="weather-address">Adresse i Norge</Label>
-                  <Input
-                    id="weather-address"
-                    value={metadata.weatherAddress}
-                    onChange={(e) => {
-                      updateIndoorClimateMetadata({
-                        weatherAddress: e.target.value,
-                        weatherLat: null,
-                        weatherLon: null,
-                      });
-                      setAddressDropdownOpen(true);
-                    }}
-                    onFocus={() => {
-                      if (addressSuggestions.length > 0) {
-                        setAddressDropdownOpen(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      window.setTimeout(() => setAddressDropdownOpen(false), 120);
-                    }}
-                    placeholder={state.client.address || "Skriv adresse"}
-                    autoComplete="off"
-                  />
-                  {addressLoading && (
-                    <p className="text-xs text-muted-foreground">Soker adresser...</p>
-                  )}
-                  {addressError && (
-                    <p className="text-xs text-destructive">{addressError}</p>
-                  )}
-                  {addressDropdownOpen && addressSuggestions.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow">
-                      <div className="max-h-64 overflow-y-auto py-1">
-                        {addressSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.id}
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              updateIndoorClimateMetadata({
-                                weatherAddress: suggestion.label,
-                                weatherLat: suggestion.lat,
-                                weatherLon: suggestion.lon,
-                              });
-                              setAddressDropdownOpen(false);
-                            }}
-                          >
-                            {suggestion.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weather-date">Dato for oppdrag</Label>
-                  <Input id="weather-date" value={state.sharedMetadata.date} readOnly className="bg-slate-50" />
-                </div>
+              <div className="rounded-md border bg-slate-50 px-3 py-2">
+                <p className="text-sm">
+                  <span className="font-medium">Adresse for værdata:</span>{" "}
+                  {metadata.weatherAddress || state.client.address || "-"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Redigeres i steget "Forsideinformasjon".
+                </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -611,25 +446,36 @@ export function IndoorClimateMetadataStep() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Button type="button" variant="outline" onClick={fetchWeather} disabled={weatherLoading}>
-                  {weatherLoading ? "Henter..." : "Hent vaerdata"}
-                </Button>
-                {weatherError && <p className="text-sm text-destructive">{weatherError}</p>}
+                {metadata.weatherFetchError ? (
+                  <p className="text-sm text-destructive">{metadata.weatherFetchError}</p>
+                ) : !weatherSnapshotForDate && (
+                  <p className="text-sm text-muted-foreground">
+                    Velg adresse i "Forsideinformasjon" for a hente vaerdata.
+                  </p>
+                )}
               </div>
-              {metadata.weatherSnapshot && (
+              {weatherSnapshotForDate && (
                 <div className="rounded-md border overflow-hidden">
                   <div className="px-3 py-2 bg-slate-50 border-b">
                     <p className="text-sm font-medium">
-                      Oppdragsdato: {metadata.weatherSnapshot.date} · Viser time for time {String(weatherHourFrom).padStart(2, "0")}:00-{String(weatherHourTo).padStart(2, "0")}:00
+                      Oppdragsdato: {weatherSnapshotForDate.date} · Viser time for time {String(weatherHourFrom).padStart(2, "0")}:00-{String(weatherHourTo).padStart(2, "0")}:00
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Kilde: {metadata.weatherSnapshot.sourceName} · {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription}
+                      Kilde: {weatherSnapshotForDate.sourceName} · {weatherSnapshotForDate.weatherEmoji} {weatherSnapshotForDate.weatherDescription}
                     </p>
                   </div>
+                  {Array.isArray(weatherSnapshotForDate.warnings) && weatherSnapshotForDate.warnings.length > 0 && (
+                    <div className="px-3 py-2 border-b bg-red-50 text-red-700 text-xs">
+                      {weatherSnapshotForDate.warnings.map((warning, index) => (
+                        <p key={`${warning}-${index}`}>{warning}</p>
+                      ))}
+                    </div>
+                  )}
                   <Table>
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead>Tid</TableHead>
+                        <TableHead>Vaer</TableHead>
                         <TableHead className="text-right">Temp C</TableHead>
                         <TableHead className="text-right">Nedbor mm</TableHead>
                         <TableHead className="text-right">Snodybde cm</TableHead>
@@ -640,7 +486,7 @@ export function IndoorClimateMetadataStep() {
                     <TableBody>
                       {weatherHourlyRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground">
                             Ingen timedata tilgjengelig for valgt tidsrom.
                           </TableCell>
                         </TableRow>
@@ -648,6 +494,7 @@ export function IndoorClimateMetadataStep() {
                         weatherHourlyRows.map((row) => (
                           <TableRow key={`${row.date}-${row.hour}`}>
                             <TableCell>{row.timeLabel}</TableCell>
+                            <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
                             <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
                             <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
                             <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
@@ -659,11 +506,11 @@ export function IndoorClimateMetadataStep() {
                     </TableBody>
                   </Table>
                   <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
-                    Dognoppsummering: maks {metadata.weatherSnapshot.maxTempC ?? "-"} C, min{" "}
-                    {metadata.weatherSnapshot.minTempC ?? "-"} C, gj.snitt{" "}
-                    {metadata.weatherSnapshot.avgTempC ?? "-"} C, normal{" "}
-                    {metadata.weatherSnapshot.normalTempC ?? "-"} C, nedbor{" "}
-                    {metadata.weatherSnapshot.precipitationMm ?? "-"} mm.
+                    Dognoppsummering: maks {weatherSnapshotForDate.maxTempC ?? "-"} C, min{" "}
+                    {weatherSnapshotForDate.minTempC ?? "-"} C, gj.snitt{" "}
+                    {weatherSnapshotForDate.avgTempC ?? "-"} C, normal{" "}
+                    {weatherSnapshotForDate.normalTempC ?? "-"} C, nedbor{" "}
+                    {weatherSnapshotForDate.precipitationMm ?? "-"} mm.
                   </div>
                 </div>
               )}
