@@ -22,8 +22,8 @@ const graphik = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Dr. Dropin YH Reporting",
-  description: "Automated reporting tool for Occupational Health",
+  title: "Dr. Dropin YH Rapportering",
+  description: "Automatisert rapportverktøy for yrkeshygiene",
 };
 
 export default function RootLayout({

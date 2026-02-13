@@ -21,14 +21,14 @@ export function Header() {
           <div className="flex h-8 w-8 items-center justify-center rounded bg-white text-primary">
             <span className="font-bold">YH</span>
           </div>
-          <span>Dr. Dropin Reporting</span>
+          <span>Dr. Dropin Rapportering</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium">
           <Link href="/" className="hover:underline hover:text-white/80 transition-colors">
-            New Report
+            Ny rapport
           </Link>
           <Link href="#" className="hover:underline hover:text-white/80 transition-colors">
-            Saved Reports
+            Lagrede rapporter
           </Link>
           <div className="flex items-center gap-2 ml-4 opacity-80">
             <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">

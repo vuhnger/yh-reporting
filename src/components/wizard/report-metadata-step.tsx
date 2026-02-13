@@ -248,17 +248,6 @@ export function SharedMetadataStep() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assignment">Oppdrag (auto)</Label>
-              <Input
-                id="assignment"
-                value={state.sharedMetadata.assignment}
-                readOnly
-                className="bg-slate-50"
-                placeholder="Genereres automatisk basert på rapporttype og bedrift"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="execution-date">Dato for utførelse</Label>
               <Input
                 id="execution-date"
@@ -294,16 +283,6 @@ export function SharedMetadataStep() {
                 id="report-date"
                 type="date"
                 value={state.sharedMetadata.reportDate}
-                readOnly
-                className="bg-slate-50"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="attachments">Antall vedlegg (auto)</Label>
-              <Input
-                id="attachments"
-                value={String(state.files.length)}
                 readOnly
                 className="bg-slate-50"
               />

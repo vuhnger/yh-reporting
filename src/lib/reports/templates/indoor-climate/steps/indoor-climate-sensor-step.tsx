@@ -268,6 +268,10 @@ export function IndoorClimateSensorStep() {
             sensor.instrument?.kilde === "manuell"
               ? "manual"
               : sensor.instrument?.id ?? "none";
+          const sensorTableLabel =
+            sensor.instrument?.hva?.trim() ||
+            sensor.locationName.trim() ||
+            "Maler";
 
           return (
             <div key={sensor.id} className="rounded-lg border p-4 space-y-6 bg-white">
@@ -395,7 +399,7 @@ export function IndoorClimateSensorStep() {
                   <Table>
                     <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead>{sensor.locationName || `<Navn pa maler>`}</TableHead>
+                        <TableHead>{sensorTableLabel}</TableHead>
                         <TableHead className="text-right">Temperatur (C)</TableHead>
                         <TableHead className="text-right">Relativ luftfuktighet (%RH)</TableHead>
                         <TableHead className="text-right">CO2 (ppm)</TableHead>

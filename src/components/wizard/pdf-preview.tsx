@@ -83,7 +83,7 @@ export function PDFPreview() {
         )}
         {url ? (
           <iframe
-            title="PDF Preview"
+            title="PDF-forhåndsvisning"
             src={url}
             className="w-full h-[calc(100vh-12rem)] border-0"
           />

@@ -76,7 +76,7 @@ export function NoiseMeasurementStep() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle className="text-2xl text-primary">Støymålinger (Noise Measurements)</CardTitle>
+            <CardTitle className="text-2xl text-primary">Støymålinger</CardTitle>
             <CardDescription>
               Legg inn måleresultater. Fargene oppdateres automatisk basert på grenseverdier.
             </CardDescription>
@@ -114,7 +114,7 @@ export function NoiseMeasurementStep() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="w-[250px]">Målested (Location)</TableHead>
+                <TableHead className="w-[250px]">Målested</TableHead>
                 <TableHead className="w-[150px]">Varighet</TableHead>
                 <TableHead className="w-[120px] text-right">LAeq (dB A)</TableHead>
                 <TableHead className="w-[120px] text-right">LCpeak (dB C)</TableHead>

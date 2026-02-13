@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useEffect, useRef } from "react";
 import { useWizard } from "@/components/wizard/wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -33,27 +33,11 @@ function splitLines(text: string): string[] {
     .filter(Boolean);
 }
 
-function readImageAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null;
-      if (!result) {
-        reject(new Error("Kunne ikke lese bildefil."));
-        return;
-      }
-      resolve(result);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Ukjent filfeil."));
-    reader.readAsDataURL(file);
-  });
-}
-
 export function IndoorClimateMetadataStep() {
   const { state, updateIndoorClimateMetadata } = useWizard();
   const indoor = getIndoorClimateData(state);
   const metadata = indoor?.metadata;
-  const customerImageInputId = useId();
+  const referencesSeededRef = useRef(false);
 
   useEffect(() => {
     if (!indoor) return;
@@ -61,10 +45,17 @@ export function IndoorClimateMetadataStep() {
     updateIndoorClimateMetadata({ weatherDate: state.sharedMetadata.date });
   }, [indoor, state.sharedMetadata.date, updateIndoorClimateMetadata]);
 
+  useEffect(() => {
+    if (!indoor) return;
+    if (referencesSeededRef.current) return;
+    referencesSeededRef.current = true;
+    if (indoor.metadata.manualReferences.length > 0) return;
+    updateIndoorClimateMetadata({ manualReferences: [...INDOOR_CLIMATE_REFERENCES] });
+  }, [indoor, updateIndoorClimateMetadata]);
+
   if (!indoor || !metadata) return null;
 
   const recommendationsText = metadata.recommendations.join("\n");
-  const manualReferencesText = metadata.manualReferences.join("\n");
   const weatherHourFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
   const weatherHourTo = Math.min(23, Math.max(weatherHourFrom, metadata.weatherHourTo));
   const weatherSnapshotForDate =
@@ -96,20 +87,6 @@ export function IndoorClimateMetadataStep() {
     return rows;
   })();
 
-  const onCustomerImageChange = async (file: File | null) => {
-    if (!file) {
-      updateIndoorClimateMetadata({ customerWebsiteImage: null });
-      return;
-    }
-    try {
-      const image = await readImageAsDataUrl(file);
-      updateIndoorClimateMetadata({ customerWebsiteImage: image });
-    } catch (error) {
-      console.error(error);
-      alert("Kunne ikke lese bilde.");
-    }
-  };
-
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
       <CardHeader>
@@ -120,64 +97,6 @@ export function IndoorClimateMetadataStep() {
       </CardHeader>
       <CardContent className="space-y-8">
         <section className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Kundens bilde</h3>
-            <p className="text-xs text-muted-foreground">URL fra kundens nettside og bilde/logo for toppseksjonen.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer-website-url">Nettside (valgfritt)</Label>
-              <Input
-                id="customer-website-url"
-                value={metadata.customerWebsiteUrl}
-                onChange={(e) => updateIndoorClimateMetadata({ customerWebsiteUrl: e.target.value })}
-                placeholder="https://kunde.no"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bilde/logo</Label>
-              <input
-                id={customerImageInputId}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onCustomerImageChange(e.target.files?.[0] ?? null)}
-              />
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById(customerImageInputId)?.click()}>
-                  Last opp bilde
-                </Button>
-                {metadata.customerWebsiteImage && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => onCustomerImageChange(null)}>
-                    Fjern bilde
-                  </Button>
-                )}
-              </div>
-              {metadata.customerWebsiteImage && (
-                <img
-                  src={metadata.customerWebsiteImage}
-                  alt="Kundebilde"
-                  className="max-h-44 rounded border object-contain p-2 bg-white"
-                />
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer-image-caption">Bildetekst (valgfritt)</Label>
-              <Input
-                id="customer-image-caption"
-                value={metadata.customerWebsiteImageCaption}
-                onChange={(e) => updateIndoorClimateMetadata({ customerWebsiteImageCaption: e.target.value })}
-                placeholder="Valgfri bildetekst"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-primary">Takketekst</h3>
-            <p className="text-xs text-muted-foreground">Redigerbar standardtekst etter metadata-tabellen.</p>
-          </div>
           <Textarea
             value={metadata.thanksText}
             onChange={(e) => updateIndoorClimateMetadata({ thanksText: e.target.value })}
@@ -288,25 +207,47 @@ export function IndoorClimateMetadataStep() {
         <section className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold text-primary">Referanser</h3>
-            <p className="text-xs text-muted-foreground">Standardreferanser vises alltid. Legg til egne ved behov.</p>
-          </div>
-          <div className="rounded-md border p-3 bg-slate-50">
-            <ul className="list-disc pl-6 space-y-1 text-sm">
-              {INDOOR_CLIMATE_REFERENCES.map((reference) => (
-                <li key={reference}>{reference}</li>
-              ))}
-            </ul>
+            <p className="text-xs text-muted-foreground">Du kan legge til, endre og fjerne referanser.</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="manual-references">Manuelle referanser (en per linje)</Label>
-            <Textarea
-              id="manual-references"
-              value={manualReferencesText}
-              onChange={(e) =>
-                updateIndoorClimateMetadata({ manualReferences: splitLines(e.target.value) })
+            {metadata.manualReferences.map((reference, index) => (
+              <div key={`${index}-${reference}`} className="flex items-center gap-2">
+                <Input
+                  value={reference}
+                  onChange={(e) => {
+                    const next = [...metadata.manualReferences];
+                    next[index] = e.target.value;
+                    updateIndoorClimateMetadata({ manualReferences: next });
+                  }}
+                  placeholder={`Referanse ${index + 1}`}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() =>
+                    updateIndoorClimateMetadata({
+                      manualReferences: metadata.manualReferences.filter((_, i) => i !== index),
+                    })
+                  }
+                  aria-label="Fjern referanse"
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                updateIndoorClimateMetadata({
+                  manualReferences: [...metadata.manualReferences, ""],
+                })
               }
-              className="min-h-[120px]"
-            />
+            >
+              Legg til referanse
+            </Button>
           </div>
           <div className="space-y-2">
             <Label htmlFor="references-extra-text">Ekstra referansetekst (valgfritt)</Label>

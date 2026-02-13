@@ -2,7 +2,7 @@
 
 import { useWizard } from "./wizard-context";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, ClipboardList, User } from "lucide-react";
+import { Building2, CalendarDays, User } from "lucide-react";
 import type { ReportType } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
 
@@ -32,9 +32,8 @@ export function ReviewStep() {
                 </div>
             </div>
             <div className="p-4 bg-slate-50 rounded-lg border space-y-3">
-                <h3 className="font-semibold flex items-center gap-2 text-primary"><ClipboardList className="h-4 w-4"/> Oppdrag</h3>
+                <h3 className="font-semibold flex items-center gap-2 text-primary"><CalendarDays className="h-4 w-4"/> Utførelse</h3>
                 <div className="text-sm space-y-1">
-                    <p><span className="font-medium text-muted-foreground">Tittel:</span> {state.sharedMetadata.assignment}</p>
                     <p><span className="font-medium text-muted-foreground">Dato:</span> {state.sharedMetadata.date}</p>
                     <p><span className="font-medium text-muted-foreground">Forfatter:</span> {state.sharedMetadata.author}</p>
                 </div>
@@ -49,7 +48,6 @@ export function ReviewStep() {
             <p><span className="font-medium text-muted-foreground">Rapport sendt til:</span> {state.sharedMetadata.reportSentTo}</p>
             <p><span className="font-medium text-muted-foreground">KAM/HMS-rådgiver:</span> {state.sharedMetadata.advisor}</p>
             <p><span className="font-medium text-muted-foreground">Dato for rapport:</span> {state.sharedMetadata.reportDate}</p>
-            <p><span className="font-medium text-muted-foreground">Antall vedlegg:</span> {state.files.length}</p>
           </div>
         </div>
 

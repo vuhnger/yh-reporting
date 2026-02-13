@@ -73,9 +73,6 @@ export interface IndoorClimateWeatherHour {
 }
 
 export interface IndoorClimateMetadata {
-  customerWebsiteUrl: string;
-  customerWebsiteImage: string | null;
-  customerWebsiteImageCaption: string;
   thanksText: string;
   summaryText: string;
   methodText: string;
@@ -187,14 +184,11 @@ export function defaultSensor(): IndoorClimateSensor {
 }
 
 export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
-  customerWebsiteUrl: "",
-  customerWebsiteImage: null,
-  customerWebsiteImageCaption: "",
   thanksText: DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
   summaryText: "",
   methodText: "",
   recommendations: [],
-  manualReferences: [],
+  manualReferences: [...INDOOR_CLIMATE_REFERENCES],
   referencesExtraText: "",
   appendicesIntroText: "",
   weatherInclude: true,

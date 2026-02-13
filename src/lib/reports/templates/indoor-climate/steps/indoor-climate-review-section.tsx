@@ -45,8 +45,8 @@ export function IndoorClimateReviewSection() {
                 <TableRow>
                   <TableHead>Parameter</TableHead>
                   <TableHead className="text-right">Min</TableHead>
-                  <TableHead className="text-right">Max</TableHead>
-                  <TableHead className="text-right">Avg</TableHead>
+                  <TableHead className="text-right">Maks</TableHead>
+                  <TableHead className="text-right">Gj.snitt</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

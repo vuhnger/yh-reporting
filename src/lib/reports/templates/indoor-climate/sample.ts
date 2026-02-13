@@ -2,6 +2,7 @@ import type { ReportState } from "../../template-types";
 import type { IndoorClimateReportData } from "./schema";
 import {
   DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
+  INDOOR_CLIMATE_REFERENCES,
   defaultSensor,
 } from "./schema";
 
@@ -49,9 +50,6 @@ const sensorB = {
 
 const indoorClimateSampleData: IndoorClimateReportData = {
   metadata: {
-    customerWebsiteUrl: "https://example.com",
-    customerWebsiteImage: null,
-    customerWebsiteImageCaption: "",
     thanksText: DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
     summaryText:
       "Malingene viser at temperatur i hovedsak er innenfor anbefalte nivaer, med enkelte varme perioder i oppholdssoner. Luftfuktighet var lav i deler av perioden, og CO2 oversteg 1000 ppm i perioder med hoy belastning i moterom. Resultatene tilsier behov for vurdering av ventilasjonsdrift og enkle driftstiltak.",
@@ -62,7 +60,7 @@ const indoorClimateSampleData: IndoorClimateReportData = {
       "Vurder justering av temperaturstyring i perioder med forhoyet innendors temperatur.",
       "Folg opp renhold og driftsrutiner for a redusere opplevd torr luft.",
     ],
-    manualReferences: [],
+    manualReferences: [...INDOOR_CLIMATE_REFERENCES],
     referencesExtraText: "",
     appendicesIntroText: "Vedleggene dokumenterer vaerforhold og datagrunnlag for vurderingene.",
     weatherInclude: true,

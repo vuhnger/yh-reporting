@@ -70,10 +70,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   const clientData = [
     ["Bedrift og avdeling", state.client.name],
     ["Organisasjonsnummer", state.client.orgNr],
-    ["Oppdrag", state.sharedMetadata.assignment || "Støykartlegging"],
     ["Dato for utførelse", state.sharedMetadata.date],
     ["Deltakere", state.sharedMetadata.participants],
-    ["Antall vedlegg", state.files.length ? String(state.files.length) : "-"],
     ["Rapport skrevet av", state.sharedMetadata.author],
     ["Dato for rapport", reportDate],
     ["Rapport sendt til", state.sharedMetadata.reportSentTo || "-"],

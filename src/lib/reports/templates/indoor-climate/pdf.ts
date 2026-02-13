@@ -203,24 +203,11 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
 
   doc.setTextColor("#000000");
 
-  if (metadata.customerWebsiteImage) {
-    try {
-      const props = doc.getImageProperties(metadata.customerWebsiteImage);
-      const width = 56;
-      const height = Math.min((props.height * width) / props.width, 25);
-      doc.addImage(metadata.customerWebsiteImage, props.fileType || "PNG", pageWidth - 70, 8, width, height);
-    } catch {
-      // Best effort only
-    }
-  }
-
   const metadataRows = [
     ["Bedrift og avdeling", state.client.name || "-"],
     ["Organisasjonsnummer", state.client.orgNr || "-"],
-    ["Oppdrag", state.sharedMetadata.assignment || "Inneklimakartlegging"],
     ["Dato for utforelse", state.sharedMetadata.date || "-"],
     ["Deltakere", state.sharedMetadata.participants || "-"],
-    ["Antall vedlegg", state.files.length ? String(state.files.length) : "-"],
     ["Rapport skrevet av", state.sharedMetadata.author || "-"],
     ["Dato for rapport", reportDate],
     ["Rapport sendt til", state.sharedMetadata.reportSentTo || "-"],
@@ -239,11 +226,6 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
 
   finalY = (getLastAutoTableY(doc) ?? 50) + 8;
 
-  if (metadata.customerWebsiteImageCaption.trim()) {
-    renderParagraph(metadata.customerWebsiteImageCaption.trim());
-  }
-
-  renderHeading("Takketekst");
   renderParagraph(thanksText);
 
   renderHeading("Oppsummering");
@@ -404,7 +386,11 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
   renderParagraph("Bedriftshelsetjenesten deltar gjerne i det videre arbeidet med tiltak.");
 
   renderHeading("Referanser");
-  renderBullets([...INDOOR_CLIMATE_REFERENCES, ...metadata.manualReferences]);
+  const references =
+    metadata.manualReferences.length > 0
+      ? metadata.manualReferences
+      : [...INDOOR_CLIMATE_REFERENCES];
+  renderBullets(references);
   if (metadata.referencesExtraText.trim()) {
     renderParagraph(metadata.referencesExtraText.trim());
   }
