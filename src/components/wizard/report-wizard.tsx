@@ -14,6 +14,8 @@ import { FileDown } from "lucide-react";
 export function ReportWizardContent() {
   const { state } = useWizard();
   const [showReview, setShowReview] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const template = state.reportType
     ? getTemplate(state.reportType as ReportType)
@@ -70,22 +72,32 @@ export function ReportWizardContent() {
                 "Du må fylle ut bedriftsinformasjon og velge rapporttype før du kan laste ned."}
             </p>
           )}
+          {pdfError && (
+            <p className="rounded-md border border-destructive/30 bg-white px-3 py-2 text-xs text-destructive shadow sm:max-w-sm">
+              {pdfError}
+            </p>
+          )}
           <Button
             type="button"
             size="lg"
             className="w-full gap-2 shadow-lg sm:w-auto"
-            disabled={!template || !isReadyForExport}
+            disabled={!template || !isReadyForExport || isGeneratingPdf}
             onClick={async () => {
               if (!template) return;
+              setPdfError(null);
+              setIsGeneratingPdf(true);
               try {
                 await template.generatePDF(state);
               } catch (error) {
                 console.error("PDF generation failed:", error);
+                setPdfError("Kunne ikke laste ned PDF. Prøv igjen.");
+              } finally {
+                setIsGeneratingPdf(false);
               }
             }}
           >
             <FileDown className="h-4 w-4" />
-            Last ned PDF
+            {isGeneratingPdf ? "Genererer PDF..." : "Last ned PDF"}
           </Button>
         </div>
       </div>
