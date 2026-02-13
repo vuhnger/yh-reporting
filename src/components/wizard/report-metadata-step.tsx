@@ -43,8 +43,8 @@ export function SharedMetadataStep() {
                 <SelectContent>
                   <SelectItem value="noise">Støy</SelectItem>
                   <SelectItem value="indoor-climate">Inneklima</SelectItem>
-                  <SelectItem value="chemical">Kjemikalier / Støv</SelectItem>
-                  <SelectItem value="light">Lys</SelectItem>
+                  {/* <SelectItem value="chemical">Kjemikalier / Støv</SelectItem> */}
+                  {/* <SelectItem value="light">Lys</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>

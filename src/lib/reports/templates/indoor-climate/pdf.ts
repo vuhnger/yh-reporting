@@ -379,6 +379,38 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
   } else {
     renderBullets(appendices);
   }
+  if (metadata.weatherInclude && metadata.weatherSnapshot) {
+    const weatherFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
+    const weatherTo = Math.min(23, Math.max(weatherFrom, metadata.weatherHourTo));
+    const hourlyRows = metadata.weatherSnapshot.hourly.filter(
+      (row) => row.hour >= weatherFrom && row.hour <= weatherTo
+    );
+
+    renderParagraph(
+      `Vaertabell for oppdragsdato ${metadata.weatherSnapshot.date} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
+    );
+
+    if (hourlyRows.length === 0) {
+      renderParagraph("Ingen timedata tilgjengelig for valgt tidsrom.");
+    } else {
+      ensureSpace(40);
+      autoTable(doc, {
+        startY: finalY + 2,
+        head: [["Tid", "Temp C", "Nedbor mm", "Snodybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        body: hourlyRows.map((row) => [
+          row.timeLabel,
+          formatValue(row.temperatureC),
+          formatValue(row.precipitationMm),
+          formatValue(row.snowDepthCm),
+          formatValue(row.windMs),
+          formatValue(row.maxWindMs),
+        ]),
+        styles: { fontSize: 8.5 },
+        headStyles: { fillColor: TEAL },
+      });
+      finalY = (getLastAutoTableY(doc) ?? finalY) + 5;
+    }
+  }
   if (metadata.appendicesIntroText.trim()) {
     renderParagraph(metadata.appendicesIntroText.trim());
   }

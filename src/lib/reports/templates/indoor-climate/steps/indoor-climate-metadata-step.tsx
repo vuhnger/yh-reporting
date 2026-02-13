@@ -9,11 +9,29 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImageTextarea } from "@/components/ui/image-textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AIFillButton } from "@/components/wizard/ai-fill-button";
 import {
   INDOOR_CLIMATE_REFERENCES,
   getIndoorClimateData,
+  type IndoorClimateWeatherHour,
 } from "../schema";
+
+interface AddressSuggestion {
+  id: string;
+  label: string;
+  lat: number | null;
+  lon: number | null;
+}
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({
+  value: hour,
+  label: `${String(hour).padStart(2, "0")}:00`,
+}));
+
+function formatHourLabel(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
 
 function splitLines(text: string): string[] {
   return text
@@ -41,8 +59,15 @@ function readImageAsDataUrl(file: File): Promise<string> {
 export function IndoorClimateMetadataStep() {
   const { state, updateIndoorClimateMetadata } = useWizard();
   const indoor = getIndoorClimateData(state);
+  const metadata = indoor?.metadata;
+  const weatherInclude = metadata?.weatherInclude ?? false;
+  const weatherAddress = metadata?.weatherAddress ?? "";
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
   const customerImageInputId = useId();
 
   useEffect(() => {
@@ -51,11 +76,98 @@ export function IndoorClimateMetadataStep() {
     updateIndoorClimateMetadata({ weatherDate: state.sharedMetadata.date });
   }, [indoor, state.sharedMetadata.date, updateIndoorClimateMetadata]);
 
-  if (!indoor) return null;
-  const metadata = indoor.metadata;
+  useEffect(() => {
+    if (!weatherInclude) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      setAddressDropdownOpen(false);
+      setAddressLoading(false);
+      return;
+    }
+
+    const query = weatherAddress.trim();
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      setAddressLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAddressLoading(true);
+    setAddressError(null);
+
+    const handle = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/address-search?q=${encodeURIComponent(query)}`);
+        const payload = await response.json();
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setAddressError(payload?.error || "Kunne ikke hente adresseforslag.");
+            setAddressSuggestions([]);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          const suggestions = Array.isArray(payload.results)
+            ? (payload.results as AddressSuggestion[])
+            : [];
+          setAddressSuggestions(suggestions);
+          setAddressDropdownOpen(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setAddressError("Kunne ikke hente adresseforslag.");
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setAddressLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [weatherAddress, weatherInclude]);
+
+  if (!indoor || !metadata) return null;
 
   const recommendationsText = metadata.recommendations.join("\n");
   const manualReferencesText = metadata.manualReferences.join("\n");
+  const weatherHourFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
+  const weatherHourTo = Math.min(23, Math.max(weatherHourFrom, metadata.weatherHourTo));
+  const weatherHourlyRows: IndoorClimateWeatherHour[] = (() => {
+    if (!metadata.weatherSnapshot) return [];
+
+    const rowsByHour = new Map<number, IndoorClimateWeatherHour>();
+    for (const row of metadata.weatherSnapshot.hourly) {
+      rowsByHour.set(row.hour, row);
+    }
+
+    const rows: IndoorClimateWeatherHour[] = [];
+    for (let hour = weatherHourFrom; hour <= weatherHourTo; hour += 1) {
+      const existing = rowsByHour.get(hour);
+      rows.push(
+        existing ?? {
+          date: metadata.weatherSnapshot.date,
+          hour,
+          timeLabel: formatHourLabel(hour),
+          temperatureC: null,
+          precipitationMm: null,
+          windMs: null,
+          maxWindMs: null,
+          snowDepthCm: null,
+        }
+      );
+    }
+    return rows;
+  })();
 
   const onCustomerImageChange = async (file: File | null) => {
     if (!file) {
@@ -86,6 +198,10 @@ export function IndoorClimateMetadataStep() {
         address,
         date: state.sharedMetadata.date,
       });
+      if (metadata.weatherLat !== null && metadata.weatherLon !== null) {
+        params.set("lat", String(metadata.weatherLat));
+        params.set("lon", String(metadata.weatherLon));
+      }
       const response = await fetch(`/api/weather?${params.toString()}`);
       const payload = await response.json();
 
@@ -357,18 +473,141 @@ export function IndoorClimateMetadataStep() {
           {metadata.weatherInclude && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                   <Label htmlFor="weather-address">Adresse i Norge</Label>
                   <Input
                     id="weather-address"
                     value={metadata.weatherAddress}
-                    onChange={(e) => updateIndoorClimateMetadata({ weatherAddress: e.target.value })}
+                    onChange={(e) => {
+                      updateIndoorClimateMetadata({
+                        weatherAddress: e.target.value,
+                        weatherLat: null,
+                        weatherLon: null,
+                      });
+                      setAddressDropdownOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (addressSuggestions.length > 0) {
+                        setAddressDropdownOpen(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setAddressDropdownOpen(false), 120);
+                    }}
                     placeholder={state.client.address || "Skriv adresse"}
+                    autoComplete="off"
                   />
+                  {addressLoading && (
+                    <p className="text-xs text-muted-foreground">Soker adresser...</p>
+                  )}
+                  {addressError && (
+                    <p className="text-xs text-destructive">{addressError}</p>
+                  )}
+                  {addressDropdownOpen && addressSuggestions.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow">
+                      <div className="max-h-64 overflow-y-auto py-1">
+                        {addressSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.id}
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              updateIndoorClimateMetadata({
+                                weatherAddress: suggestion.label,
+                                weatherLat: suggestion.lat,
+                                weatherLon: suggestion.lon,
+                              });
+                              setAddressDropdownOpen(false);
+                            }}
+                          >
+                            {suggestion.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="weather-date">Dato for oppdrag</Label>
                   <Input id="weather-date" value={state.sharedMetadata.date} readOnly className="bg-slate-50" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Tidsrom i tabell</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        updateIndoorClimateMetadata({ weatherHourFrom: 8, weatherHourTo: 20 })
+                      }
+                    >
+                      08-20
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        updateIndoorClimateMetadata({ weatherHourFrom: 0, weatherHourTo: 23 })
+                      }
+                    >
+                      00-23
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Fra</Label>
+                  <Select
+                    value={String(weatherHourFrom)}
+                    onValueChange={(value) => {
+                      const nextFrom = Number(value);
+                      const nextTo = Math.max(nextFrom, weatherHourTo);
+                      updateIndoorClimateMetadata({
+                        weatherHourFrom: nextFrom,
+                        weatherHourTo: nextTo,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOUR_OPTIONS.map((option) => (
+                        <SelectItem key={`from-${option.value}`} value={String(option.value)}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Til</Label>
+                  <Select
+                    value={String(weatherHourTo)}
+                    onValueChange={(value) => {
+                      const nextTo = Number(value);
+                      const nextFrom = Math.min(weatherHourFrom, nextTo);
+                      updateIndoorClimateMetadata({
+                        weatherHourFrom: nextFrom,
+                        weatherHourTo: nextTo,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOUR_OPTIONS.map((option) => (
+                        <SelectItem key={`to-${option.value}`} value={String(option.value)}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -379,38 +618,53 @@ export function IndoorClimateMetadataStep() {
               </div>
               {metadata.weatherSnapshot && (
                 <div className="rounded-md border overflow-hidden">
+                  <div className="px-3 py-2 bg-slate-50 border-b">
+                    <p className="text-sm font-medium">
+                      Oppdragsdato: {metadata.weatherSnapshot.date} · Viser time for time {String(weatherHourFrom).padStart(2, "0")}:00-{String(weatherHourTo).padStart(2, "0")}:00
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Kilde: {metadata.weatherSnapshot.sourceName} · {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription}
+                    </p>
+                  </div>
                   <Table>
                     <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableHead>Vaer</TableHead>
-                        <TableHead className="text-right">Maks temp</TableHead>
-                        <TableHead className="text-right">Min temp</TableHead>
-                        <TableHead className="text-right">Gj.snitt</TableHead>
-                        <TableHead className="text-right">Normal temp</TableHead>
-                        <TableHead className="text-right">Nedbor</TableHead>
+                        <TableHead>Tid</TableHead>
+                        <TableHead className="text-right">Temp C</TableHead>
+                        <TableHead className="text-right">Nedbor mm</TableHead>
                         <TableHead className="text-right">Snodybde cm</TableHead>
                         <TableHead className="text-right">Vind m/s</TableHead>
                         <TableHead className="text-right">Kraftigste vind m/s</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow>
-                        <TableCell>
-                          {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription}
-                        </TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.maxTempC ?? "-"}</TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.minTempC ?? "-"}</TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.avgTempC ?? "-"}</TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.normalTempC ?? "-"}</TableCell>
-                        <TableCell className="text-right">
-                          {metadata.weatherSnapshot.precipitationMm ?? "-"}
-                        </TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.snowDepthCm ?? "-"}</TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.avgWindMs ?? "-"}</TableCell>
-                        <TableCell className="text-right">{metadata.weatherSnapshot.maxWindMs ?? "-"}</TableCell>
-                      </TableRow>
+                      {weatherHourlyRows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            Ingen timedata tilgjengelig for valgt tidsrom.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        weatherHourlyRows.map((row) => (
+                          <TableRow key={`${row.date}-${row.hour}`}>
+                            <TableCell>{row.timeLabel}</TableCell>
+                            <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
+                  <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
+                    Dognoppsummering: maks {metadata.weatherSnapshot.maxTempC ?? "-"} C, min{" "}
+                    {metadata.weatherSnapshot.minTempC ?? "-"} C, gj.snitt{" "}
+                    {metadata.weatherSnapshot.avgTempC ?? "-"} C, normal{" "}
+                    {metadata.weatherSnapshot.normalTempC ?? "-"} C, nedbor{" "}
+                    {metadata.weatherSnapshot.precipitationMm ?? "-"} mm.
+                  </div>
                 </div>
               )}
             </>

@@ -55,6 +55,18 @@ export interface IndoorClimateWeatherSnapshot {
   snowDepthCm: number | null;
   avgWindMs: number | null;
   maxWindMs: number | null;
+  hourly: IndoorClimateWeatherHour[];
+}
+
+export interface IndoorClimateWeatherHour {
+  date: string;
+  hour: number;
+  timeLabel: string;
+  temperatureC: number | null;
+  precipitationMm: number | null;
+  windMs: number | null;
+  maxWindMs: number | null;
+  snowDepthCm: number | null;
 }
 
 export interface IndoorClimateMetadata {
@@ -70,7 +82,11 @@ export interface IndoorClimateMetadata {
   appendicesIntroText: string;
   weatherInclude: boolean;
   weatherAddress: string;
+  weatherLat: number | null;
+  weatherLon: number | null;
   weatherDate: string;
+  weatherHourFrom: number;
+  weatherHourTo: number;
   weatherSnapshot: IndoorClimateWeatherSnapshot | null;
   sensors: IndoorClimateSensor[];
 }
@@ -179,7 +195,11 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   appendicesIntroText: "",
   weatherInclude: true,
   weatherAddress: "",
+  weatherLat: null,
+  weatherLon: null,
   weatherDate: new Date().toISOString().split("T")[0],
+  weatherHourFrom: 8,
+  weatherHourTo: 20,
   weatherSnapshot: null,
   sensors: [],
 };
