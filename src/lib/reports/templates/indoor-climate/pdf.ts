@@ -396,6 +396,9 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   }
 
   renderHeading("Vedlegg");
+  if (metadata.appendicesIntroText.trim()) {
+    renderParagraph(metadata.appendicesIntroText.trim());
+  }
   const appendices: string[] = state.files.map((file, index) => `Vedlegg ${index + 1}: ${file.name}`);
   if (metadata.weatherInclude && metadata.weatherSnapshot) {
     appendices.push(
@@ -464,9 +467,6 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       });
       finalY = (getLastAutoTableY(doc) ?? finalY) + 5;
     }
-  }
-  if (metadata.appendicesIntroText.trim()) {
-    renderParagraph(metadata.appendicesIntroText.trim());
   }
 
   addStandardFooter(doc);

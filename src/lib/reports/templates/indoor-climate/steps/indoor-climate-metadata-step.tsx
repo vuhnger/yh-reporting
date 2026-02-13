@@ -92,7 +92,7 @@ export function IndoorClimateMetadataStep() {
       <CardHeader>
         <CardTitle className="text-2xl text-primary">Inneklima - detaljer</CardTitle>
         <CardDescription>
-          Fyll ut innhold for forsidetekst, metode, vaer og anbefalinger.
+          Fyll ut innhold for forsidetekst, metode, vær og anbefalinger.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -127,7 +127,7 @@ export function IndoorClimateMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Gjennomforing og metode</h3>
+            <h3 className="text-lg font-semibold text-primary">Gjennomføring og metode</h3>
           </div>
           <ImageTextarea
             value={metadata.methodText}
@@ -164,7 +164,7 @@ export function IndoorClimateMetadataStep() {
           </div>
           <div className="space-y-2">
             {metadata.recommendations.map((item, index) => (
-              <div key={`${index}-${item}`} className="flex items-center gap-2">
+              <div key={index} className="flex items-center gap-2">
                 <Input
                   value={item}
                   onChange={(e) => {
@@ -211,7 +211,7 @@ export function IndoorClimateMetadataStep() {
           </div>
           <div className="space-y-2">
             {metadata.manualReferences.map((reference, index) => (
-              <div key={`${index}-${reference}`} className="flex items-center gap-2">
+              <div key={index} className="flex items-center gap-2">
                 <Input
                   value={reference}
                   onChange={(e) => {
@@ -277,7 +277,7 @@ export function IndoorClimateMetadataStep() {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-primary">Vaer</h3>
+            <h3 className="text-lg font-semibold text-primary">Vær</h3>
             <p className="text-xs text-muted-foreground">
               Hentes for oppdragsdato ({state.sharedMetadata.date}), ikke rapportdato.
             </p>
@@ -295,7 +295,7 @@ export function IndoorClimateMetadataStep() {
                 }
                 className="h-4 w-4"
               />
-              Inkluder vaerdata
+              Inkluder værdata
             </label>
           </div>
           {metadata.weatherInclude && (
@@ -306,7 +306,7 @@ export function IndoorClimateMetadataStep() {
                   {metadata.weatherAddress || state.client.address || "-"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Redigeres i steget "Forsideinformasjon".
+                  Redigeres i steget &quot;Forsideinformasjon&quot;.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -391,7 +391,7 @@ export function IndoorClimateMetadataStep() {
                   <p className="text-sm text-destructive">{metadata.weatherFetchError}</p>
                 ) : !weatherSnapshotForDate && (
                   <p className="text-sm text-muted-foreground">
-                    Velg adresse i "Forsideinformasjon" for a hente vaerdata.
+                    Velg adresse i &quot;Forsideinformasjon&quot; for å hente værdata.
                   </p>
                 )}
               </div>
@@ -416,10 +416,10 @@ export function IndoorClimateMetadataStep() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead>Tid</TableHead>
-                        <TableHead>Vaer</TableHead>
-                        <TableHead className="text-right">Temp C</TableHead>
-                        <TableHead className="text-right">Nedbor mm</TableHead>
-                        <TableHead className="text-right">Snodybde cm</TableHead>
+                        <TableHead>Vær</TableHead>
+                        <TableHead className="text-right">Temp °C</TableHead>
+                        <TableHead className="text-right">Nedbør mm</TableHead>
+                        <TableHead className="text-right">Snødybde cm</TableHead>
                         <TableHead className="text-right">Vind m/s</TableHead>
                         <TableHead className="text-right">Kraftigste vind m/s</TableHead>
                       </TableRow>
@@ -447,10 +447,10 @@ export function IndoorClimateMetadataStep() {
                     </TableBody>
                   </Table>
                   <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
-                    Dognoppsummering: maks {weatherSnapshotForDate.maxTempC ?? "-"} C, min{" "}
-                    {weatherSnapshotForDate.minTempC ?? "-"} C, gj.snitt{" "}
-                    {weatherSnapshotForDate.avgTempC ?? "-"} C, normal{" "}
-                    {weatherSnapshotForDate.normalTempC ?? "-"} C, nedbor{" "}
+                    Døgnoppsummering: maks {weatherSnapshotForDate.maxTempC ?? "-"} °C, min{" "}
+                    {weatherSnapshotForDate.minTempC ?? "-"} °C, gj.snitt{" "}
+                    {weatherSnapshotForDate.avgTempC ?? "-"} °C, normal{" "}
+                    {weatherSnapshotForDate.normalTempC ?? "-"} °C, nedbør{" "}
                     {weatherSnapshotForDate.precipitationMm ?? "-"} mm.
                   </div>
                 </div>

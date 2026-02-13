@@ -2,7 +2,7 @@ import type { AIFieldConfig, ReportState } from "../../template-types";
 import { getIndoorClimateData } from "./schema";
 
 export const indoorClimateSystemInstruction =
-  "Du er en teknisk skribent og fagperson innen inneklima og HMS. Du skriver presise, faglige og konkrete tekster pa norsk bokmal basert pa tilgjengelige maledata. Du skal ikke dikte opp tall, forhold eller detaljer som ikke finnes i datagrunnlaget.";
+  "Du er en teknisk skribent og fagperson innen inneklima og HMS. Du skriver presise, faglige og konkrete tekster på norsk bokmål basert på tilgjengelige måledata. Du skal ikke dikte opp tall, forhold eller detaljer som ikke finnes i datagrunnlaget.";
 
 export const indoorClimateAIFields: Record<string, AIFieldConfig> = {
   summaryText: {
@@ -12,44 +12,44 @@ export const indoorClimateAIFields: Record<string, AIFieldConfig> = {
     structure: "Sammenhengende tekst i ett avsnitt.",
     outputStyle: "paragraph",
     guidance:
-      "Oppsummer hva som er innenfor/utenfor anbefalte nivaer for temperatur, relativ luftfuktighet og CO2. Bruk konkrete verdier fra dataene. Forklar sannsynlige arsaker og pek pa at anbefalinger folger senere i rapporten.",
+      "Oppsummer hva som er innenfor/utenfor anbefalte nivåer for temperatur, relativ luftfuktighet og CO2. Bruk konkrete verdier fra dataene. Forklar sannsynlige årsaker og pek på at anbefalinger følger senere i rapporten.",
   },
   methodText: {
-    label: "Gjennomforing og metode",
+    label: "Gjennomføring og metode",
     purpose: "Beskrivelse av metoden brukt i kartleggingen.",
     outputStyle: "paragraph",
     guidance:
-      "Beskriv prosessen kort: programmering, utsending, plassering, maleperiode, retur og analyse. Ta med relevante instrumentopplysninger fra dataene uten a oppfinne detaljer.",
+      "Beskriv prosessen kort: programmering, utsending, plassering, måleperiode, retur og analyse. Ta med relevante instrumentopplysninger fra dataene uten å oppfinne detaljer.",
   },
   recommendations: {
     label: "Anbefalinger",
-    purpose: "Konkrete forslag til tiltak basert pa funn.",
+    purpose: "Konkrete forslag til tiltak basert på funn.",
     length: "4-8 korte punkter.",
     structure: "Punktliste med ett tiltak per linje, uten nummerering.",
     outputStyle: "line-list",
     guidance:
-      "Gi konkrete, gjennomforbare tiltak knyttet til ventilasjon, drift, temperaturstyring, renhold eller organisering. Hvert tiltak skal kunne knyttes direkte til funn i dataene. Unnga vage formuleringer.",
+      "Gi konkrete, gjennomførbare tiltak knyttet til ventilasjon, drift, temperaturstyring, renhold eller organisering. Hvert tiltak skal kunne knyttes direkte til funn i dataene. Unngå vage formuleringer.",
   },
   sensor_temperatureText: {
-    label: "Tolking per maler - temperatur",
-    purpose: "Faglig vurdering av temperaturforlopet ved en malelokasjon.",
+    label: "Tolking per måler - temperatur",
+    purpose: "Faglig vurdering av temperaturforløpet ved en målelokasjon.",
     outputStyle: "paragraph",
     guidance:
-      "Beskriv verdiomrade, forhold til anbefalte grenser, eventuell dognvariasjon og konkrete anbefalinger ved behov. Bruk kun verdier fra maleren i kontekst.",
+      "Beskriv verdiområde, forhold til anbefalte grenser, eventuell døgnvariasjon og konkrete anbefalinger ved behov. Bruk kun verdier fra måleren i kontekst.",
   },
   sensor_humidityText: {
-    label: "Tolking per maler - relativ luftfuktighet",
-    purpose: "Faglig vurdering av relativ luftfuktighet ved en malelokasjon.",
+    label: "Tolking per måler - relativ luftfuktighet",
+    purpose: "Faglig vurdering av relativ luftfuktighet ved en målelokasjon.",
     outputStyle: "paragraph",
     guidance:
-      "Beskriv verdiomrade, arsaksforhold (for eksempel kald uteluft i vinterhalvaret), mulige konsekvenser og tiltak. Bruk kun verdier fra maleren i kontekst.",
+      "Beskriv verdiområde, årsaksforhold (for eksempel kald uteluft i vinterhalvåret), mulige konsekvenser og tiltak. Bruk kun verdier fra måleren i kontekst.",
   },
   sensor_co2Text: {
-    label: "Tolking per maler - CO2",
-    purpose: "Faglig vurdering av CO2-niva og ventilasjon ved en malelokasjon.",
+    label: "Tolking per måler - CO2",
+    purpose: "Faglig vurdering av CO2-nivå og ventilasjon ved en målelokasjon.",
     outputStyle: "paragraph",
     guidance:
-      "Vurder malte nivaer opp mot 1000 ppm som praktisk vurderingsniva, og forklar hva det sier om ventilasjonskapasitet. Bruk kun verdier fra maleren i kontekst.",
+      "Vurder målte nivåer opp mot 1000 ppm som praktisk vurderingsnivå, og forklar hva det sier om ventilasjonskapasitet. Bruk kun verdier fra måleren i kontekst.",
   },
 };
 
