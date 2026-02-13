@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { FileUp, Trash2 } from "lucide-react";
+import type { ReportType } from "@/lib/reports/template-types";
 
 export function UploadStep() {
   const { state, setReportType, addFiles, removeFile, nextStep, prevStep } = useWizard();
@@ -26,7 +27,7 @@ export function UploadStep() {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label>Report Type</Label>
-          <Select value={state.reportType} onValueChange={(val: any) => setReportType(val)}>
+          <Select value={state.reportType} onValueChange={(val) => setReportType(val as ReportType)}>
             <SelectTrigger>
               <SelectValue placeholder="Select type..." />
             </SelectTrigger>

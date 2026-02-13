@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import type { AIFieldConfig } from "@/lib/reports/template-types";
 import { noiseSystemInstruction, noiseAIFields } from "@/lib/reports/templates/noise/ai";
+import {
+  indoorClimateSystemInstruction,
+  indoorClimateAIFields,
+} from "@/lib/reports/templates/indoor-climate/ai";
 
 // Server-side AI config lookup (avoids importing React components via template registry)
 function getAIConfig(reportType: string): {
@@ -13,6 +17,8 @@ function getAIConfig(reportType: string): {
   switch (reportType) {
     case "noise":
       return { systemInstruction: noiseSystemInstruction, fields: noiseAIFields };
+    case "indoor-climate":
+      return { systemInstruction: indoorClimateSystemInstruction, fields: indoorClimateAIFields };
     default:
       return null;
   }
@@ -120,10 +126,13 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini API Error:", error);
     return NextResponse.json(
-      { error: "Kunne ikke generere tekst.", details: String(error?.message || error) },
+      {
+        error: "Kunne ikke generere tekst.",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

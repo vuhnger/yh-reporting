@@ -39,7 +39,7 @@ export interface AIFieldConfig {
 
 export type TemplateData =
   | { type: "noise"; noise: unknown }
-  | { type: "indoor-climate"; indoorClimate: Record<string, never> }
+  | { type: "indoor-climate"; indoorClimate: unknown }
   | { type: "chemical"; chemical: Record<string, never> }
   | { type: "light"; light: Record<string, never> }
   | null;
@@ -109,7 +109,7 @@ export function createTemplateData(type: ReportType, data: unknown): TemplateDat
     case "noise":
       return { type: "noise", noise: data };
     case "indoor-climate":
-      return { type: "indoor-climate", indoorClimate: data as Record<string, never> };
+      return { type: "indoor-climate", indoorClimate: data };
     case "chemical":
       return { type: "chemical", chemical: data as Record<string, never> };
     case "light":

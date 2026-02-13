@@ -20,12 +20,20 @@ export function PDFPreview() {
 
   useEffect(() => {
     if (!template) {
-      setUrl(null);
-      setIsLoading(false);
-      return;
+      const resetHandle = window.setTimeout(() => {
+        if (prevUrlRef.current) {
+          URL.revokeObjectURL(prevUrlRef.current);
+          prevUrlRef.current = null;
+        }
+        setUrl(null);
+        setIsLoading(false);
+      }, 0);
+      return () => window.clearTimeout(resetHandle);
     }
 
-    setIsLoading(true);
+    const loadingHandle = window.setTimeout(() => {
+      setIsLoading(true);
+    }, 0);
     const handle = window.setTimeout(() => {
       const blob = template.generatePDFBlob(state);
       const nextUrl = URL.createObjectURL(blob);
@@ -38,6 +46,7 @@ export function PDFPreview() {
     }, PREVIEW_DEBOUNCE_MS);
 
     return () => {
+      window.clearTimeout(loadingHandle);
       window.clearTimeout(handle);
     };
   }, [state, template]);

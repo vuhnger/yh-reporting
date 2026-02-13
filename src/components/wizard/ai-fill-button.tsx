@@ -12,17 +12,29 @@ type Props = {
   state: ReportState;
   getValue: () => string;
   setValue: (text: string) => void;
+  contextPatch?: Record<string, unknown>;
   className?: string;
 };
 
-export function AIFillButton({ reportType, field, state, getValue, setValue, className }: Props) {
+export function AIFillButton({
+  reportType,
+  field,
+  state,
+  getValue,
+  setValue,
+  contextPatch,
+  className,
+}: Props) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleClick = async () => {
     setIsLoading(true);
     try {
       const template = getTemplate(reportType as ReportType);
-      const context = template?.ai.buildContext(state) ?? {};
+      const context = {
+        ...(template?.ai.buildContext(state) ?? {}),
+        ...(contextPatch ?? {}),
+      };
 
       const response = await fetch("/api/ai-fill", {
         method: "POST",
