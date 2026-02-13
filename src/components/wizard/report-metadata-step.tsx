@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getIndoorClimateData } from "@/lib/reports/templates/indoor-climate/schema";
+import { useSession } from "next-auth/react";
 
 interface AddressSuggestion {
   id: string;
@@ -18,6 +19,7 @@ interface AddressSuggestion {
 
 export function SharedMetadataStep() {
   const { state, updateSharedMetadata, setReportType, updateClient, updateIndoorClimateMetadata } = useWizard();
+  const { data: session } = useSession();
   const indoor = getIndoorClimateData(state);
   const weatherAddress = indoor?.metadata.weatherAddress ?? "";
   const weatherInclude = indoor?.metadata.weatherInclude ?? false;
@@ -37,6 +39,20 @@ export function SharedMetadataStep() {
     const today = new Date().toISOString().split("T")[0];
     updateSharedMetadata({ reportDate: today });
   }, [state.sharedMetadata.reportDate, updateSharedMetadata]);
+
+  useEffect(() => {
+    const currentAuthor = state.sharedMetadata.author.trim();
+    const needsFill = !currentAuthor || currentAuthor === "Consultant Name";
+    if (!needsFill) return;
+
+    const sessionName = session?.user?.name?.trim();
+    const sessionEmail = session?.user?.email?.trim();
+    const fallbackFromEmail = sessionEmail ? sessionEmail.split("@")[0] : "";
+    const consultantName = sessionName || fallbackFromEmail;
+    if (!consultantName) return;
+
+    updateSharedMetadata({ author: consultantName });
+  }, [session?.user?.email, session?.user?.name, state.sharedMetadata.author, updateSharedMetadata]);
 
   useEffect(() => {
     if (state.reportType !== "indoor-climate") return;

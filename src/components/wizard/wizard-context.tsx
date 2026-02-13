@@ -58,7 +58,7 @@ const defaultState: ReportState = {
     date: new Date().toISOString().split("T")[0],
     participants: "",
     contactPerson: "",
-    author: "Consultant Name", // TODO: Fetch from logged in user
+    author: "",
     reportDate: new Date().toISOString().split("T")[0],
     reportSentTo: "",
     advisor: "",

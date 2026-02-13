@@ -31,6 +31,7 @@ export interface AIFieldConfig {
   guidance: string;
   length?: string;
   structure?: string;
+  outputStyle?: "paragraph" | "line-list";
 }
 
 // ---------------------------------------------------------------------------

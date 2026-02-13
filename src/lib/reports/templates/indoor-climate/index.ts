@@ -33,12 +33,11 @@ export const indoorClimateTemplate: ReportTemplate<IndoorClimateReportData> = {
     return !!(
       state.client.orgNr &&
       indoor &&
-      indoor.metadata.summaryText.trim() &&
       indoor.metadata.sensors.length > 0
     );
   },
   exportValidationMessage:
-    "Du ma fylle ut bedriftsinformasjon, oppsummering og minst en inneklimamaler for a kunne laste ned.",
+    "Du ma fylle ut bedriftsinformasjon og minst en inneklimamaler for a kunne laste ned.",
 
   ai: {
     systemInstruction: indoorClimateSystemInstruction,

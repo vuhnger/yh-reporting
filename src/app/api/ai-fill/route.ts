@@ -28,10 +28,21 @@ function buildPrompt(
   fieldConfig: AIFieldConfig,
   context: Record<string, unknown>
 ) {
+  const outputStyle = fieldConfig.outputStyle ?? "paragraph";
   const lengthHint =
     fieldConfig.length ?? "Skriv utfyllende tekst (1–3 avsnitt). Ikke avslutt etter én setning.";
-  const structureHint =
-    fieldConfig.structure ?? "Sammenhengende tekst (ingen lister).";
+  const structureHint = fieldConfig.structure ?? "Sammenhengende tekst i avsnitt.";
+  const outputRules =
+    outputStyle === "line-list"
+      ? [
+          "Returner kun rene tiltakslinjer, ett tiltak per linje.",
+          "Ingen overskrift, ingen innledning, ingen avslutning.",
+          "Ingen nummerering eller kulepunkter.",
+        ]
+      : [
+          "Ingen overskrifter, ingen punktlister.",
+          "Sammenhengende fagtekst i avsnitt.",
+        ];
 
   return `
 OPPGAVE: Generer en utdypende fagtekst til feltet "${fieldConfig.label}" i en rapport.
@@ -43,9 +54,12 @@ KRAV:
 - SPRÅK: Profesjonell norsk bokmål.
 - LENGDE: ${lengthHint}
 - STRUKTUR: ${structureHint}
-- IKKE overskrifter eller punktlister.
+- OUTPUT:
+${outputRules.map((rule) => `- ${rule}`).join("\n")}
 - IKKE antagelser om bransje/arbeidssted utover data.
 - DATA: Bruk spesifikke verdier og målepunkter fra JSON-dataene.
+- IKKE dikt opp tall, datoer, instrumenter eller hendelser.
+- Hvis data mangler: skriv nøkternt at det ikke er dokumentert i datagrunnlaget.
 
 FELTETS FORMÅL:
 ${fieldConfig.purpose}
@@ -100,7 +114,7 @@ export async function POST(req: Request) {
     const result = await model.generateContentStream({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.35,
         topP: 0.8,
         maxOutputTokens: 2048,
       },
