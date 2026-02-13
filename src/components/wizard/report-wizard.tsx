@@ -75,7 +75,14 @@ export function ReportWizardContent() {
             size="lg"
             className="w-full gap-2 shadow-lg sm:w-auto"
             disabled={!template || !isReadyForExport}
-            onClick={() => template?.generatePDF(state)}
+            onClick={async () => {
+              if (!template) return;
+              try {
+                await template.generatePDF(state);
+              } catch (error) {
+                console.error("PDF generation failed:", error);
+              }
+            }}
           >
             <FileDown className="h-4 w-4" />
             Last ned PDF

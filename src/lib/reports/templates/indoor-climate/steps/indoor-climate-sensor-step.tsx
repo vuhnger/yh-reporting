@@ -146,12 +146,63 @@ export function IndoorClimateSensorStep() {
       try {
         const response = await fetch("/api/instruments");
         if (!response.ok) throw new Error("Kunne ikke hente instrumenter.");
-        const data = await response.json();
+        const data: unknown = await response.json();
         if (cancelled) return;
-        const mapped = (data.instruments as Instrument[]).map((instrument, index) => ({
-          ...instrument,
-          optionId: `sheet-${index}-${instrument.serienr || instrument.hva}`,
-        }));
+
+        if (
+          !data ||
+          typeof data !== "object" ||
+          !Array.isArray((data as { instruments?: unknown }).instruments)
+        ) {
+          setError("Ugyldig instrumentsvar fra server.");
+          setOptions([]);
+          return;
+        }
+
+        const mapped = (data as { instruments: unknown[] }).instruments
+          .map((item, index): InstrumentOption | null => {
+            if (!item || typeof item !== "object") return null;
+            const record = item as Partial<Instrument>;
+            const hva = typeof record.hva === "string" ? record.hva.trim() : "";
+            const serienr = typeof record.serienr === "string" ? record.serienr.trim() : "";
+            if (!hva && !serienr) return null;
+
+            return {
+              hva,
+              modell: typeof record.modell === "string" ? record.modell : "",
+              produsent: typeof record.produsent === "string" ? record.produsent : "",
+              leverandor: typeof record.leverandor === "string" ? record.leverandor : "",
+              serienr,
+              sistKalibrert:
+                typeof record.sistKalibrert === "string" || record.sistKalibrert === null
+                  ? record.sistKalibrert
+                  : null,
+              nesteKalibrering:
+                typeof record.nesteKalibrering === "string" || record.nesteKalibrering === null
+                  ? record.nesteKalibrering
+                  : null,
+              malerNummer: typeof record.malerNummer === "string" ? record.malerNummer : "",
+              maleutstyrssett:
+                typeof record.maleutstyrssett === "string" ? record.maleutstyrssett : "",
+              kalibreringssertifikat:
+                typeof record.kalibreringssertifikat === "string"
+                  ? record.kalibreringssertifikat
+                  : "",
+              programvare: typeof record.programvare === "string" ? record.programvare : "",
+              bruksanvisning: typeof record.bruksanvisning === "string" ? record.bruksanvisning : "",
+              kommentar: typeof record.kommentar === "string" ? record.kommentar : "",
+              optionId: `sheet-${index}-${serienr || hva}`,
+            };
+          })
+          .filter((instrument): instrument is InstrumentOption => instrument !== null);
+
+        if (mapped.length === 0) {
+          setError("Ingen gyldige instrumenter funnet i responsen.");
+          setOptions([]);
+          return;
+        }
+
+        setError(null);
         setOptions(mapped);
       } catch (loadError: unknown) {
         if (!cancelled) {
@@ -400,7 +451,7 @@ export function IndoorClimateSensorStep() {
                     <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead>{sensorTableLabel}</TableHead>
-                        <TableHead className="text-right">Temperatur (C)</TableHead>
+                        <TableHead className="text-right">Temperatur (°C)</TableHead>
                         <TableHead className="text-right">Relativ luftfuktighet (%RH)</TableHead>
                         <TableHead className="text-right">CO2 (ppm)</TableHead>
                       </TableRow>

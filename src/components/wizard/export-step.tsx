@@ -8,15 +8,15 @@ import type { ReportType } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
 
 export function ExportStep() {
-  const { state, loadReport } = useWizard();
+  const { state } = useWizard();
 
   const template = state.reportType
     ? getTemplate(state.reportType as ReportType)
     : undefined;
 
-  const handleDownload = (format: "docx" | "pdf") => {
+  const handleDownload = async (format: "docx" | "pdf") => {
     if (format === "pdf" && template) {
-      template.generatePDF(state);
+      await template.generatePDF(state);
       return;
     }
 
@@ -39,7 +39,9 @@ export function ExportStep() {
           <Button
             className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-blue-500/50 hover:bg-blue-50 transition-all"
             variant="outline"
-            onClick={() => handleDownload("docx")}
+            onClick={() => {
+              void handleDownload("docx");
+            }}
             disabled={!isReady}
           >
             <FileText className="h-8 w-8 text-blue-600" />
@@ -50,7 +52,9 @@ export function ExportStep() {
           <Button
             className="h-24 flex flex-col items-center justify-center gap-2 text-lg border-2 hover:border-red-500/50 hover:bg-red-50 transition-all"
             variant="outline"
-            onClick={() => handleDownload("pdf")}
+            onClick={() => {
+              void handleDownload("pdf");
+            }}
             disabled={!isReady}
           >
             <FileDown className="h-8 w-8 text-red-600" />

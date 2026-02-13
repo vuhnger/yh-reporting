@@ -51,7 +51,7 @@ export function IndoorClimateReviewSection() {
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Temperatur (C)</TableCell>
+                  <TableCell>Temperatur (°C)</TableCell>
                   <TableCell className="text-right">{formatValue(sensor.stats.temperature.min)}</TableCell>
                   <TableCell className="text-right">{formatValue(sensor.stats.temperature.max)}</TableCell>
                   <TableCell className="text-right">{formatValue(sensor.stats.temperature.avg)}</TableCell>
@@ -95,7 +95,7 @@ export function IndoorClimateReviewSection() {
           <p className="text-xs text-muted-foreground">
             Maks/min/gj.snitt temperatur: {formatValue(metadata.weatherSnapshot.maxTempC)} /{" "}
             {formatValue(metadata.weatherSnapshot.minTempC)} /{" "}
-            {formatValue(metadata.weatherSnapshot.avgTempC)} C
+            {formatValue(metadata.weatherSnapshot.avgTempC)} °C
           </p>
         </div>
       )}

@@ -87,8 +87,8 @@ export interface ReportTemplate<TData = unknown> {
 
   ReviewComponent: ComponentType;
 
-  generatePDF: (state: ReportState) => void;
-  generatePDFBlob: (state: ReportState) => Blob;
+  generatePDF: (state: ReportState) => void | Promise<void>;
+  generatePDFBlob: (state: ReportState) => Blob | Promise<Blob>;
   isReadyForExport: (state: ReportState) => boolean;
   exportValidationMessage?: string;
 

@@ -75,7 +75,7 @@ function getDefaultSummary(state: ReportState): string {
             ? `${over1000} malepunkt oversteg 1000 ppm og indikerer behov for vurdering av ventilasjon.`
             : "Ingen malepunkt oversteg 1000 ppm."
         }`
-      : "CO2-data foreligger, men uten tilstrekkelig grunnlag for full vurdering.";
+      : "Ingen CO2-data er registrert.";
   const pointer = "Se anbefalingskapitlet for foreslatte tiltak og videre oppfolging.";
 
   return `${intro}\n${co2Summary}\n${pointer}`;
@@ -106,13 +106,13 @@ function buildFallbackRecommendations(state: ReportState): string[] {
   return items;
 }
 
-export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
+export async function createIndoorClimateReportPDFDoc(state: ReportState): Promise<jsPDF> {
   const indoor = getIndoorClimateData(state);
   if (!indoor) throw new Error("Cannot generate indoor climate PDF without data.");
 
   const metadata = indoor.metadata;
   const doc = new jsPDF();
-  applyGraphikPdfFont(doc);
+  await applyGraphikPdfFont(doc);
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
   const TEAL = "#005041";
@@ -258,7 +258,7 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
         startY: finalY + 2,
         head: [[
           sensor.locationName || "Lokasjon",
-          "Temperatur i C",
+          "Temperatur i °C",
           "Relativ luftfuktighet i %RH",
           "CO2 i ppm",
         ]],
@@ -473,13 +473,13 @@ export function createIndoorClimateReportPDFDoc(state: ReportState): jsPDF {
   return doc;
 }
 
-export function generateIndoorClimateReportPDFBlob(state: ReportState): Blob {
-  const doc = createIndoorClimateReportPDFDoc(state);
+export async function generateIndoorClimateReportPDFBlob(state: ReportState): Promise<Blob> {
+  const doc = await createIndoorClimateReportPDFDoc(state);
   return doc.output("blob");
 }
 
-export function generateIndoorClimateReportPDF(state: ReportState): void {
-  const doc = createIndoorClimateReportPDFDoc(state);
+export async function generateIndoorClimateReportPDF(state: ReportState): Promise<void> {
+  const doc = await createIndoorClimateReportPDFDoc(state);
   const baseName = (state.client.name || "Kunde").replace(/\s+/g, "_");
   doc.save(`Inneklimarapport_${baseName}.pdf`);
 }

@@ -6,6 +6,7 @@ type GraphikFontPayload = {
 };
 
 let cachedGraphikFonts: GraphikFontPayload | null | undefined;
+let graphikFontsPromise: Promise<GraphikFontPayload | null> | null = null;
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -20,44 +21,52 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-function loadFontBase64Sync(url: string): string | null {
-  if (typeof XMLHttpRequest === "undefined") return null;
+async function loadFontBase64(url: string): Promise<string | null> {
+  if (typeof fetch === "undefined") return null;
 
   try {
-    const request = new XMLHttpRequest();
-    request.open("GET", url, false);
-    request.responseType = "arraybuffer";
-    request.send();
-
-    if (request.status < 200 || request.status >= 300) return null;
-    if (!(request.response instanceof ArrayBuffer)) return null;
-    return arrayBufferToBase64(request.response);
+    const response = await fetch(url, { cache: "force-cache" });
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    return arrayBufferToBase64(buffer);
   } catch {
     return null;
   }
 }
 
-function getGraphikFonts(): GraphikFontPayload | null {
+async function getGraphikFonts(): Promise<GraphikFontPayload | null> {
   if (cachedGraphikFonts !== undefined) return cachedGraphikFonts;
   if (typeof window === "undefined") {
     cachedGraphikFonts = null;
     return cachedGraphikFonts;
   }
 
-  const regular = loadFontBase64Sync("/fonts/Graphik-Regular.otf");
-  const medium = loadFontBase64Sync("/fonts/Graphik-Medium.otf");
+  if (!graphikFontsPromise) {
+    graphikFontsPromise = (async () => {
+      const [regular, medium] = await Promise.all([
+        loadFontBase64("/fonts/Graphik-Regular.otf"),
+        loadFontBase64("/fonts/Graphik-Medium.otf"),
+      ]);
 
-  if (!regular || !medium) {
-    cachedGraphikFonts = null;
-    return cachedGraphikFonts;
+      if (!regular || !medium) {
+        cachedGraphikFonts = null;
+        return cachedGraphikFonts;
+      }
+
+      cachedGraphikFonts = { regular, medium };
+      return cachedGraphikFonts;
+    })();
   }
 
-  cachedGraphikFonts = { regular, medium };
-  return cachedGraphikFonts;
+  try {
+    return await graphikFontsPromise;
+  } finally {
+    graphikFontsPromise = null;
+  }
 }
 
-export function applyGraphikPdfFont(doc: jsPDF): boolean {
-  const fonts = getGraphikFonts();
+export async function applyGraphikPdfFont(doc: jsPDF): Promise<boolean> {
+  const fonts = await getGraphikFonts();
   if (!fonts) return false;
 
   try {

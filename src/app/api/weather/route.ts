@@ -124,21 +124,52 @@ function buildFrostAuth(clientId: string): string {
   return `Basic ${Buffer.from(`${clientId}:`).toString("base64")}`;
 }
 
-async function fetchJson<T = unknown>(url: string, headers: HeadersInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      ...headers,
-    },
-    cache: "no-store",
-  });
+async function fetchJson<T = unknown>(
+  url: string,
+  headers: HeadersInit = {},
+  timeoutMs = 10_000
+): Promise<T> {
+  let controller: AbortController | null = null;
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+  let signal: AbortSignal;
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`Request failed (${response.status}): ${body || response.statusText}`);
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    signal = AbortSignal.timeout(timeoutMs);
+  } else {
+    controller = new AbortController();
+    signal = controller.signal;
+    timeoutHandle = setTimeout(() => controller?.abort(), timeoutMs);
   }
 
-  return (await response.json()) as T;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        ...headers,
+      },
+      cache: "no-store",
+      signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Request failed (${response.status}): ${body || response.statusText}`);
+    }
+
+    return (await response.json()) as T;
+  } catch (error) {
+    const isAbortError =
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof Error &&
+        (error.name === "AbortError" || error.name === "TimeoutError")) ||
+      signal.aborted;
+    if (isAbortError) {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
 }
 
 function extractStationName(node: unknown): string | null {
@@ -652,7 +683,26 @@ async function getClimateNormalTemperature(
 }
 
 function validateDateString(date: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return false;
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return false;
+  }
+
+  const constructed = new Date(year, month - 1, day);
+  return (
+    constructed.getFullYear() === year &&
+    constructed.getMonth() === month - 1 &&
+    constructed.getDate() === day
+  );
 }
 
 function isValidCoordinate(lat: number, lon: number): boolean {
@@ -681,7 +731,7 @@ export async function GET(request: Request) {
 
     const frostClientId = process.env.MET_FROST_CLIENT_ID;
     if (!frostClientId) {
-      return NextResponse.json({ error: "Missing MET_FROST_CLIENT_ID" }, { status: 500 });
+      return NextResponse.json({ error: "Missing configuration" }, { status: 500 });
     }
 
     const frostAuth = buildFrostAuth(frostClientId);

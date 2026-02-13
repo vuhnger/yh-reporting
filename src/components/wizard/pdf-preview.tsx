@@ -19,8 +19,11 @@ export function PDFPreview() {
     : undefined;
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!template) {
       const resetHandle = window.setTimeout(() => {
+        if (cancelled) return;
         if (prevUrlRef.current) {
           URL.revokeObjectURL(prevUrlRef.current);
           prevUrlRef.current = null;
@@ -28,24 +31,42 @@ export function PDFPreview() {
         setUrl(null);
         setIsLoading(false);
       }, 0);
-      return () => window.clearTimeout(resetHandle);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(resetHandle);
+      };
     }
 
     const loadingHandle = window.setTimeout(() => {
       setIsLoading(true);
     }, 0);
     const handle = window.setTimeout(() => {
-      const blob = template.generatePDFBlob(state);
-      const nextUrl = URL.createObjectURL(blob);
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
-      }
-      prevUrlRef.current = nextUrl;
-      setUrl(nextUrl);
-      setIsLoading(false);
+      void (async () => {
+        try {
+          const blob = await template.generatePDFBlob(state);
+          const nextUrl = URL.createObjectURL(blob);
+          if (cancelled) {
+            URL.revokeObjectURL(nextUrl);
+            return;
+          }
+          if (prevUrlRef.current) {
+            URL.revokeObjectURL(prevUrlRef.current);
+          }
+          prevUrlRef.current = nextUrl;
+          setUrl(nextUrl);
+        } catch (error) {
+          if (!cancelled) {
+            console.error("PDF preview generation failed:", error);
+            setUrl(null);
+          }
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      })();
     }, PREVIEW_DEBOUNCE_MS);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(loadingHandle);
       window.clearTimeout(handle);
     };
