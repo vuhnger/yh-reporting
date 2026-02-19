@@ -69,6 +69,15 @@ const OBSERVATION_SOURCE_LIMIT_BY_GROUP: Record<WeatherGroupKey, number> = {
   precipitation: 6,
   snow: 6,
 };
+const OBSERVATION_BATCH_SIZE_BY_GROUP: Record<WeatherGroupKey, number> = {
+  temperature: 5,
+  wind: 5,
+  precipitation: 2,
+  snow: 2,
+};
+const OBSERVATION_FETCH_TIMEOUT_MS = 12_000;
+const OBSERVATION_FETCH_RETRY_ATTEMPTS = 3;
+const OBSERVATION_FETCH_RETRY_BASE_DELAY_MS = 350;
 const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente vaerdata.";
 
 function getSafeWeatherErrorMessage(error: unknown): string {
@@ -240,25 +249,56 @@ function describeWeather(
 function buildObservationWarning(group: WeatherGroupKey, error: unknown): string {
   const label = WEATHER_GROUP_LABELS[group];
   const message = error instanceof Error ? error.message : String(error);
-  const statusCode = Number((message.match(/Request failed \((\d+)\)/)?.[1] ?? ""));
+  const statusCode = extractHttpStatusCode(error);
+  const statusCodeValue = statusCode ?? 0;
   const reason =
     message.match(/"reason"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
     message.match(/"message"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
     "";
 
-  if (statusCode === 429) {
+  if (statusCodeValue === 429) {
     return `${label}: Frost svarte 429 (for mange foresporsler). Prov igjen om litt.`;
   }
-  if (statusCode === 500) {
+  if (statusCodeValue === 500) {
     return `${label}: Frost svarte 500 (intern feil hos datakilde).`;
   }
-  if (statusCode > 0 && reason) {
-    return `${label}: Kunne ikke hente data (${statusCode}). ${reason}`;
+  if (statusCodeValue > 0 && reason) {
+    return `${label}: Kunne ikke hente data (${statusCodeValue}). ${reason}`;
   }
-  if (statusCode > 0) {
-    return `${label}: Kunne ikke hente data (${statusCode}).`;
+  if (statusCodeValue > 0) {
+    return `${label}: Kunne ikke hente data (${statusCodeValue}).`;
   }
   return `${label}: Kunne ikke hente data fra Frost.`;
+}
+
+function extractHttpStatusCode(error: unknown): number | null {
+  const message = error instanceof Error ? error.message : String(error);
+  const statusCode = Number(message.match(/Request failed \((\d+)\)/)?.[1] ?? "");
+  return Number.isFinite(statusCode) && statusCode > 0 ? statusCode : null;
+}
+
+function isTimeoutError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /timed out/i.test(message);
+}
+
+function shouldRetryObservationFetch(error: unknown): boolean {
+  if (isTimeoutError(error)) return true;
+  const statusCode = extractHttpStatusCode(error);
+  return statusCode === 429 || statusCode === 500 || statusCode === 502 || statusCode === 503 || statusCode === 504;
+}
+
+async function delay(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  if (size <= 0) return [items];
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 async function geocodeNorwegianAddress(address: string): Promise<{ lat: number; lon: number }> {
@@ -428,32 +468,75 @@ async function getObservationPayload(
   }
 
   const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
-  const url =
-    `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceIds.join(","))}` +
-    `&referencetime=${encodeURIComponent(referenceTime)}` +
-    `&elements=${encodeURIComponent(elements.join(","))}`;
+  const sourceChunks = chunkArray(sourceIds, OBSERVATION_BATCH_SIZE_BY_GROUP[group]);
+  const mergedData: unknown[] = [];
+  const chunkWarnings: string[] = [];
 
-  try {
+  for (const [chunkIndex, sourceChunk] of sourceChunks.entries()) {
+    const url =
+      `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceChunk.join(","))}` +
+      `&referencetime=${encodeURIComponent(referenceTime)}` +
+      `&elements=${encodeURIComponent(elements.join(","))}`;
+
+    let lastError: unknown = null;
+    let payload: unknown = null;
+
+    for (let attempt = 1; attempt <= OBSERVATION_FETCH_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        payload = await fetchJson(url, { Authorization: frostAuth }, OBSERVATION_FETCH_TIMEOUT_MS);
+        lastError = null;
+        break;
+      } catch (error) {
+        lastError = error;
+        const retryable = shouldRetryObservationFetch(error);
+        if (!retryable || attempt === OBSERVATION_FETCH_RETRY_ATTEMPTS) break;
+
+        const jitterMs = Math.floor(Math.random() * 120);
+        const delayMs = OBSERVATION_FETCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + jitterMs;
+        await delay(delayMs);
+      }
+    }
+
+    if (lastError) {
+      const warning = buildObservationWarning(group, lastError);
+      chunkWarnings.push(warning);
+      console.warn("Weather observation fetch failed", {
+        group,
+        chunk: chunkIndex + 1,
+        chunkCount: sourceChunks.length,
+        sourceCount: sourceChunk.length,
+        sources: sourceChunk,
+        elements: elements.join(","),
+        warning,
+        error: lastError instanceof Error ? lastError.message : String(lastError),
+      });
+      continue;
+    }
+
+    const rows = Array.isArray((payload as { data?: unknown }).data)
+      ? ((payload as { data: unknown[] }).data)
+      : [];
+    mergedData.push(...rows);
+  }
+
+  if (mergedData.length === 0) {
+    const warning =
+      chunkWarnings[0] ??
+      `${WEATHER_GROUP_LABELS[group]}: Kunne ikke hente data fra Frost.`;
+    return { payload: { data: [] }, warning };
+  }
+
+  if (chunkWarnings.length > 0) {
     return {
-      payload: await fetchJson(url, {
-        Authorization: frostAuth,
-      }),
-      warning: null,
-    };
-  } catch (error) {
-    const warning = buildObservationWarning(group, error);
-    console.warn("Weather observation fetch failed", {
-      group,
-      sourceCount: sourceIds.length,
-      elements: elements.join(","),
-      warning,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return {
-      payload: { data: [] },
-      warning,
+      payload: { data: mergedData },
+      warning: `${WEATHER_GROUP_LABELS[group]}: Delvis datatap fra Frost (${chunkWarnings.length}/${sourceChunks.length} delspørringer feilet).`,
     };
   }
+
+  return {
+    payload: { data: mergedData },
+    warning: null,
+  };
 }
 
 function pickNearestSourceWithData(
