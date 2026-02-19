@@ -13,9 +13,72 @@ import {
 } from "./schema";
 
 const emojiImageCache = new Map<string, string | null>();
+const PDF_IMAGE_FORMAT_BY_MIME: Record<string, "PNG" | "JPEG" | "WEBP"> = {
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "image/jpg": "JPEG",
+  "image/webp": "WEBP",
+};
 
 function getLastAutoTableY(doc: jsPDF): number | null {
   return (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? null;
+}
+
+function getImageMimeType(image: string): string | null {
+  const match = /^data:([^;,]+)[;,]/i.exec(image);
+  return match ? match[1].toLowerCase() : null;
+}
+
+function getImageFormat(image: string): "PNG" | "JPEG" | "WEBP" {
+  const mimeType = getImageMimeType(image);
+  if (mimeType && Object.prototype.hasOwnProperty.call(PDF_IMAGE_FORMAT_BY_MIME, mimeType)) {
+    return PDF_IMAGE_FORMAT_BY_MIME[mimeType];
+  }
+  return "PNG";
+}
+
+async function rasterizeToPng(imageSource: string): Promise<string | null> {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+
+  return await new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+          resolve(null);
+          return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          resolve(null);
+          return;
+        }
+
+        context.drawImage(image, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        resolve(null);
+      }
+    };
+    image.onerror = () => resolve(null);
+    image.src = imageSource;
+  });
+}
+
+async function normalizeImageForPdf(image: string | null): Promise<string | null> {
+  if (!image?.trim()) return null;
+  const trimmed = image.trim();
+  const mimeType = getImageMimeType(trimmed);
+
+  if (mimeType && Object.prototype.hasOwnProperty.call(PDF_IMAGE_FORMAT_BY_MIME, mimeType)) {
+    return trimmed;
+  }
+
+  return await rasterizeToPng(trimmed);
 }
 
 function formatValue(value: number | null, suffix = ""): string {
@@ -67,16 +130,16 @@ function getDefaultSummary(state: ReportState): string {
   const maxCo2 = co2Averages.length > 0 ? Math.max(...co2Averages) : null;
   const over1000 = co2Averages.filter((value) => value > 1000).length;
 
-  const intro = `Dr. Dropin Bedrift har gjennomfort inneklimamalinger hos ${state.client.name || "kunde"} for a vurdere temperatur, relativ luftfuktighet og CO2 i utvalgte lokasjoner.`;
+  const intro = `Dr. Dropin Bedrift har gjennomført inneklimamålinger hos ${state.client.name || "kunde"} for å vurdere temperatur, relativ luftfuktighet og CO2 i utvalgte lokasjoner.`;
   const co2Summary =
     maxCo2 !== null
-      ? `Hoyeste gjennomsnittlige CO2-verdi var ${maxCo2} ppm. ${
+      ? `Høyeste gjennomsnittlige CO2-verdi var ${maxCo2} ppm. ${
           over1000 > 0
-            ? `${over1000} malepunkt oversteg 1000 ppm og indikerer behov for vurdering av ventilasjon.`
-            : "Ingen malepunkt oversteg 1000 ppm."
+            ? `${over1000} målepunkt oversteg 1000 ppm og indikerer behov for vurdering av ventilasjon.`
+            : "Ingen målepunkt oversteg 1000 ppm."
         }`
       : "Ingen CO2-data er registrert.";
-  const pointer = "Se anbefalingskapitlet for foreslatte tiltak og videre oppfolging.";
+  const pointer = "Se anbefalingskapitlet for foreslåtte tiltak og videre oppfølging.";
 
   return `${intro}\n${co2Summary}\n${pointer}`;
 }
@@ -92,16 +155,16 @@ function buildFallbackRecommendations(state: ReportState): string[] {
 
   const items: string[] = [];
   if (hasHighCo2) {
-    items.push("Vurder tiltak for okt luftutskifting i lokasjoner med hoy CO2-belastning.");
+    items.push("Vurder tiltak for økt luftutskifting i lokasjoner med høy CO2-belastning.");
   }
   if (hasLowHumidity) {
-    items.push("Vurder tiltak som reduserer opplevd torr luft, inkludert temperaturjustering og renholdsoppfolging.");
+    items.push("Vurder tiltak som reduserer opplevd tørr luft, inkludert temperaturjustering og renholdsoppfølging.");
   }
   if (hasHighTemp) {
-    items.push("Vurder temperaturstyring slik at lokalene holdes under anbefalt niva for stillesittende arbeid.");
+    items.push("Vurder temperaturstyring slik at lokalene holdes under anbefalt nivå for stillesittende arbeid.");
   }
   if (items.length === 0) {
-    items.push("Viderefor dagens drift med jevnlig oppfolging av ventilasjon og inneklimaparametere.");
+    items.push("Viderefør dagens drift med jevnlig oppfølging av ventilasjon og inneklimaparametere.");
   }
   return items;
 }
@@ -167,16 +230,21 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
     finalY += 1;
   };
 
-  const renderImage = (image: string | null, caption?: string) => {
+  const renderImage = async (image: string | null, caption?: string) => {
     if (!image) return;
+    const normalizedImage = await normalizeImageForPdf(image);
+    if (!normalizedImage) {
+      renderParagraph("Kunne ikke vise bilde i PDF.");
+      return;
+    }
 
     try {
-      const props = doc.getImageProperties(image);
+      const props = doc.getImageProperties(normalizedImage);
       const maxWidth = 170;
       const rawHeight = (props.height * maxWidth) / props.width;
       const height = Math.min(Math.max(rawHeight, 30), 95);
       ensureSpace(height + (caption ? 10 : 4));
-      doc.addImage(image, props.fileType || "PNG", 14, finalY, maxWidth, height);
+      doc.addImage(normalizedImage, getImageFormat(normalizedImage), 14, finalY, maxWidth, height);
       finalY += height + 3;
       if (caption?.trim()) {
         renderParagraph(caption.trim());
@@ -206,7 +274,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   const metadataRows = [
     ["Bedrift og avdeling", state.client.name || "-"],
     ["Organisasjonsnummer", state.client.orgNr || "-"],
-    ["Dato for utforelse", state.sharedMetadata.date || "-"],
+    ["Dato for utførelse", state.sharedMetadata.date || "-"],
     ["Deltakere", state.sharedMetadata.participants || "-"],
     ["Rapport skrevet av", state.sharedMetadata.author || "-"],
     ["Dato for rapport", reportDate],
@@ -233,24 +301,24 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
 
   renderHeading("Resultater og konklusjon");
   if (metadata.sensors.length === 0) {
-    renderParagraph("Ingen inneklimamalinger er registrert.");
+    renderParagraph("Ingen inneklimamålinger er registrert.");
   } else {
-    metadata.sensors.forEach((sensor, index) => {
-      renderSubHeading(`Inneklimamaler ${index + 1}: ${sensor.locationName || "Uten lokasjonsnavn"}`);
+    for (const [index, sensor] of metadata.sensors.entries()) {
+      renderSubHeading(`Inneklimamåler ${index + 1}: ${sensor.locationName || "Uten lokasjonsnavn"}`);
       renderParagraph(
         sensor.placementDescription ||
           "Plassering er ikke beskrevet."
       );
 
-      renderImage(sensor.placementImage, sensor.placementImageCaption || "Plassering av maler.");
-      renderImage(
+      await renderImage(sensor.placementImage, sensor.placementImageCaption || "Plassering av måler.");
+      await renderImage(
         sensor.sensorReportImage,
-        sensor.sensorReportImageCaption || "Bilde av maler-rapport."
+        sensor.sensorReportImageCaption || "Bilde av måler-rapport."
       );
-      renderImage(
+      await renderImage(
         sensor.chartImage,
         sensor.chartCaption ||
-          "Linjegraf viser temperatur (oransje), CO2 (gronn) og relativ luftfuktighet (bla) over tid."
+          "Linjegraf viser temperatur (oransje), CO2 (grønn) og relativ luftfuktighet (blå) over tid."
       );
 
       ensureSpace(40);
@@ -264,13 +332,13 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
         ]],
         body: [
           [
-            "Minste verdi malt",
+            "Minste verdi målt",
             formatValue(sensor.stats.temperature.min),
             formatValue(sensor.stats.humidity.min),
             formatValue(sensor.stats.co2.min),
           ],
           [
-            "Storste verdi malt",
+            "Største verdi målt",
             formatValue(sensor.stats.temperature.max),
             formatValue(sensor.stats.humidity.max),
             formatValue(sensor.stats.co2.max),
@@ -288,7 +356,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       finalY = (getLastAutoTableY(doc) ?? finalY) + 6;
 
       renderParagraph(
-        `Datasettet viser minimum og maksimum verdi av temperatur, luftfuktighet og CO2 som er malt ved ${sensor.locationName || "lokasjonen"}.`
+        `Datasettet viser minimum og maksimum verdi av temperatur, luftfuktighet og CO2 som er målt ved ${sensor.locationName || "lokasjonen"}.`
       );
 
       renderParagraph(
@@ -300,7 +368,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       renderParagraph(
         `CO2: ${sensor.interpretation.co2Text || "Ingen vurdering registrert."}`
       );
-    });
+    }
   }
 
   renderHeading("Om inneklima");
@@ -343,7 +411,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   renderSubHeading("Karbondioksid (CO2)");
   INDOOR_CLIMATE_STANDARD_TEXT.co2.forEach(renderParagraph);
 
-  renderHeading("Gjennomforing og metode for malinger");
+  renderHeading("Gjennomføring og metode for målinger");
   const instrumentRows = metadata.sensors
     .filter((sensor) => sensor.instrument)
     .map((sensor) => sensor.instrument!)
@@ -360,7 +428,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
     ensureSpace(45);
     autoTable(doc, {
       startY: finalY + 2,
-      head: [["Utstyrstype", "Modell", "Serienummer", "Sist kalibrert", "Innkjopsar", "Programvare"]],
+      head: [["Utstyrstype", "Modell", "Serienummer", "Sist kalibrert", "Innkjøpsår", "Programvare"]],
       body: instrumentRows,
       styles: { fontSize: 9 },
       headStyles: { fillColor: TEAL },
@@ -370,14 +438,14 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
 
   renderParagraph(
     metadata.methodText ||
-      "Malerne ble programmert, sendt ut, plassert pa avtalt lokasjon i maleperioden, returnert og analysert i etterkant."
+      "Målerne ble programmert, sendt ut, plassert på avtalt lokasjon i måleperioden, returnert og analysert i etterkant."
   );
   if (metadata.weatherInclude) {
-    renderParagraph("Vaerstatistikk for oppdragsdato er oppgitt i vedlegg.");
+    renderParagraph("Værstatistikk for oppdragsdato er oppgitt i vedlegg.");
   }
 
   renderHeading("Anbefalinger");
-  renderParagraph("Folgende tiltak bor vurderes:");
+  renderParagraph("Følgende tiltak bør vurderes:");
   renderBullets(
     metadata.recommendations.length > 0
       ? metadata.recommendations
@@ -402,7 +470,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   const appendices: string[] = state.files.map((file, index) => `Vedlegg ${index + 1}: ${file.name}`);
   if (metadata.weatherInclude && metadata.weatherSnapshot) {
     appendices.push(
-      `Vedlegg ${appendices.length + 1}: Vaerstatistikk fra ${metadata.weatherSnapshot.sourceName} (${metadata.weatherSnapshot.date})`
+      `Vedlegg ${appendices.length + 1}: Værstatistikk fra ${metadata.weatherSnapshot.sourceName} (${metadata.weatherSnapshot.date})`
     );
   }
   if (appendices.length === 0) {
@@ -418,7 +486,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
     );
 
     renderParagraph(
-      `Vaertabell for oppdragsdato ${metadata.weatherSnapshot.date} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
+      `Værtabell for oppdragsdato ${metadata.weatherSnapshot.date} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
     );
 
     if (hourlyRows.length === 0) {
@@ -428,7 +496,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Tid", "Vaer", "Temp C", "Nedbor mm", "Snodybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        head: [["Tid", "Vær", "Temp C", "Nedbør mm", "Snødybde cm", "Vind m/s", "Kraftigste vind m/s"]],
         body: hourlyRows.map((row) => [
           row.timeLabel,
           row.weatherDescription ?? "-",

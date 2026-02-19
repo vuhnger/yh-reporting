@@ -5,6 +5,8 @@ type GraphikFontPayload = {
   medium: string;
 };
 
+const ENABLE_GRAPHIK_PDF_FONT = process.env.NEXT_PUBLIC_ENABLE_GRAPHIK_PDF_FONT === "1";
+
 let cachedGraphikFonts: GraphikFontPayload | null | undefined;
 let graphikFontsPromise: Promise<GraphikFontPayload | null> | null = null;
 
@@ -66,6 +68,10 @@ async function getGraphikFonts(): Promise<GraphikFontPayload | null> {
 }
 
 export async function applyGraphikPdfFont(doc: jsPDF): Promise<boolean> {
+  // jsPDF + OTF Graphik has been unstable in-browser and can corrupt output/build state.
+  // Keep built-in font as default unless explicitly enabled.
+  if (!ENABLE_GRAPHIK_PDF_FONT) return false;
+
   const fonts = await getGraphikFonts();
   if (!fonts) return false;
 
