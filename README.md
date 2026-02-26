@@ -53,6 +53,7 @@ cp .env.local.example .env.local
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account JSON for Sheets-tilgang |
 | `GOOGLE_SHEETS_ID` | Spreadsheet-ID for utstyrsoversikten |
 | `GOOGLE_SHEETS_GID` | GID for det spesifikke arket |
+| `MET_FROST_CLIENT_ID` | Client ID for Frost API (met.no) til historiske værdata |
 
 ### 3. Start utviklingsserver
 
@@ -76,7 +77,8 @@ src/
 │   ├── api/
 │   │   ├── ai-fill/              # AI-tekstgenerering (streaming)
 │   │   ├── auth/[...nextauth]/   # NextAuth API-rute
-│   │   └── instruments/          # Utstyrsoversikt fra Google Sheets
+│   │   ├── instruments/          # Utstyrsoversikt fra Google Sheets
+│   │   └── weather/              # Værdata via geokoding + met.no Frost
 │   ├── auth/signin/              # Innloggingsside
 │   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Hovedside (wizard)
@@ -96,12 +98,13 @@ src/
         ├── template-types.ts     # Felles typer
         ├── template-registry.ts  # Mal-register
         └── templates/
-            └── noise/            # Støyrapport
-                ├── schema.ts     # Typer og defaults
-                ├── sample.ts     # Eksempeldata
-                ├── pdf.ts        # PDF-generering
-                ├── ai.ts         # AI-kontekst og felter
-                └── steps/        # Wizard-steg
+            ├── noise/            # Støyrapport
+            │   ├── schema.ts     # Typer og defaults
+            │   ├── sample.ts     # Eksempeldata
+            │   ├── pdf.ts        # PDF-generering
+            │   ├── ai.ts         # AI-kontekst og felter
+            │   └── steps/        # Wizard-steg
+            └── indoor-climate/   # Inneklimarapport
 ```
 
 ## Arkitektur

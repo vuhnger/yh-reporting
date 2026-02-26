@@ -9,9 +9,9 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">New Occupational Health Report</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Ny yrkeshygienisk rapport</h1>
         <p className="text-muted-foreground">
-          Follow the steps below to automatically generate a report from measurement data.
+          Følg stegene under for å generere rapport automatisk fra måledata.
         </p>
       </div>
 

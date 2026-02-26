@@ -6,10 +6,19 @@ import { createTemplateData } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
 import type { NoiseMetadata, Measurement, Thresholds } from "@/lib/reports/templates/noise/schema";
 import { getNoiseData } from "@/lib/reports/templates/noise/schema";
+import type {
+  IndoorClimateMetadata,
+  IndoorClimateSensor,
+} from "@/lib/reports/templates/indoor-climate/schema";
+import {
+  defaultSensor,
+  getIndoorClimateData,
+} from "@/lib/reports/templates/indoor-climate/schema";
 
 // Re-export types so existing consumers keep working
 export type { ReportState, SharedMetadata } from "@/lib/reports/template-types";
 export type { Measurement, Thresholds, NoiseMetadata } from "@/lib/reports/templates/noise/schema";
+export type { IndoorClimateMetadata, IndoorClimateSensor } from "@/lib/reports/templates/indoor-climate/schema";
 
 interface WizardContextType {
   state: ReportState;
@@ -24,6 +33,12 @@ interface WizardContextType {
   updateMeasurement: (id: string, data: Partial<Measurement>) => void;
   removeMeasurement: (id: string) => void;
   updateThresholds: (thresholds: Partial<Thresholds>) => void;
+
+  // Indoor climate convenience wrappers
+  updateIndoorClimateMetadata: (meta: Partial<IndoorClimateMetadata>) => void;
+  addSensor: () => void;
+  updateSensor: (id: string, data: Partial<IndoorClimateSensor>) => void;
+  removeSensor: (id: string) => void;
 
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
@@ -43,7 +58,7 @@ const defaultState: ReportState = {
     date: new Date().toISOString().split("T")[0],
     participants: "",
     contactPerson: "",
-    author: "Consultant Name", // TODO: Fetch from logged in user
+    author: "",
     reportDate: new Date().toISOString().split("T")[0],
     reportSentTo: "",
     advisor: "",
@@ -218,6 +233,87 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // --- Indoor climate convenience wrappers ---
+
+  const updateIndoorClimateMetadata = useCallback((meta: Partial<IndoorClimateMetadata>) => {
+    setState((prev) => {
+      const indoor = getIndoorClimateData(prev);
+      if (!indoor) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "indoor-climate" as const,
+          indoorClimate: {
+            ...indoor,
+            metadata: { ...indoor.metadata, ...meta },
+          },
+        },
+      };
+    });
+  }, []);
+
+  const addSensor = useCallback(() => {
+    setState((prev) => {
+      const indoor = getIndoorClimateData(prev);
+      if (!indoor) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "indoor-climate" as const,
+          indoorClimate: {
+            ...indoor,
+            metadata: {
+              ...indoor.metadata,
+              sensors: [...indoor.metadata.sensors, defaultSensor()],
+            },
+          },
+        },
+      };
+    });
+  }, []);
+
+  const updateSensor = useCallback((id: string, data: Partial<IndoorClimateSensor>) => {
+    setState((prev) => {
+      const indoor = getIndoorClimateData(prev);
+      if (!indoor) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "indoor-climate" as const,
+          indoorClimate: {
+            ...indoor,
+            metadata: {
+              ...indoor.metadata,
+              sensors: indoor.metadata.sensors.map((sensor) =>
+                sensor.id === id ? { ...sensor, ...data } : sensor
+              ),
+            },
+          },
+        },
+      };
+    });
+  }, []);
+
+  const removeSensor = useCallback((id: string) => {
+    setState((prev) => {
+      const indoor = getIndoorClimateData(prev);
+      if (!indoor) return prev;
+      return {
+        ...prev,
+        data: {
+          type: "indoor-climate" as const,
+          indoorClimate: {
+            ...indoor,
+            metadata: {
+              ...indoor.metadata,
+              sensors: indoor.metadata.sensors.filter((sensor) => sensor.id !== id),
+            },
+          },
+        },
+      };
+    });
+  }, []);
+
   const addFiles = useCallback((files: File[]) => {
     setState((prev) => ({ ...prev, files: [...prev.files, ...files] }));
   }, []);
@@ -243,6 +339,10 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     updateMeasurement,
     removeMeasurement,
     updateThresholds,
+    updateIndoorClimateMetadata,
+    addSensor,
+    updateSensor,
+    removeSensor,
     addFiles,
     removeFile,
     nextStep,
@@ -250,7 +350,29 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setStep,
     reset,
     loadReport,
-  }), [state, updateClient, updateSharedMetadata, setReportType, updateTemplateData, updateNoiseMetadata, addMeasurement, updateMeasurement, removeMeasurement, updateThresholds, addFiles, removeFile, nextStep, prevStep, setStep, reset, loadReport]);
+  }), [
+    state,
+    updateClient,
+    updateSharedMetadata,
+    setReportType,
+    updateTemplateData,
+    updateNoiseMetadata,
+    addMeasurement,
+    updateMeasurement,
+    removeMeasurement,
+    updateThresholds,
+    updateIndoorClimateMetadata,
+    addSensor,
+    updateSensor,
+    removeSensor,
+    addFiles,
+    removeFile,
+    nextStep,
+    prevStep,
+    setStep,
+    reset,
+    loadReport,
+  ]);
 
   return (
     <WizardContext.Provider value={value}>

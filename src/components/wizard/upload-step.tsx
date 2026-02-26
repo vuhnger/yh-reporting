@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { FileUp, Trash2 } from "lucide-react";
+import type { ReportType } from "@/lib/reports/template-types";
 
 export function UploadStep() {
   const { state, setReportType, addFiles, removeFile, nextStep, prevStep } = useWizard();
@@ -20,21 +21,21 @@ export function UploadStep() {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle>Data Upload</CardTitle>
-        <CardDescription>Upload measurement files (.KFK, .PDF) and select report type.</CardDescription>
+        <CardTitle>Dataopplasting</CardTitle>
+        <CardDescription>Last opp målefiler (.KFK, .PDF) og velg rapporttype.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label>Report Type</Label>
-          <Select value={state.reportType} onValueChange={(val: any) => setReportType(val)}>
+          <Label>Rapporttype</Label>
+          <Select value={state.reportType} onValueChange={(val) => setReportType(val as ReportType)}>
             <SelectTrigger>
-              <SelectValue placeholder="Select type..." />
+              <SelectValue placeholder="Velg type..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="indoor-climate">Indoor Climate (Inneklima)</SelectItem>
-              <SelectItem value="noise">Noise (Støy)</SelectItem>
-              <SelectItem value="chemical">Chemical / Dust</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="indoor-climate">Inneklima</SelectItem>
+              <SelectItem value="noise">Støy</SelectItem>
+              <SelectItem value="chemical">Kjemikalier / Støv</SelectItem>
+              <SelectItem value="light">Belysning</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -44,8 +45,8 @@ export function UploadStep() {
             <FileUp className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-medium">Drag & drop files here</p>
-            <p className="text-sm text-muted-foreground">or click to browse</p>
+            <p className="font-medium">Dra og slipp filer her</p>
+            <p className="text-sm text-muted-foreground">eller klikk for å bla</p>
           </div>
           <Input 
             type="file" 
@@ -55,13 +56,13 @@ export function UploadStep() {
             onChange={handleFileChange} 
           />
           <Button variant="outline" onClick={() => document.getElementById("file-upload")?.click()}>
-            Browse Files
+            Velg filer
           </Button>
         </div>
 
         {state.files.length > 0 && (
           <div className="space-y-2">
-            <Label>Uploaded Files ({state.files.length})</Label>
+            <Label>Opplastede filer ({state.files.length})</Label>
             <div className="space-y-2">
               {state.files.map((file, index) => (
                 <div key={index} className="flex items-center justify-between p-2 border rounded bg-white">
@@ -76,8 +77,8 @@ export function UploadStep() {
         )}
       </CardContent>
       <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={prevStep}>Back</Button>
-        <Button onClick={nextStep} disabled={!state.reportType}>Next Step</Button>
+        <Button variant="outline" onClick={prevStep}>Tilbake</Button>
+        <Button onClick={nextStep} disabled={!state.reportType}>Neste steg</Button>
       </CardFooter>
     </Card>
   );

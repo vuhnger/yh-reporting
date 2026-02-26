@@ -1,9 +1,12 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { ReportState } from "../../template-types";
+import { applyGraphikPdfFont } from "../../pdf-font";
+import { addStandardFooter } from "../../pdf-footer";
+import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
 import { getNoiseData } from "./schema";
 
-export function createNoiseReportPDFDoc(state: ReportState) {
+export async function createNoiseReportPDFDoc(state: ReportState) {
   const noise = getNoiseData(state);
   if (!noise) throw new Error("Cannot generate noise PDF without noise data");
   const { metadata: noiseMeta, measurements, thresholds } = noise;
@@ -34,6 +37,7 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   const selectedGroup = noiseGroupDetails[noiseMeta.noiseGroup];
 
   const doc = new jsPDF();
+  await applyGraphikPdfFont(doc);
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
 
@@ -51,9 +55,13 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   doc.setFontSize(24);
   doc.text("Rapport etter kartlegging av støy", 14, 25);
 
-  doc.setFontSize(10);
-  doc.text("Dr. Dropin Bedrift", pageWidth - 40, 15);
-  doc.text("Støyrapport", pageWidth - 40, 20);
+  try {
+    doc.addImage(LIGHT_LOGO_PNG_DATA_URL, "PNG", pageWidth - 48, 8, 34, 29);
+  } catch {
+    doc.setFontSize(10);
+    doc.text("Dr. Dropin Bedrift", pageWidth - 40, 15);
+    doc.text("Støyrapport", pageWidth - 40, 20);
+  }
 
   // --- Cover: Client Info Table ---
   doc.setTextColor("#000000");
@@ -62,10 +70,8 @@ export function createNoiseReportPDFDoc(state: ReportState) {
   const clientData = [
     ["Bedrift og avdeling", state.client.name],
     ["Organisasjonsnummer", state.client.orgNr],
-    ["Oppdrag", state.sharedMetadata.assignment || "Støykartlegging"],
     ["Dato for utførelse", state.sharedMetadata.date],
     ["Deltakere", state.sharedMetadata.participants],
-    ["Antall vedlegg", state.files.length ? String(state.files.length) : "-"],
     ["Rapport skrevet av", state.sharedMetadata.author],
     ["Dato for rapport", reportDate],
     ["Rapport sendt til", state.sharedMetadata.reportSentTo || "-"],
@@ -455,16 +461,17 @@ export function createNoiseReportPDFDoc(state: ReportState) {
     renderParagraph(noiseMeta.appendicesExtraText.trim());
   }
 
+  addStandardFooter(doc);
   return doc;
 }
 
-export function generateNoiseReportPDFBlob(state: ReportState): Blob {
-  const doc = createNoiseReportPDFDoc(state);
+export async function generateNoiseReportPDFBlob(state: ReportState): Promise<Blob> {
+  const doc = await createNoiseReportPDFDoc(state);
   return doc.output("blob");
 }
 
-export function generateNoiseReportPDF(state: ReportState): void {
-  const doc = createNoiseReportPDFDoc(state);
+export async function generateNoiseReportPDF(state: ReportState): Promise<void> {
+  const doc = await createNoiseReportPDFDoc(state);
   doc.save(`Stoyrapport_${state.client.name.replace(/\s+/g, "_")}.pdf`);
 }
 

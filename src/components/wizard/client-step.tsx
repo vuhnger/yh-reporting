@@ -62,17 +62,17 @@ export function ClientStep() {
   return (
     <Card className="w-full max-w-2xl mx-auto border-primary/20 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl text-primary">Client Context</CardTitle>
-        <CardDescription>Enter the 9-digit Norwegian organization number to auto-fill details.</CardDescription>
+        <CardTitle className="text-2xl text-primary">Bedriftsinformasjon</CardTitle>
+        <CardDescription>Skriv inn 9-sifret organisasjonsnummer for å fylle ut detaljer automatisk.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="orgNr" className="text-sm font-semibold">Organization Number</Label>
+          <Label htmlFor="orgNr" className="text-sm font-semibold">Organisasjonsnummer</Label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="orgNr"
-              placeholder="e.g. 999 888 777"
+              placeholder="f.eks. 999 888 777"
               className="pl-10 text-lg tracking-wider"
               value={state.client.orgNr}
               onChange={handleOrgNrChange}
@@ -101,7 +101,7 @@ export function ClientStep() {
         {state.client.name && (
           <div className="space-y-4 pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-xs uppercase text-muted-foreground font-bold">Company Name</Label>
+              <Label htmlFor="name" className="text-xs uppercase text-muted-foreground font-bold">Bedriftsnavn</Label>
               <div className="flex items-center gap-2 text-lg font-medium">
                 <Building2 className="h-5 w-5 text-primary" />
                 <Input

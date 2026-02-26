@@ -31,6 +31,7 @@ export interface AIFieldConfig {
   guidance: string;
   length?: string;
   structure?: string;
+  outputStyle?: "paragraph" | "line-list";
 }
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ export interface AIFieldConfig {
 
 export type TemplateData =
   | { type: "noise"; noise: unknown }
-  | { type: "indoor-climate"; indoorClimate: Record<string, never> }
+  | { type: "indoor-climate"; indoorClimate: unknown }
   | { type: "chemical"; chemical: Record<string, never> }
   | { type: "light"; light: Record<string, never> }
   | null;
@@ -86,8 +87,8 @@ export interface ReportTemplate<TData = unknown> {
 
   ReviewComponent: ComponentType;
 
-  generatePDF: (state: ReportState) => void;
-  generatePDFBlob: (state: ReportState) => Blob;
+  generatePDF: (state: ReportState) => void | Promise<void>;
+  generatePDFBlob: (state: ReportState) => Blob | Promise<Blob>;
   isReadyForExport: (state: ReportState) => boolean;
   exportValidationMessage?: string;
 
@@ -109,7 +110,7 @@ export function createTemplateData(type: ReportType, data: unknown): TemplateDat
     case "noise":
       return { type: "noise", noise: data };
     case "indoor-climate":
-      return { type: "indoor-climate", indoorClimate: data as Record<string, never> };
+      return { type: "indoor-climate", indoorClimate: data };
     case "chemical":
       return { type: "chemical", chemical: data as Record<string, never> };
     case "light":

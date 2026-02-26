@@ -1,20 +1,236 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWizard } from "./wizard-context";
 import type { ReportType } from "@/lib/reports/template-types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getIndoorClimateData } from "@/lib/reports/templates/indoor-climate/schema";
+import { useSession } from "next-auth/react";
+
+interface AddressSuggestion {
+  id: string;
+  label: string;
+  lat: number | null;
+  lon: number | null;
+}
 
 export function SharedMetadataStep() {
-  const { state, updateSharedMetadata, setReportType } = useWizard();
+  const { state, updateSharedMetadata, setReportType, updateClient, updateIndoorClimateMetadata } = useWizard();
+  const { data: session } = useSession();
+  const indoor = getIndoorClimateData(state);
+  const weatherAddress = indoor?.metadata.weatherAddress ?? "";
+  const weatherInclude = indoor?.metadata.weatherInclude ?? false;
+  const weatherLat = indoor?.metadata.weatherLat ?? null;
+  const weatherLon = indoor?.metadata.weatherLon ?? null;
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [addressQuery, setAddressQuery] = useState(() => weatherAddress || state.client.address || "");
+  const weatherInFlightKeyRef = useRef<string | null>(null);
+  const completedWeatherRequestsRef = useRef<Set<string>>(new Set());
+  const weatherRequestContextRef = useRef<string>("");
+
   useEffect(() => {
     if (state.sharedMetadata.reportDate) return;
     const today = new Date().toISOString().split("T")[0];
     updateSharedMetadata({ reportDate: today });
   }, [state.sharedMetadata.reportDate, updateSharedMetadata]);
+
+  useEffect(() => {
+    const currentAuthor = state.sharedMetadata.author.trim();
+    const needsFill = !currentAuthor || currentAuthor === "Consultant Name";
+    if (!needsFill) return;
+
+    const sessionName = session?.user?.name?.trim();
+    const sessionEmail = session?.user?.email?.trim();
+    const fallbackFromEmail = sessionEmail ? sessionEmail.split("@")[0] : "";
+    const consultantName = sessionName || fallbackFromEmail;
+    if (!consultantName) return;
+
+    updateSharedMetadata({ author: consultantName });
+  }, [session?.user?.email, session?.user?.name, state.sharedMetadata.author, updateSharedMetadata]);
+
+  useEffect(() => {
+    if (state.reportType !== "indoor-climate") return;
+    if (addressQuery.trim()) return;
+    const fallback = weatherAddress || state.client.address || "";
+    if (fallback) {
+      setAddressQuery(fallback);
+    }
+  }, [addressQuery, state.client.address, state.reportType, weatherAddress]);
+
+  useEffect(() => {
+    if (state.reportType !== "indoor-climate" || !indoor) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      setAddressDropdownOpen(false);
+      setAddressLoading(false);
+      return;
+    }
+
+    const query = addressQuery.trim();
+    const selectedAddressLocked =
+      weatherLat !== null && weatherLon !== null && query === weatherAddress.trim();
+
+    if (selectedAddressLocked) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      setAddressDropdownOpen(false);
+      setAddressLoading(false);
+      return;
+    }
+
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      setAddressDropdownOpen(false);
+      setAddressLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setAddressLoading(true);
+    setAddressError(null);
+
+    const handle = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/address-search?q=${encodeURIComponent(query)}`);
+        const payload = await response.json();
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setAddressError(payload?.error || "Kunne ikke hente adresseforslag.");
+            setAddressSuggestions([]);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          const suggestions = Array.isArray(payload.results)
+            ? (payload.results as AddressSuggestion[])
+            : [];
+          setAddressSuggestions(suggestions);
+          if (suggestions.length > 0) {
+            setAddressDropdownOpen(true);
+          }
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setAddressError("Kunne ikke hente adresseforslag.");
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setAddressLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [addressQuery, indoor, state.reportType, weatherAddress, weatherLat, weatherLon]);
+
+  useEffect(() => {
+    if (state.reportType !== "indoor-climate" || !indoor || !weatherInclude) {
+      setWeatherError(null);
+      return;
+    }
+
+    const address = weatherAddress.trim();
+    if (address.length < 3 || weatherLat === null || weatherLon === null) {
+      setWeatherError(null);
+      return;
+    }
+
+    const executionDate = state.sharedMetadata.date;
+    const requestKey = `${address}|${executionDate}|${weatherLat}|${weatherLon}`;
+    if (weatherRequestContextRef.current !== requestKey) {
+      weatherRequestContextRef.current = requestKey;
+      completedWeatherRequestsRef.current.clear();
+    }
+
+    if (completedWeatherRequestsRef.current.has(requestKey)) {
+      setWeatherError(null);
+      return;
+    }
+
+    if (weatherInFlightKeyRef.current === requestKey) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      weatherInFlightKeyRef.current = requestKey;
+      try {
+        if (!cancelled) setWeatherError(null);
+
+        const params = new URLSearchParams({
+          address,
+          date: executionDate,
+        });
+        params.set("lat", String(weatherLat));
+        params.set("lon", String(weatherLon));
+
+        const response = await fetch(`/api/weather?${params.toString()}`);
+        const payload = await response.json();
+
+        if (!response.ok) {
+          if (!cancelled) {
+            const message = payload?.error || "Kunne ikke hente vaerdata.";
+            setWeatherError(message);
+            updateIndoorClimateMetadata({ weatherFetchError: message });
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setWeatherError(null);
+          completedWeatherRequestsRef.current.add(requestKey);
+          updateIndoorClimateMetadata({
+            weatherAddress: address,
+            weatherDate: executionDate,
+            weatherSnapshot: payload,
+            weatherFetchError: "",
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          const message = "Kunne ikke hente vaerdata.";
+          setWeatherError(message);
+          updateIndoorClimateMetadata({ weatherFetchError: message });
+        }
+      } finally {
+        if (weatherInFlightKeyRef.current === requestKey) {
+          weatherInFlightKeyRef.current = null;
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    indoor,
+    state.reportType,
+    state.sharedMetadata.date,
+    updateIndoorClimateMetadata,
+    weatherAddress,
+    weatherInclude,
+    weatherLat,
+    weatherLon,
+  ]);
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -43,21 +259,10 @@ export function SharedMetadataStep() {
                 <SelectContent>
                   <SelectItem value="noise">Støy</SelectItem>
                   <SelectItem value="indoor-climate">Inneklima</SelectItem>
-                  <SelectItem value="chemical">Kjemikalier / Støv</SelectItem>
-                  <SelectItem value="light">Lys</SelectItem>
+                  {/* <SelectItem value="chemical">Kjemikalier / Støv</SelectItem> */}
+                  {/* <SelectItem value="light">Lys</SelectItem> */}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="assignment">Oppdrag (auto)</Label>
-              <Input
-                id="assignment"
-                value={state.sharedMetadata.assignment}
-                readOnly
-                className="bg-slate-50"
-                placeholder="Genereres automatisk basert på rapporttype og bedrift"
-              />
             </div>
 
             <div className="space-y-2">
@@ -102,16 +307,6 @@ export function SharedMetadataStep() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="attachments">Antall vedlegg (auto)</Label>
-              <Input
-                id="attachments"
-                value={String(state.files.length)}
-                readOnly
-                className="bg-slate-50"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="report-sent-to">Rapport sendt til</Label>
               <Input
                 id="report-sent-to"
@@ -140,6 +335,79 @@ export function SharedMetadataStep() {
                 placeholder="F.eks. Ida Lund"
               />
             </div>
+
+            {state.reportType === "indoor-climate" && indoor && (
+              <div className="space-y-2 md:col-span-2 relative">
+                <Label htmlFor="weather-address-report">Adresse</Label>
+                <Input
+                  id="weather-address-report"
+                  value={addressQuery}
+                  onChange={(e) => {
+                    const nextAddress = e.target.value;
+                    setAddressQuery(nextAddress);
+                    updateClient({ address: nextAddress });
+                    updateIndoorClimateMetadata({
+                      weatherAddress: "",
+                      weatherLat: null,
+                      weatherLon: null,
+                      weatherSnapshot: null,
+                      weatherFetchError: "",
+                    });
+                    setAddressDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (addressSuggestions.length > 0 && (weatherLat === null || weatherLon === null)) {
+                      setAddressDropdownOpen(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => setAddressDropdownOpen(false), 120);
+                  }}
+                  placeholder="Søk opp adresse"
+                  autoComplete="off"
+                />
+                {addressLoading && (
+                  <p className="text-xs text-muted-foreground">Søker adresser...</p>
+                )}
+                {addressError && (
+                  <p className="text-xs text-destructive">{addressError}</p>
+                )}
+                {weatherError && (
+                  <p className="text-xs text-destructive">{weatherError}</p>
+                )}
+                {addressDropdownOpen && addressSuggestions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow">
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {addressSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            setAddressQuery(suggestion.label);
+                            updateClient({ address: suggestion.label });
+                            updateIndoorClimateMetadata({
+                              weatherAddress: suggestion.label,
+                              weatherLat: suggestion.lat,
+                              weatherLon: suggestion.lon,
+                              weatherSnapshot: null,
+                              weatherFetchError: "",
+                            });
+                            setAddressSuggestions([]);
+                            setAddressError(null);
+                            setWeatherError(null);
+                            setAddressDropdownOpen(false);
+                          }}
+                        >
+                          {suggestion.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       </CardContent>

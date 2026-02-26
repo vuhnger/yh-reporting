@@ -1,22 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { AppSessionProvider } from "@/components/providers/session-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const graphik = localFont({
+  src: [
+    {
+      path: "./fonts/Graphik-Regular-Web.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "./fonts/Graphik-Medium-Web.woff2",
+      weight: "500",
+      style: "normal",
+    },
+  ],
+  variable: "--font-graphik",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Dr. Dropin YH Reporting",
-  description: "Automated reporting tool for Occupational Health",
+  title: "Dr. Dropin YH Rapportering",
+  description: "Automatisert rapportverktøy for yrkeshygiene",
 };
 
 export default function RootLayout({
@@ -27,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col bg-slate-50`}
+        className={`${graphik.variable} antialiased min-h-screen flex flex-col bg-slate-50`}
       >
         <AppSessionProvider>
           <Header />

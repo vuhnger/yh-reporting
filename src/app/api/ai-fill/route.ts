@@ -4,6 +4,10 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import type { AIFieldConfig } from "@/lib/reports/template-types";
 import { noiseSystemInstruction, noiseAIFields } from "@/lib/reports/templates/noise/ai";
+import {
+  indoorClimateSystemInstruction,
+  indoorClimateAIFields,
+} from "@/lib/reports/templates/indoor-climate/ai";
 
 // Server-side AI config lookup (avoids importing React components via template registry)
 function getAIConfig(reportType: string): {
@@ -13,6 +17,8 @@ function getAIConfig(reportType: string): {
   switch (reportType) {
     case "noise":
       return { systemInstruction: noiseSystemInstruction, fields: noiseAIFields };
+    case "indoor-climate":
+      return { systemInstruction: indoorClimateSystemInstruction, fields: indoorClimateAIFields };
     default:
       return null;
   }
@@ -22,10 +28,21 @@ function buildPrompt(
   fieldConfig: AIFieldConfig,
   context: Record<string, unknown>
 ) {
+  const outputStyle = fieldConfig.outputStyle ?? "paragraph";
   const lengthHint =
     fieldConfig.length ?? "Skriv utfyllende tekst (1–3 avsnitt). Ikke avslutt etter én setning.";
-  const structureHint =
-    fieldConfig.structure ?? "Sammenhengende tekst (ingen lister).";
+  const structureHint = fieldConfig.structure ?? "Sammenhengende tekst i avsnitt.";
+  const outputRules =
+    outputStyle === "line-list"
+      ? [
+          "Returner kun rene tiltakslinjer, ett tiltak per linje.",
+          "Ingen overskrift, ingen innledning, ingen avslutning.",
+          "Ingen nummerering eller kulepunkter.",
+        ]
+      : [
+          "Ingen overskrifter, ingen punktlister.",
+          "Sammenhengende fagtekst i avsnitt.",
+        ];
 
   return `
 OPPGAVE: Generer en utdypende fagtekst til feltet "${fieldConfig.label}" i en rapport.
@@ -37,9 +54,12 @@ KRAV:
 - SPRÅK: Profesjonell norsk bokmål.
 - LENGDE: ${lengthHint}
 - STRUKTUR: ${structureHint}
-- IKKE overskrifter eller punktlister.
+- OUTPUT:
+${outputRules.map((rule) => `- ${rule}`).join("\n")}
 - IKKE antagelser om bransje/arbeidssted utover data.
 - DATA: Bruk spesifikke verdier og målepunkter fra JSON-dataene.
+- IKKE dikt opp tall, datoer, instrumenter eller hendelser.
+- Hvis data mangler: skriv nøkternt at det ikke er dokumentert i datagrunnlaget.
 
 FELTETS FORMÅL:
 ${fieldConfig.purpose}
@@ -94,7 +114,7 @@ export async function POST(req: Request) {
     const result = await model.generateContentStream({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.35,
         topP: 0.8,
         maxOutputTokens: 2048,
       },
@@ -120,10 +140,13 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini API Error:", error);
     return NextResponse.json(
-      { error: "Kunne ikke generere tekst.", details: String(error?.message || error) },
+      {
+        error: "Kunne ikke generere tekst.",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
