@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useWizard } from "@/components/wizard/wizard-context";
 import type { Measurement } from "../schema";
 import { getMeasurementLabel, getNoiseData } from "../schema";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 export function NoiseMeasurementStep() {
   const { state, addMeasurement, updateMeasurement, removeMeasurement, updateNoiseMetadata, updateThresholds } = useWizard();
   const noise = getNoiseData(state);
+  const [invalidNumericFields, setInvalidNumericFields] = useState<Record<string, boolean>>({});
   if (!noise) return null;
 
   const { measurements, thresholds } = noise;
@@ -58,20 +60,46 @@ export function NoiseMeasurementStep() {
     return "border-green-200 bg-green-50 text-green-900";
   };
 
-  const handleValueChange = (id: string, field: keyof Measurement, value: string) => {
+  const setNumericFieldValidity = (id: string, field: "lex8h" | "maxPeak", isInvalid: boolean) => {
+    const key = `${id}:${field}`;
+
+    setInvalidNumericFields((prev) => {
+      if (isInvalid) {
+        return { ...prev, [key]: true };
+      }
+
+      if (!(key in prev)) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleValueChange = (id: string, field: keyof Measurement, value: string, isBadInput = false) => {
     if (value === "") {
+      if (field === "lex8h" || field === "maxPeak") {
+        setNumericFieldValidity(id, field, false);
+      }
       updateMeasurement(id, { [field]: "" });
       return;
     }
 
-    if ((field === "lex8h" || field === "maxPeak") && !Number.isNaN(Number(value))) {
+    if (field === "lex8h" || field === "maxPeak") {
+      if (isBadInput || Number.isNaN(Number(value))) {
+        setNumericFieldValidity(id, field, true);
+        updateMeasurement(id, { [field]: "" });
+        return;
+      }
+
+      setNumericFieldValidity(id, field, false);
       updateMeasurement(id, { [field]: Number(value) });
       return;
     }
 
-    if (field !== "lex8h" && field !== "maxPeak") {
-      updateMeasurement(id, { [field]: value });
-    }
+    updateMeasurement(id, { [field]: value });
   };
 
   return (
@@ -127,6 +155,8 @@ export function NoiseMeasurementStep() {
           measurements.map((measurement, index) => {
             const lexColor = getLexColor(measurement.lex8h);
             const peakColor = getPeakColor(measurement.maxPeak);
+            const hasInvalidLex = Boolean(invalidNumericFields[`${measurement.id}:lex8h`]);
+            const hasInvalidPeak = Boolean(invalidNumericFields[`${measurement.id}:maxPeak`]);
 
             return (
               <div key={measurement.id} className="rounded-xl border bg-card shadow-sm">
@@ -183,9 +213,17 @@ export function NoiseMeasurementStep() {
                       type="number"
                       placeholder="-"
                       value={measurement.lex8h}
-                      onChange={(e) => handleValueChange(measurement.id, "lex8h", e.target.value)}
-                      className={cn("font-mono", lexColor)}
+                      onChange={(e) =>
+                        handleValueChange(
+                          measurement.id,
+                          "lex8h",
+                          e.target.value,
+                          e.currentTarget.validity.badInput
+                        )
+                      }
+                      className={cn("font-mono", lexColor, hasInvalidLex && "border-destructive text-destructive")}
                     />
+                    {hasInvalidLex ? <p className="text-sm text-destructive">Skriv inn et gyldig tall.</p> : null}
                   </div>
 
                   <div className="space-y-2">
@@ -195,9 +233,17 @@ export function NoiseMeasurementStep() {
                       type="number"
                       placeholder="-"
                       value={measurement.maxPeak}
-                      onChange={(e) => handleValueChange(measurement.id, "maxPeak", e.target.value)}
-                      className={cn("font-mono", peakColor)}
+                      onChange={(e) =>
+                        handleValueChange(
+                          measurement.id,
+                          "maxPeak",
+                          e.target.value,
+                          e.currentTarget.validity.badInput
+                        )
+                      }
+                      className={cn("font-mono", peakColor, hasInvalidPeak && "border-destructive text-destructive")}
                     />
+                    {hasInvalidPeak ? <p className="text-sm text-destructive">Skriv inn et gyldig tall.</p> : null}
                   </div>
 
                   <div className="space-y-2 md:col-span-2 xl:col-span-2">
