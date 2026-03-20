@@ -4,12 +4,13 @@ import type { ReportState } from "../../template-types";
 import { applyGraphikPdfFont } from "../../pdf-font";
 import { addStandardFooter } from "../../pdf-footer";
 import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
-import { getNoiseData } from "./schema";
+import { getMeasurementLabel, getNoiseData, groupMeasurementsByLocation } from "./schema";
 
 export async function createNoiseReportPDFDoc(state: ReportState) {
   const noise = getNoiseData(state);
   if (!noise) throw new Error("Cannot generate noise PDF without noise data");
   const { metadata: noiseMeta, measurements, thresholds } = noise;
+  const measurementGroups = groupMeasurementsByLocation(measurements);
 
   const noiseGroupDetails = {
     I: {
@@ -290,18 +291,30 @@ export async function createNoiseReportPDFDoc(state: ReportState) {
     renderParagraph(noiseMeta.methodText.trim());
   }
 
-  const tableBody = measurements.map((m) => [
-    m.location,
-    m.duration || "-",
-    "-",
-    "-",
-    m.comment || "",
+  const measurementColumnCount = Math.max(
+    measurementGroups.reduce((max, group) => Math.max(max, group.measurements.length), 0),
+    1
+  );
+
+  const methodTableHead = [[
+    "Arbeidssted",
+    ...Array.from({ length: measurementColumnCount }, (_, index) => `Varighet ${getMeasurementLabel(index).toLowerCase()}`),
+    "Kommentar",
+  ]];
+
+  const tableBody = measurementGroups.map((group) => [
+    group.location,
+    ...Array.from(
+      { length: measurementColumnCount },
+      (_, index) => group.measurements[index]?.duration || "-"
+    ),
+    summarizeMeasurementComments(group.measurements),
   ]);
 
   ensureSpace(60);
   autoTable(doc, {
     startY: finalY + 4,
-    head: [["Sted", "Måling 1", "Måling 2", "Måling 3", "Kommentar"]],
+    head: methodTableHead,
     body: tableBody,
     styles: { fontSize: 10 },
     headStyles: { fillColor: TEAL },
@@ -328,7 +341,8 @@ export async function createNoiseReportPDFDoc(state: ReportState) {
       `Lydnivå over anbefalt nivå (LAeq > ${thresholds.lex8h.yellow} dB(A) eller LCpeak > ${thresholds.peak.yellow} dB(C)) vises med gult.`
   );
 
-  const resultBody = measurements.map((m) => [
+  const resultBody = measurements.map((m, index) => [
+    getMeasurementLabel(index),
     m.location,
     m.duration,
     m.lex8h !== "" ? `${m.lex8h} dB A` : "-",
@@ -339,7 +353,7 @@ export async function createNoiseReportPDFDoc(state: ReportState) {
   ensureSpace(60);
   autoTable(doc, {
     startY: finalY + 4,
-    head: [["Målested", "Varighet", "LAeq (dB A)", "LCpeak (dB C)", "Kommentar"]],
+    head: [["Måling", "Målested", "Varighet", "LAeq (dB A)", "LCpeak (dB C)", "Kommentar"]],
     body: resultBody,
     styles: { fontSize: 10 },
     headStyles: { fillColor: TEAL },
@@ -349,7 +363,7 @@ export async function createNoiseReportPDFDoc(state: ReportState) {
         const lex = rawRow.lex8h !== "" ? Number(rawRow.lex8h) : null;
         const peak = rawRow.maxPeak !== "" ? Number(rawRow.maxPeak) : null;
 
-        if (data.column.index === 2) {
+        if (data.column.index === 3) {
           if (lex === null) return;
           if (lex > thresholds.lex8h.red) {
             data.cell.styles.fillColor = [255, 200, 200];
@@ -362,7 +376,7 @@ export async function createNoiseReportPDFDoc(state: ReportState) {
           }
         }
 
-        if (data.column.index === 3) {
+        if (data.column.index === 4) {
           if (peak === null) return;
           if (peak > thresholds.peak.red) {
             data.cell.styles.fillColor = [255, 200, 200];
@@ -577,4 +591,18 @@ function buildRecommendations(
   }
   items.push("Bedriftshelsetjenesten deltar gjerne i det videre arbeidet med tiltak.");
   return items;
+}
+
+function summarizeMeasurementComments(
+  measurements: { comment: string }[]
+) {
+  const comments = measurements
+    .map((measurement, index) => {
+      const comment = measurement.comment.trim();
+      if (!comment) return null;
+      return `${getMeasurementLabel(index)}: ${comment}`;
+    })
+    .filter((comment): comment is string => Boolean(comment));
+
+  return comments.length > 0 ? comments.join("\n") : "-";
 }
