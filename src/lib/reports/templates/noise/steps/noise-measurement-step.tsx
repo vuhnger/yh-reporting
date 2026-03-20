@@ -1,29 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { useWizard } from "@/components/wizard/wizard-context";
 import type { Measurement } from "../schema";
-import { getNoiseData } from "../schema";
+import { getMeasurementLabel, getNoiseData } from "../schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NoiseMeasurementStep() {
   const { state, addMeasurement, updateMeasurement, removeMeasurement, updateNoiseMetadata, updateThresholds } = useWizard();
   const noise = getNoiseData(state);
+  const [invalidNumericFields, setInvalidNumericFields] = useState<Record<string, boolean>>({});
   if (!noise) return null;
 
   const { measurements, thresholds } = noise;
 
-  // Anbefalt nivå = 10 dB under gruppemaks iht. Arbeidstilsynet
   const noiseGroupYellow = {
-    I: 45,  // 10 dB under maks 55 dB
-    II: 60, // 10 dB under maks 70 dB
-    III: 75, // 10 dB under maks 85 dB
+    I: 45,
+    II: 60,
+    III: 75,
   } as const;
 
   const handleNoiseGroupChange = (group: "I" | "II" | "III") => {
@@ -43,45 +44,76 @@ export function NoiseMeasurementStep() {
   };
 
   const getLexColor = (lex8h: number | "") => {
-    if (lex8h === "") return "bg-transparent";
+    if (lex8h === "") return "border-border bg-background";
     const l = Number(lex8h);
-    if (l > thresholds.lex8h.red) return "bg-red-100 text-red-900 border-red-200";
-    if (l > thresholds.lex8h.orange) return "bg-orange-100 text-orange-900 border-orange-200";
-    if (l > thresholds.lex8h.yellow) return "bg-yellow-100 text-yellow-900 border-yellow-200";
-    return "bg-green-100 text-green-900 border-green-200";
+    if (l > thresholds.lex8h.red) return "border-red-200 bg-red-50 text-red-900";
+    if (l > thresholds.lex8h.orange) return "border-orange-200 bg-orange-50 text-orange-900";
+    if (l > thresholds.lex8h.yellow) return "border-yellow-200 bg-yellow-50 text-yellow-900";
+    return "border-green-200 bg-green-50 text-green-900";
   };
 
   const getPeakColor = (peak: number | "") => {
-    if (peak === "") return "bg-transparent";
+    if (peak === "") return "border-border bg-background";
     const p = Number(peak);
-    if (p > thresholds.peak.red) return "bg-red-100 text-red-900 border-red-200";
-    if (p > thresholds.peak.yellow) return "bg-yellow-100 text-yellow-900 border-yellow-200";
-    return "bg-green-100 text-green-900 border-green-200";
+    if (p > thresholds.peak.red) return "border-red-200 bg-red-50 text-red-900";
+    if (p > thresholds.peak.yellow) return "border-yellow-200 bg-yellow-50 text-yellow-900";
+    return "border-green-200 bg-green-50 text-green-900";
   };
 
-  const handleValueChange = (id: string, field: keyof Measurement, value: string) => {
+  const setNumericFieldValidity = (id: string, field: "lex8h" | "maxPeak", isInvalid: boolean) => {
+    const key = `${id}:${field}`;
+
+    setInvalidNumericFields((prev) => {
+      if (isInvalid) {
+        return { ...prev, [key]: true };
+      }
+
+      if (!(key in prev)) {
+        return prev;
+      }
+
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const handleValueChange = (id: string, field: keyof Measurement, value: string, isBadInput = false) => {
     if (value === "") {
+      if (field === "lex8h" || field === "maxPeak") {
+        setNumericFieldValidity(id, field, false);
+      }
       updateMeasurement(id, { [field]: "" });
       return;
     }
-    if ((field === "lex8h" || field === "maxPeak") && !isNaN(Number(value))) {
+
+    if (field === "lex8h" || field === "maxPeak") {
+      if (isBadInput || Number.isNaN(Number(value))) {
+        setNumericFieldValidity(id, field, true);
+        updateMeasurement(id, { [field]: "" });
+        return;
+      }
+
+      setNumericFieldValidity(id, field, false);
       updateMeasurement(id, { [field]: Number(value) });
-    } else if (field !== "lex8h" && field !== "maxPeak") {
-      updateMeasurement(id, { [field]: value });
+      return;
     }
+
+    updateMeasurement(id, { [field]: value });
   };
 
   return (
-    <Card className="w-full max-w-6xl mx-auto border-primary/20 shadow-lg">
-      <CardHeader>
-        <div className="flex justify-between items-center">
+    <Card className="mx-auto w-full max-w-6xl border-primary/20 shadow-lg">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <CardTitle className="text-2xl text-primary">Støymålinger</CardTitle>
             <CardDescription>
-              Legg inn måleresultater. Fargene oppdateres automatisk basert på grenseverdier.
+              Hver boks under er én måling. Bruk &quot;Legg til måling&quot; når du vil registrere måling 2, 3, 4 og videre for samme arbeidssted.
             </CardDescription>
           </div>
-          <div className="flex flex-col items-end gap-2">
+
+          <div className="flex max-w-md flex-col items-start gap-2 lg:items-end">
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground">Støygruppe</Label>
               <Select
@@ -101,95 +133,136 @@ export function NoiseMeasurementStep() {
             <p className="text-xs text-muted-foreground">
               Gruppe I/II gjelder normert ekvivalentnivå over 1 time. Gruppe III gjelder normert ekvivalentnivå over 8 timer.
             </p>
-            <div className="flex gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-red-100 border border-red-200 rounded-full"></span> &gt;{thresholds.lex8h.red} dB A</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-orange-100 border border-orange-200 rounded-full"></span> &gt;{thresholds.lex8h.orange} dB A</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-100 border border-yellow-200 rounded-full"></span> &gt;{thresholds.lex8h.yellow} dB A</span>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground lg:justify-end">
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full border border-red-200 bg-red-100"></span> &gt;{thresholds.lex8h.red} dB A</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full border border-orange-200 bg-orange-100"></span> &gt;{thresholds.lex8h.orange} dB A</span>
+              <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full border border-yellow-200 bg-yellow-100"></span> &gt;{thresholds.lex8h.yellow} dB A</span>
             </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="w-[250px]">Målested</TableHead>
-                <TableHead className="w-[150px]">Varighet</TableHead>
-                <TableHead className="w-[120px] text-right">LAeq (dB A)</TableHead>
-                <TableHead className="w-[120px] text-right">LCpeak (dB C)</TableHead>
-                <TableHead>Kommentar</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {measurements.map((m) => {
-                const lexColor = getLexColor(m.lex8h);
-                const peakColor = getPeakColor(m.maxPeak);
-                return (
-                  <TableRow key={m.id} className="transition-colors">
-                    <TableCell>
-                      <Input
-                        placeholder="F.eks. Vannlab"
-                        value={m.location}
-                        onChange={(e) => handleValueChange(m.id, "location", e.target.value)}
-                        className="bg-white/50 border-transparent focus:bg-white focus:border-input"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        placeholder="F.eks. 1t 30m"
-                        value={m.duration}
-                        onChange={(e) => handleValueChange(m.id, "duration", e.target.value)}
-                        className="bg-white/50 border-transparent focus:bg-white focus:border-input"
-                      />
-                    </TableCell>
-                    <TableCell className={cn("text-right", lexColor !== "bg-transparent" && lexColor)}>
-                      <Input
-                        type="number"
-                        placeholder="-"
-                        value={m.lex8h}
-                        onChange={(e) => handleValueChange(m.id, "lex8h", e.target.value)}
-                        className="text-right bg-white/50 border-transparent focus:bg-white focus:border-input font-mono"
-                      />
-                    </TableCell>
-                    <TableCell className={cn("text-right", peakColor !== "bg-transparent" && peakColor)}>
-                      <Input
-                        type="number"
-                        placeholder="-"
-                        value={m.maxPeak}
-                        onChange={(e) => handleValueChange(m.id, "maxPeak", e.target.value)}
-                        className="text-right bg-white/50 border-transparent focus:bg-white focus:border-input font-mono"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        placeholder="Valgfri kommentar..."
-                        value={m.comment}
-                        onChange={(e) => handleValueChange(m.id, "comment", e.target.value)}
-                        className="bg-white/50 border-transparent focus:bg-white focus:border-input"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => removeMeasurement(m.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {measurements.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                    Ingen målinger lagt til enda. Klikk &quot;Legg til måling&quot; for å starte.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
 
-        <div className="mt-4 flex justify-center">
+        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 text-sm text-muted-foreground">
+          Tips: Når du legger til en ny måling, kopieres arbeidsstedet fra forrige måling. Det gjør det raskere å registrere flere målinger fra samme sted.
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {measurements.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-6 py-10 text-center text-muted-foreground">
+            Ingen målinger lagt til enda. Klikk &quot;Legg til måling&quot; for å starte.
+          </div>
+        ) : (
+          measurements.map((measurement, index) => {
+            const lexColor = getLexColor(measurement.lex8h);
+            const peakColor = getPeakColor(measurement.maxPeak);
+            const hasInvalidLex = Boolean(invalidNumericFields[`${measurement.id}:lex8h`]);
+            const hasInvalidPeak = Boolean(invalidNumericFields[`${measurement.id}:maxPeak`]);
+
+            return (
+              <div key={measurement.id} className="rounded-xl border bg-card shadow-sm">
+                <div className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-primary">{getMeasurementLabel(index)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Registrer arbeidssted, varighet og målte nivåer for denne målingen.
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeMeasurement(measurement.id)}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    aria-label={`Fjern ${getMeasurementLabel(index).toLowerCase()}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="space-y-2 xl:col-span-2">
+                    <Label htmlFor={`location-${measurement.id}`}>Arbeidssted</Label>
+                    <Input
+                      id={`location-${measurement.id}`}
+                      placeholder="F.eks. GC-MS rom"
+                      value={measurement.location}
+                      onChange={(e) => handleValueChange(measurement.id, "location", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`duration-${measurement.id}`}>Varighet</Label>
+                    <Input
+                      id={`duration-${measurement.id}`}
+                      placeholder="F.eks. 1 min 30 sek"
+                      value={measurement.duration}
+                      onChange={(e) => handleValueChange(measurement.id, "duration", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Oppsummering</Label>
+                    <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground">
+                      {measurement.location.trim() || "Arbeidssted ikke angitt"}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`lex-${measurement.id}`}>LAeq (dB A)</Label>
+                    <Input
+                      id={`lex-${measurement.id}`}
+                      type="number"
+                      placeholder="-"
+                      value={measurement.lex8h}
+                      onChange={(e) =>
+                        handleValueChange(
+                          measurement.id,
+                          "lex8h",
+                          e.target.value,
+                          e.currentTarget.validity.badInput
+                        )
+                      }
+                      className={cn("font-mono", lexColor, hasInvalidLex && "border-destructive text-destructive")}
+                    />
+                    {hasInvalidLex ? <p className="text-sm text-destructive">Skriv inn et gyldig tall.</p> : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`peak-${measurement.id}`}>LCpeak (dB C)</Label>
+                    <Input
+                      id={`peak-${measurement.id}`}
+                      type="number"
+                      placeholder="-"
+                      value={measurement.maxPeak}
+                      onChange={(e) =>
+                        handleValueChange(
+                          measurement.id,
+                          "maxPeak",
+                          e.target.value,
+                          e.currentTarget.validity.badInput
+                        )
+                      }
+                      className={cn("font-mono", peakColor, hasInvalidPeak && "border-destructive text-destructive")}
+                    />
+                    {hasInvalidPeak ? <p className="text-sm text-destructive">Skriv inn et gyldig tall.</p> : null}
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2 xl:col-span-2">
+                    <Label htmlFor={`comment-${measurement.id}`}>Kommentar</Label>
+                    <Textarea
+                      id={`comment-${measurement.id}`}
+                      placeholder="Valgfri kommentar om hva som skjedde under målingen."
+                      value={measurement.comment}
+                      onChange={(e) => handleValueChange(measurement.id, "comment", e.target.value)}
+                      className="min-h-[96px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        <div className="flex justify-center pt-2">
           <Button variant="outline" onClick={addMeasurement} className="w-full max-w-xs border-dashed">
             <Plus className="mr-2 h-4 w-4" /> Legg til måling
           </Button>

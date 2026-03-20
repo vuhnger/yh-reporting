@@ -1,5 +1,5 @@
 import type { AIFieldConfig, ReportState } from "../../template-types";
-import { getNoiseData } from "./schema";
+import { getMeasurementLabel, getNoiseData } from "./schema";
 
 export const noiseSystemInstruction =
   "Du er en teknisk skribent som er ekspert på akustikk og HMS. Du skriver presise, forklarende tekster basert på måledata og tilpasser lengde og detaljeringsgrad til feltets krav. Språket er formelt og saklig.";
@@ -82,7 +82,8 @@ export function buildNoiseAIContext(state: ReportState): Record<string, unknown>
 
   const { measurements, thresholds } = noise;
 
-  const mapped = measurements.map((m) => ({
+  const mapped = measurements.map((m, index) => ({
+    label: getMeasurementLabel(index),
     location: m.location,
     duration: m.duration,
     lex8h: m.lex8h,
