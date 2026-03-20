@@ -1,7 +1,7 @@
 "use client";
 
 import { useWizard } from "@/components/wizard/wizard-context";
-import { getNoiseData } from "../schema";
+import { getMeasurementLabel, getNoiseData } from "../schema";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ export function NoiseReviewSection() {
         <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
+              <TableHead>Måling</TableHead>
               <TableHead>Målested</TableHead>
               <TableHead>Varighet</TableHead>
               <TableHead className="text-right">LAeq (dB A)</TableHead>
@@ -47,16 +48,17 @@ export function NoiseReviewSection() {
           <TableBody>
             {measurements.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                   Ingen målinger registrert.
                 </TableCell>
               </TableRow>
             ) : (
-              measurements.map((m) => {
+              measurements.map((m, index) => {
                 const lexClass = getLexColor(m.lex8h);
                 const peakClass = getPeakColor(m.maxPeak);
                 return (
                   <TableRow key={m.id}>
+                    <TableCell className="font-medium text-primary">{getMeasurementLabel(index)}</TableCell>
                     <TableCell className="font-medium">{m.location}</TableCell>
                     <TableCell>{m.duration}</TableCell>
                     <TableCell className={cn("text-right font-mono", lexClass !== "bg-transparent" && lexClass)}>{m.lex8h}</TableCell>

@@ -157,6 +157,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setState((prev) => {
       const noise = getNoiseData(prev);
       if (!noise) return prev;
+      const lastMeasurement = noise.measurements[noise.measurements.length - 1];
       return {
         ...prev,
         data: {
@@ -167,7 +168,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
               ...noise.measurements,
               {
                 id: Math.random().toString(36).substr(2, 9),
-                location: "",
+                location: lastMeasurement?.location ?? "",
                 duration: "",
                 lex8h: "",
                 maxPeak: "",

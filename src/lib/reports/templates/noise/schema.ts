@@ -58,6 +58,11 @@ export interface NoiseReportData {
   thresholds: Thresholds;
 }
 
+export interface MeasurementGroup {
+  location: string;
+  measurements: Measurement[];
+}
+
 export const defaultNoiseMetadata: NoiseMetadata = {
   summaryText: "",
   introExtraText: "",
@@ -96,4 +101,30 @@ export function getNoiseData(state: ReportState): NoiseReportData | null {
     return state.data.noise as NoiseReportData;
   }
   return null;
+}
+
+export function getMeasurementLabel(index: number) {
+  return `Måling ${index + 1}`;
+}
+
+export function groupMeasurementsByLocation(measurements: Measurement[]): MeasurementGroup[] {
+  const groups = new Map<string, MeasurementGroup>();
+
+  measurements.forEach((measurement) => {
+    const trimmedLocation = measurement.location.trim();
+    const key = trimmedLocation || "__empty__";
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.measurements.push(measurement);
+      return;
+    }
+
+    groups.set(key, {
+      location: trimmedLocation || "Ikke angitt",
+      measurements: [measurement],
+    });
+  });
+
+  return Array.from(groups.values());
 }
