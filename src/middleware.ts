@@ -5,6 +5,21 @@ export default withAuth({
   pages: {
     signIn: "/auth/signin",
   },
+  callbacks: {
+    authorized({ token, req }) {
+      const hasSessionCookie = req.cookies
+        .getAll()
+        .some(({ name }) => name.includes("next-auth.session-token"));
+
+      console.info("middleware auth check", {
+        path: req.nextUrl.pathname,
+        hasToken: Boolean(token),
+        hasSessionCookie,
+      });
+
+      return Boolean(token);
+    },
+  },
 });
 
 export const config = {
