@@ -1,16 +1,14 @@
 "use client";
 
 import { useWizard } from "./wizard-context";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Search, Building2 } from "lucide-react";
-import { noiseSampleReport } from "@/lib/reports/templates/noise/sample";
 
 export function ClientStep() {
-  const { state, updateClient, loadReport } = useWizard();
+  const { state, updateClient } = useWizard();
   const [isLoading, setIsLoading] = useState(false);
   const lastFetchedOrgNr = useRef<string | null>(null);
 
@@ -85,19 +83,6 @@ export function ClientStep() {
             )}
           </div>
         </div>
-
-        <div className="pt-2">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto border-dashed border-primary/40 text-primary"
-            onClick={() => {
-              loadReport(noiseSampleReport);
-            }}
-          >
-            Fyll inn testdata fra ALS-rapport (23.09.2025)
-          </Button>
-        </div>
-
         {state.client.name && (
           <div className="space-y-4 pt-4 border-t animate-in fade-in slide-in-from-top-2 duration-300">
             <div className="space-y-2">

@@ -1,0 +1,28 @@
+"use client";
+
+import "@/lib/reports/register-templates";
+import { WizardProvider } from "@/components/wizard/wizard-context";
+import { ReportWizardContent } from "@/components/wizard/report-wizard";
+import { PDFPreview } from "@/components/wizard/pdf-preview";
+
+export function HomePageContent() {
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Ny yrkeshygienisk rapport</h1>
+        <p className="text-muted-foreground">
+          Følg stegene under for å generere rapport automatisk fra måledata.
+        </p>
+      </div>
+
+      <WizardProvider>
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)] gap-8 items-start">
+          <ReportWizardContent />
+          <div className="hidden lg:block sticky top-6 h-[calc(100vh-3rem)]">
+            <PDFPreview />
+          </div>
+        </div>
+      </WizardProvider>
+    </div>
+  );
+}
