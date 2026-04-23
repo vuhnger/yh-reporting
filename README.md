@@ -79,12 +79,12 @@ Prosjektet trenger disse Google-verdiene på nytt:
 
 Faste verdier som fortsatt brukes av appen:
 
-- `GOOGLE_SHEETS_ID=1qXnlYfV6kC61KwopfIBnz6EZQwe61M-wnjNQxEColcE`
-- `GOOGLE_SHEETS_GID=563992670`
+- `GOOGLE_SHEETS_ID`
+- `GOOGLE_SHEETS_GID`
 - `GOOGLE_ALLOWED_DOMAIN` kan settes til enten `drdropin.no` eller `@drdropin.no`
 
-Aktiv service account for Sheets er nå `yh-reporting@bht-vertexai-production.iam.gserviceaccount.com`.
-Google Sheet-en må deles med denne adressen, ellers vil `/api/instruments` feile selv om nøkkelen i `.env.local` er korrekt.
+Se 1Password-entryen `yh-reporting Google Sheets` for korrekt `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_GID` og service account-detaljer.
+Google Sheet-en må deles med service account-en fra den secret-managed entryen, ellers vil `/api/instruments` feile selv om `.env.local` er korrekt.
 
 ## Prosjektstruktur
 
