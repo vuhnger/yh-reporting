@@ -47,7 +47,7 @@ cp .env.local.example .env.local
 | `GOOGLE_CLIENT_SECRET` | OAuth client secret |
 | `NEXTAUTH_SECRET` | Tilfeldig secret for NextAuth-sessions |
 | `NEXTAUTH_URL` | App-URL (http://localhost:3000 lokalt) |
-| `GOOGLE_ALLOWED_DOMAIN` | Domenerestriksjon for innlogging (f.eks. `drdropin.no`) |
+| `GOOGLE_ALLOWED_DOMAIN` | Domenerestriksjon for innlogging (f.eks. `drdropin.no` eller `@drdropin.no`) |
 | `GEMINI_API_KEY` | API-nøkkel for Google Gemini |
 | `GEMINI_MODEL` | Gemini-modell (standard: `gemini-3-flash-preview`) |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account JSON for Sheets-tilgang |
@@ -68,6 +68,23 @@ npm run dev
 Alle secrets ligger i **1Password** under vaultet **bht-vertexai-production**.
 
 Dette inkluderer Google OAuth-credentials, NextAuth secret, Gemini API-nøkkel og service account JSON for Google Sheets.
+
+## Etter nøkkelrotasjon
+
+Prosjektet trenger disse Google-verdiene på nytt:
+
+- `GOOGLE_CLIENT_ID` og `GOOGLE_CLIENT_SECRET` for NextAuth Google-innlogging
+- `GEMINI_API_KEY` for `/api/ai-fill`
+- `GOOGLE_SERVICE_ACCOUNT_JSON` for `/api/instruments`
+
+Faste verdier som fortsatt brukes av appen:
+
+- `GOOGLE_SHEETS_ID`
+- `GOOGLE_SHEETS_GID`
+- `GOOGLE_ALLOWED_DOMAIN` kan settes til enten `drdropin.no` eller `@drdropin.no`
+
+Se 1Password-entryen `yh-reporting Google Sheets` for korrekt `GOOGLE_SHEETS_ID`, `GOOGLE_SHEETS_GID` og service account-detaljer.
+Google Sheet-en må deles med service account-en fra den secret-managed entryen, ellers vil `/api/instruments` feile selv om `.env.local` er korrekt.
 
 ## Prosjektstruktur
 
