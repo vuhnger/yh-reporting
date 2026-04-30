@@ -1,26 +1,9 @@
-import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default withAuth({
-  secret: process.env.NEXTAUTH_SECRET,
-  pages: {
-    signIn: "/auth/signin",
-  },
-  callbacks: {
-    authorized({ token, req }) {
-      const hasSessionCookie = req.cookies
-        .getAll()
-        .some(({ name }) => name.includes("next-auth.session-token"));
-
-      console.info("middleware auth check", {
-        path: req.nextUrl.pathname,
-        hasToken: Boolean(token),
-        hasSessionCookie,
-      });
-
-      return Boolean(token);
-    },
-  },
-});
+export default async function middleware(req: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
