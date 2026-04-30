@@ -480,18 +480,26 @@ function collectObservationMetricsFromPayload(
 }
 
 async function getObservationPayload(
-  group: WeatherGroupKey,
   sourceIds: string[],
   date: string,
   elements: string[],
-  frostAuth: string
+  frostAuth: string,
+  options: {
+    chunkSize: number;
+    emptyWarning: string;
+    fallbackWarning: string;
+    partialWarning: (failedChunks: number, totalChunks: number) => string;
+    buildChunkWarning: (error: unknown) => string;
+    logLabel: string;
+    logContext?: Record<string, unknown>;
+  }
 ): Promise<ObservationPayloadResult> {
   if (sourceIds.length === 0) {
-    return { payload: { data: [] }, warning: `${WEATHER_GROUP_LABELS[group]}: Ingen stasjonskandidater.` };
+    return { payload: { data: [] }, warning: options.emptyWarning };
   }
 
   const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
-  const sourceChunks = chunkArray(sourceIds, OBSERVATION_BATCH_SIZE_BY_GROUP[group]);
+  const sourceChunks = chunkArray(sourceIds, options.chunkSize);
   const mergedData: unknown[] = [];
   const chunkWarnings: string[] = [];
 
@@ -521,10 +529,9 @@ async function getObservationPayload(
     }
 
     if (lastError) {
-      const warning = buildObservationWarning(group, lastError);
+      const warning = options.buildChunkWarning(lastError);
       chunkWarnings.push(warning);
-      console.warn("Weather observation fetch failed", {
-        group,
+      console.warn(options.logLabel, {
         chunk: chunkIndex + 1,
         chunkCount: sourceChunks.length,
         sourceCount: sourceChunk.length,
@@ -532,6 +539,7 @@ async function getObservationPayload(
         elements: elements.join(","),
         warning,
         error: lastError instanceof Error ? lastError.message : String(lastError),
+        ...options.logContext,
       });
       continue;
     }
@@ -543,16 +551,14 @@ async function getObservationPayload(
   }
 
   if (mergedData.length === 0) {
-    const warning =
-      chunkWarnings[0] ??
-      `${WEATHER_GROUP_LABELS[group]}: Kunne ikke hente data fra Frost.`;
+    const warning = chunkWarnings[0] ?? options.fallbackWarning;
     return { payload: { data: [] }, warning };
   }
 
   if (chunkWarnings.length > 0) {
     return {
       payload: { data: mergedData },
-      warning: `${WEATHER_GROUP_LABELS[group]}: Delvis datatap fra Frost (${chunkWarnings.length}/${sourceChunks.length} delspørringer feilet).`,
+      warning: options.partialWarning(chunkWarnings.length, sourceChunks.length),
     };
   }
 
@@ -568,76 +574,16 @@ async function getCombinedObservationPayload(
   elements: string[],
   frostAuth: string
 ): Promise<ObservationPayloadResult> {
-  if (sourceIds.length === 0) {
-    return { payload: { data: [] }, warning: "Komplett værstasjon: Ingen stasjonskandidater." };
-  }
-
-  const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
-  const sourceChunks = chunkArray(sourceIds, 3);
-  const mergedData: unknown[] = [];
-  const chunkWarnings: string[] = [];
-
-  for (const [chunkIndex, sourceChunk] of sourceChunks.entries()) {
-    const url =
-      `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceChunk.join(","))}` +
-      `&referencetime=${encodeURIComponent(referenceTime)}` +
-      `&elements=${encodeURIComponent(elements.join(","))}`;
-
-    let lastError: unknown = null;
-    let payload: unknown = null;
-
-    for (let attempt = 1; attempt <= OBSERVATION_FETCH_RETRY_ATTEMPTS; attempt += 1) {
-      try {
-        payload = await fetchJson(url, { Authorization: frostAuth }, OBSERVATION_FETCH_TIMEOUT_MS);
-        lastError = null;
-        break;
-      } catch (error) {
-        lastError = error;
-        const retryable = shouldRetryObservationFetch(error);
-        if (!retryable || attempt === OBSERVATION_FETCH_RETRY_ATTEMPTS) break;
-
-        const jitterMs = Math.floor(Math.random() * 120);
-        const delayMs = OBSERVATION_FETCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + jitterMs;
-        await delay(delayMs);
-      }
-    }
-
-    if (lastError) {
-      const warning = buildObservationWarning("temperature", lastError).replace("Temperatur", "Komplett værstasjon");
-      chunkWarnings.push(warning);
-      console.warn("Combined weather observation fetch failed", {
-        chunk: chunkIndex + 1,
-        chunkCount: sourceChunks.length,
-        sourceCount: sourceChunk.length,
-        sources: sourceChunk,
-        elements: elements.join(","),
-        warning,
-        error: lastError instanceof Error ? lastError.message : String(lastError),
-      });
-      continue;
-    }
-
-    const rows = Array.isArray((payload as { data?: unknown }).data)
-      ? ((payload as { data: unknown[] }).data)
-      : [];
-    mergedData.push(...rows);
-  }
-
-  if (mergedData.length === 0) {
-    return {
-      payload: { data: [] },
-      warning: chunkWarnings[0] ?? "Komplett værstasjon: Kunne ikke hente data fra Frost.",
-    };
-  }
-
-  if (chunkWarnings.length > 0) {
-    return {
-      payload: { data: mergedData },
-      warning: `Komplett værstasjon: Delvis datatap fra Frost (${chunkWarnings.length}/${sourceChunks.length} delspørringer feilet).`,
-    };
-  }
-
-  return { payload: { data: mergedData }, warning: null };
+  return getObservationPayload(sourceIds, date, elements, frostAuth, {
+    chunkSize: 3,
+    emptyWarning: "Komplett værstasjon: Ingen stasjonskandidater.",
+    fallbackWarning: "Komplett værstasjon: Kunne ikke hente data fra Frost.",
+    partialWarning: (failedChunks, totalChunks) =>
+      `Komplett værstasjon: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+    buildChunkWarning: (error) =>
+      buildObservationWarning("temperature", error).replace("Temperatur", "Komplett værstasjon"),
+    logLabel: "Combined weather observation fetch failed",
+  });
 }
 
 function pickNearestSourceWithData(
@@ -1075,53 +1021,98 @@ export async function GET(request: Request) {
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: combinedPrimaryResult.warning })
           : getObservationPayload(
-              "temperature",
               temperatureCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.temperature)
                 .map((candidate) => candidate.sourceId),
               date,
               WEATHER_GROUP_ELEMENTS.temperature,
-              frostAuth
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.temperature,
+                emptyWarning: `${WEATHER_GROUP_LABELS.temperature}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.temperature}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.temperature}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("temperature", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "temperature" },
+              }
             ),
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: null })
           : getObservationPayload(
-              "humidity",
               humidityCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.humidity)
                 .map((candidate) => candidate.sourceId),
               date,
               WEATHER_GROUP_ELEMENTS.humidity,
-              frostAuth
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.humidity,
+                emptyWarning: `${WEATHER_GROUP_LABELS.humidity}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.humidity}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.humidity}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("humidity", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "humidity" },
+              }
             ),
         getObservationPayload(
-          "wind",
           windCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
             .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.wind,
-          frostAuth
+          frostAuth,
+          {
+            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.wind,
+            emptyWarning: `${WEATHER_GROUP_LABELS.wind}: Ingen stasjonskandidater.`,
+            fallbackWarning: `${WEATHER_GROUP_LABELS.wind}: Kunne ikke hente data fra Frost.`,
+            partialWarning: (failedChunks, totalChunks) =>
+              `${WEATHER_GROUP_LABELS.wind}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+            buildChunkWarning: (error) => buildObservationWarning("wind", error),
+            logLabel: "Weather observation fetch failed",
+            logContext: { group: "wind" },
+          }
         ),
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: null })
           : getObservationPayload(
-              "precipitation",
               precipitationCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.precipitation)
                 .map((candidate) => candidate.sourceId),
               date,
               WEATHER_GROUP_ELEMENTS.precipitation,
-              frostAuth
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.precipitation,
+                emptyWarning: `${WEATHER_GROUP_LABELS.precipitation}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.precipitation}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.precipitation}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("precipitation", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "precipitation" },
+              }
             ),
         getObservationPayload(
-          "snow",
           snowCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
             .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.snow,
-          frostAuth
+          frostAuth,
+          {
+            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.snow,
+            emptyWarning: `${WEATHER_GROUP_LABELS.snow}: Ingen stasjonskandidater.`,
+            fallbackWarning: `${WEATHER_GROUP_LABELS.snow}: Kunne ikke hente data fra Frost.`,
+            partialWarning: (failedChunks, totalChunks) =>
+              `${WEATHER_GROUP_LABELS.snow}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+            buildChunkWarning: (error) => buildObservationWarning("snow", error),
+            logLabel: "Weather observation fetch failed",
+            logContext: { group: "snow" },
+          }
         ),
       ]);
 
