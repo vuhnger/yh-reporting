@@ -443,6 +443,14 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   if (metadata.weatherInclude) {
     renderParagraph("Værstatistikk for oppdragsdato er oppgitt i vedlegg.");
   }
+  if (metadata.weatherSnapshot?.sourceSelections?.length) {
+    renderParagraph("Værdata er hentet fra følgende stasjoner:");
+    renderBullets(
+      metadata.weatherSnapshot.sourceSelections.map(
+        (selection) => `${selection.parameter}: ${selection.sourceName}`
+      )
+    );
+  }
 
   renderHeading("Anbefalinger");
   renderParagraph("Følgende tiltak bør vurderes:");
@@ -496,11 +504,12 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Tid", "Vær", "Temp C", "Nedbør mm", "Snødybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        head: [["Tid", "Vær", "Temp C", "RH %", "Nedbør mm", "Snødybde cm", "Vind m/s", "Kraftigste vind m/s"]],
         body: hourlyRows.map((row) => [
           row.timeLabel,
           row.weatherDescription ?? "-",
           formatValue(row.temperatureC),
+          formatValue(row.relativeHumidity),
           formatValue(row.precipitationMm),
           formatValue(row.snowDepthCm),
           formatValue(row.windMs),

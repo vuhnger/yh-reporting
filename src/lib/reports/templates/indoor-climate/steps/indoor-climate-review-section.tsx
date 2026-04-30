@@ -97,6 +97,11 @@ export function IndoorClimateReviewSection() {
             {formatValue(metadata.weatherSnapshot.minTempC)} /{" "}
             {formatValue(metadata.weatherSnapshot.avgTempC)} °C
           </p>
+          <p className="text-xs text-muted-foreground">
+            Maks/min/gj.snitt luftfuktighet: {formatValue(metadata.weatherSnapshot.maxRelativeHumidity)} /{" "}
+            {formatValue(metadata.weatherSnapshot.minRelativeHumidity)} /{" "}
+            {formatValue(metadata.weatherSnapshot.avgRelativeHumidity)} % RH
+          </p>
         </div>
       )}
 
