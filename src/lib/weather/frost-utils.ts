@@ -28,8 +28,8 @@ export const WEATHER_GROUP_LABELS: Record<WeatherGroupKey, string> = {
   temperature: "Temperatur",
   humidity: "Relativ luftfuktighet",
   wind: "Vind",
-  precipitation: "Nedbor",
-  snow: "Snodybde",
+  precipitation: "Nedbør",
+  snow: "Snødybde",
 };
 
 export const PRIMARY_WEATHER_GROUPS: WeatherGroupKey[] = ["temperature", "humidity", "precipitation"];
@@ -144,8 +144,8 @@ export function buildSourceSummaryByGroup(sources: Record<WeatherGroupKey, Frost
     `Temp: ${sources.temperature.sourceName}`,
     `RH: ${sources.humidity.sourceName}`,
     `Vind: ${sources.wind.sourceName}`,
-    `Nedbor: ${sources.precipitation.sourceName}`,
-    `Sno: ${sources.snow.sourceName}`,
+    `Nedbør: ${sources.precipitation.sourceName}`,
+    `Snø: ${sources.snow.sourceName}`,
   ].join(" · ");
 }
 
@@ -441,7 +441,7 @@ export function buildObservationWarning(group: WeatherGroupKey, error: unknown):
     "";
 
   if (statusCodeValue === 429) {
-    return `${label}: Frost svarte 429 (for mange foresporsler). Prov igjen om litt.`;
+    return `${label}: Frost svarte 429 (for mange forespørsler). Prøv igjen om litt.`;
   }
   if (statusCodeValue === 500) {
     return `${label}: Frost svarte 500 (intern feil hos datakilde).`;

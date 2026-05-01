@@ -151,10 +151,10 @@ test("getObservationSnapshot calculates humidity and precipitation fields", () =
 test("buildObservationWarning keeps status-specific messages stable", () => {
   assert.equal(
     buildObservationWarning("precipitation", new Error("Request failed (500): boom")),
-    "Nedbor: Frost svarte 500 (intern feil hos datakilde)."
+    "Nedbør: Frost svarte 500 (intern feil hos datakilde)."
   );
   assert.equal(
     buildObservationWarning("humidity", new Error('Request failed (429): {"reason":"Rate limited"}')),
-    "Relativ luftfuktighet: Frost svarte 429 (for mange foresporsler). Prov igjen om litt."
+    "Relativ luftfuktighet: Frost svarte 429 (for mange forespørsler). Prøv igjen om litt."
   );
 });
