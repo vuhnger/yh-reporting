@@ -13,7 +13,7 @@ function getRequiredEnv(name: string): string {
 }
 
 function buildGoogleAuth() {
-  const credentialsJson = process.env.GOOGLE_CLOUD_SQL_CREDENTIALS_JSON?.trim();
+  const credentialsJson = (process.env.GOOGLE_CLOUD_APP_CREDENTIALS_JSON ?? process.env.GOOGLE_CLOUD_SQL_CREDENTIALS_JSON)?.trim();
   if (!credentialsJson) return undefined;
 
   return new GoogleAuth({
