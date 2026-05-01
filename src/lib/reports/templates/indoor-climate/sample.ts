@@ -68,6 +68,7 @@ const indoorClimateSampleData: IndoorClimateReportData = {
     weatherLat: 59.9069,
     weatherLon: 10.7606,
     weatherDate: "2026-02-04",
+    weatherFetching: false,
     weatherFetchError: "",
     weatherHourFrom: 8,
     weatherHourTo: 20,

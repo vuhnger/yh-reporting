@@ -387,13 +387,17 @@ export function IndoorClimateMetadataStep() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                {metadata.weatherFetchError ? (
+                {metadata.weatherFetching ? (
+                  <p className="text-sm text-muted-foreground animate-pulse">
+                    Henter værdata fra Frost... (kan ta 15–30 sek)
+                  </p>
+                ) : metadata.weatherFetchError ? (
                   <p className="text-sm text-destructive">{metadata.weatherFetchError}</p>
-                ) : !weatherSnapshotForDate && (
+                ) : !weatherSnapshotForDate ? (
                   <p className="text-sm text-muted-foreground">
                     Velg adresse i &quot;Forsideinformasjon&quot; for å hente værdata.
                   </p>
-                )}
+                ) : null}
               </div>
               {weatherSnapshotForDate && (
                 <div className="rounded-md border overflow-hidden">

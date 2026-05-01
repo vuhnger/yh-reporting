@@ -170,9 +170,11 @@ export function SharedMetadataStep() {
 
     const run = async () => {
       weatherInFlightKeyRef.current = requestKey;
+      if (!cancelled) {
+        setWeatherError(null);
+        updateIndoorClimateMetadata({ weatherFetching: true, weatherFetchError: "" });
+      }
       try {
-        if (!cancelled) setWeatherError(null);
-
         const params = new URLSearchParams({
           address,
           date: executionDate,
@@ -187,7 +189,7 @@ export function SharedMetadataStep() {
           if (!cancelled) {
             const message = payload?.error || "Kunne ikke hente vaerdata.";
             setWeatherError(message);
-            updateIndoorClimateMetadata({ weatherFetchError: message });
+            updateIndoorClimateMetadata({ weatherFetching: false, weatherFetchError: message });
           }
           return;
         }
@@ -196,6 +198,7 @@ export function SharedMetadataStep() {
           setWeatherError(null);
           completedWeatherRequestsRef.current.add(requestKey);
           updateIndoorClimateMetadata({
+            weatherFetching: false,
             weatherAddress: address,
             weatherDate: executionDate,
             weatherSnapshot: payload,
@@ -207,11 +210,14 @@ export function SharedMetadataStep() {
         if (!cancelled) {
           const message = "Kunne ikke hente vaerdata.";
           setWeatherError(message);
-          updateIndoorClimateMetadata({ weatherFetchError: message });
+          updateIndoorClimateMetadata({ weatherFetching: false, weatherFetchError: message });
         }
       } finally {
         if (weatherInFlightKeyRef.current === requestKey) {
           weatherInFlightKeyRef.current = null;
+        }
+        if (cancelled) {
+          updateIndoorClimateMetadata({ weatherFetching: false });
         }
       }
     };
@@ -371,6 +377,11 @@ export function SharedMetadataStep() {
                 )}
                 {addressError && (
                   <p className="text-xs text-destructive">{addressError}</p>
+                )}
+                {!addressLoading && !addressError && indoor?.metadata.weatherFetching && (
+                  <p className="text-xs text-muted-foreground animate-pulse">
+                    Henter værdata fra Frost... (kan ta 15–30 sek)
+                  </p>
                 )}
                 {weatherError && (
                   <p className="text-xs text-destructive">{weatherError}</p>
