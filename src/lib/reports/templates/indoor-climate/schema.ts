@@ -95,6 +95,7 @@ export interface IndoorClimateMetadata {
   weatherLat: number | null;
   weatherLon: number | null;
   weatherDate: string;
+  weatherFetching: boolean;
   weatherFetchError: string;
   weatherHourFrom: number;
   weatherHourTo: number;
@@ -206,6 +207,7 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   weatherLat: null,
   weatherLon: null,
   weatherDate: new Date().toISOString().split("T")[0],
+  weatherFetching: false,
   weatherFetchError: "",
   weatherHourFrom: 8,
   weatherHourTo: 20,
