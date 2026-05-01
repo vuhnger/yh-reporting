@@ -7,14 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { FileUp, Trash2 } from "lucide-react";
-import type { ReportType } from "@/lib/reports/template-types";
+import type { ReportAttachment, ReportType } from "@/lib/reports/template-types";
 
 export function UploadStep() {
   const { state, setReportType, addFiles, removeFile, nextStep, prevStep } = useWizard();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      addFiles(Array.from(e.target.files));
+      const nextFiles: ReportAttachment[] = Array.from(e.target.files).map((file) => ({
+        id: `local-${file.name}-${file.lastModified}`,
+        name: file.name,
+        contentType: file.type || "application/octet-stream",
+        size: file.size,
+        storagePath: "",
+      }));
+      addFiles(nextFiles);
     }
   };
 
@@ -47,6 +54,7 @@ export function UploadStep() {
           <div>
             <p className="font-medium">Dra og slipp filer her</p>
             <p className="text-sm text-muted-foreground">eller klikk for å bla</p>
+            <p className="text-xs text-muted-foreground mt-2">Bruk den nye vedleggsseksjonen i rapportvisningen for faktisk opplasting til lagret utkast.</p>
           </div>
           <Input 
             type="file" 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
-import type { ReportState, ReportType, SharedMetadata, TemplateData } from "@/lib/reports/template-types";
+import type { ReportAttachment, ReportState, ReportType, SharedMetadata, TemplateData } from "@/lib/reports/template-types";
 import { createTemplateData } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
 import type { NoiseMetadata, Measurement, Thresholds } from "@/lib/reports/templates/noise/schema";
@@ -40,7 +40,8 @@ interface WizardContextType {
   updateSensor: (id: string, data: Partial<IndoorClimateSensor>) => void;
   removeSensor: (id: string) => void;
 
-  addFiles: (files: File[]) => void;
+  addFiles: (files: ReportAttachment[]) => void;
+  setFiles: (files: ReportAttachment[]) => void;
   removeFile: (index: number) => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -325,8 +326,12 @@ export function WizardProvider({ children, initialState }: { children: ReactNode
     });
   }, []);
 
-  const addFiles = useCallback((files: File[]) => {
+  const addFiles = useCallback((files: ReportAttachment[]) => {
     setState((prev) => ({ ...prev, files: [...prev.files, ...files] }));
+  }, []);
+
+  const setFiles = useCallback((files: ReportAttachment[]) => {
+    setState((prev) => ({ ...prev, files }));
   }, []);
 
   const removeFile = useCallback((index: number) => {
@@ -355,6 +360,7 @@ export function WizardProvider({ children, initialState }: { children: ReactNode
     updateSensor,
     removeSensor,
     addFiles,
+    setFiles,
     removeFile,
     nextStep,
     prevStep,
@@ -377,6 +383,7 @@ export function WizardProvider({ children, initialState }: { children: ReactNode
     updateSensor,
     removeSensor,
     addFiles,
+    setFiles,
     removeFile,
     nextStep,
     prevStep,

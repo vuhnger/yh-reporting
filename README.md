@@ -11,6 +11,8 @@ Rapportverktøy for yrkeshygienikere i Dr. Dropin Bedrift. Automatiserer rapport
 - **Auth:** NextAuth med Google OAuth, domenerestriksjon
 - **AI:** Google Gemini API (streaming tekstgenerering)
 - **Google Sheets:** Utstyrsoversikt via service account
+- **Database:** PostgreSQL i Cloud SQL (lagrede rapportutkast per bruker)
+- **Storage:** Google Cloud Storage (vedlegg for rapportutkast)
 - **PDF:** jsPDF + jspdf-autotable
 - **Ikoner:** Lucide React
 
@@ -54,6 +56,12 @@ cp .env.local.example .env.local
 | `GOOGLE_SHEETS_ID` | Spreadsheet-ID for utstyrsoversikten |
 | `GOOGLE_SHEETS_GID` | GID for det spesifikke arket |
 | `MET_FROST_CLIENT_ID` | Client ID for Frost API (met.no) til historiske værdata |
+| `DB_INSTANCE_CONNECTION_NAME` | Cloud SQL connection name (`project:region:instance`) |
+| `DB_NAME` | Postgres-database for rapportutkast |
+| `DB_USER` | Databasebruker for appen |
+| `DB_PASSWORD` | Passord for databasebrukeren |
+| `GOOGLE_CLOUD_APP_CREDENTIALS_JSON` | Service account JSON for Cloud SQL- og GCS-tilgang |
+| `GCS_REPORT_ATTACHMENTS_BUCKET` | Bucket-navn for vedlegg til rapportutkast |
 
 ### 3. Start utviklingsserver
 
@@ -67,7 +75,7 @@ npm run dev
 
 Alle secrets ligger i **1Password** under vaultet **bht-vertexai-production**.
 
-Dette inkluderer Google OAuth-credentials, NextAuth secret, Gemini API-nøkkel og service account JSON for Google Sheets.
+Dette inkluderer Google OAuth-credentials, NextAuth secret, Gemini API-nøkkel, service account JSON for Google Sheets, Cloud SQL/GCS-credentials og databasepassord.
 
 ## Etter nøkkelrotasjon
 
@@ -95,12 +103,15 @@ src/
 │   │   ├── ai-fill/              # AI-tekstgenerering (streaming)
 │   │   ├── auth/[...nextauth]/   # NextAuth API-rute
 │   │   ├── instruments/          # Utstyrsoversikt fra Google Sheets
+│   │   ├── reports/              # Lagring, lasting og vedlegg for rapportutkast
 │   │   └── weather/              # Værdata via geokoding + met.no Frost
 │   ├── auth/signin/              # Innloggingsside
 │   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Hovedside (wizard)
+│   ├── page.tsx                  # Hovedside (wizard)
+│   └── reports/                  # Liste og resume av lagrede utkast
 ├── components/
 │   ├── layout/                   # Header med auth
+│   ├── reports/                  # Listevisning for lagrede utkast
 │   ├── ui/                       # shadcn/ui-komponenter
 │   └── wizard/                   # Rapportveiviser
 │       ├── wizard-context.tsx    # Global state for wizard
@@ -110,7 +121,11 @@ src/
 │       └── pdf-preview.tsx       # Live PDF-forhåndsvisning
 └── lib/
     ├── auth.ts                   # NextAuth-konfigurasjon
+    ├── db.ts                     # Cloud SQL-tilkobling
     ├── google-sheets.ts          # Google Sheets-klient
+    ├── report-drafts.ts          # Repository for utkast og vedlegg
+    ├── session-identity.ts       # Mapping fra NextAuth-session til lokal brukeridentitet
+    ├── storage.ts                # GCS-opplasting/sletting for vedlegg
     └── reports/
         ├── template-types.ts     # Felles typer
         ├── template-registry.ts  # Mal-register
@@ -139,8 +154,34 @@ Hver rapporttype implementerer `ReportTemplate`-interfacet og registreres i temp
 2. Fyll inn kundeinformasjon
 3. Fyll inn felles metadata (oppdrag, dato, deltakere)
 4. Rapportspesifikke steg (f.eks. målinger, utstyr, tekster)
-5. Gjennomgang med live PDF-forhåndsvisning
-6. Eksport (PDF-nedlasting)
+5. Lagre utkast / autosave (Cloud SQL)
+6. Last opp vedlegg (GCS)
+7. Gjennomgang med live PDF-forhåndsvisning
+8. Eksport (PDF-nedlasting)
+
+### Lagring av rapportutkast
+- Utkast lagres per innlogget bruker i Cloud SQL.
+- Listen over utkast finnes på `/reports`.
+- Åpning av et utkast skjer via `/reports/[id]`.
+- Utkast autosaves når rapporten har tilstrekkelig innhold.
+- Vedlegg lagres i GCS og kobles til utkastet i databasen.
+- Vedlegg vises i PDF som vedleggsnavn, ikke som nedlastbare binærvedlegg i selve PDF-filen.
+
+### GCP-oppsett for lagring
+Følgende ressurser brukes i `bht-vertexai-production`:
+
+- Cloud SQL instance: `pitch-generator-db-postgres`
+- Database: `yh_reporting`
+- App-bruker i Postgres: `yh_reporting_app`
+- GCS bucket: `yh-reporting-attachments-bht-vertexai-production`
+- Service account for app-tilgang: `yh-reporting-db-client@bht-vertexai-production.iam.gserviceaccount.com`
+
+Service account-en trenger minst:
+
+- `roles/cloudsql.client`
+- `roles/storage.objectAdmin` på attachment-bucketen
+
+Applikasjonen bruker Cloud SQL Node.js Connector, så det er ikke nødvendig å åpne opp Vercels egress-IP-er i Cloud SQL.
 
 ### Google Sheets-integrasjon
 Utstyrsoversikten hentes fra et Google Sheet via service account. API-ruten (`/api/instruments`) cacher resultatet i 5 minutter. Brukes for å velge måleinstrumenter, kalibratorer, etc. i rapportene.
