@@ -404,26 +404,27 @@ export function IndoorClimateMetadataStep() {
                 <div className="rounded-md border overflow-hidden">
                   <div className="px-3 py-2 bg-slate-50 border-b">
                     <p className="text-sm font-medium">
-                      Oppdragsdato: {weatherSnapshotForDate.date} · Viser time for time {String(weatherHourFrom).padStart(2, "0")}:00-{String(weatherHourTo).padStart(2, "0")}:00
+                      {weatherSnapshotForDate.weatherEmoji} {weatherSnapshotForDate.weatherDescription} · {String(weatherHourFrom).padStart(2, "0")}:00–{String(weatherHourTo).padStart(2, "0")}:00
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Kilde: {weatherSnapshotForDate.sourceName} · {weatherSnapshotForDate.weatherEmoji} {weatherSnapshotForDate.weatherDescription}
-                    </p>
-                    {Array.isArray(weatherSnapshotForDate.sourceSelections) && weatherSnapshotForDate.sourceSelections.length > 0 && (
-                      <div className="mt-1 text-xs text-muted-foreground space-y-1">
+                    {weatherSnapshotForDate.sourceStrategy === "group-fallback" && Array.isArray(weatherSnapshotForDate.sourceSelections) && weatherSnapshotForDate.sourceSelections.length > 0 ? (
+                      <div className="mt-1 text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-0.5">
                         {weatherSnapshotForDate.sourceSelections.map((selection) => (
                           <p key={`${selection.parameter}-${selection.sourceId}`}>
-                            {selection.parameter}: {selection.sourceName}
+                            <span className="text-muted-foreground/70">{selection.parameter}:</span> {selection.sourceName}
                           </p>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{weatherSnapshotForDate.sourceName}</p>
                     )}
                   </div>
-                  {Array.isArray(weatherSnapshotForDate.warnings) && weatherSnapshotForDate.warnings.length > 0 && (
-                    <div className="px-3 py-2 border-b bg-red-50 text-red-700 text-xs">
-                      {weatherSnapshotForDate.warnings.map((warning, index) => (
-                        <p key={`${warning}-${index}`}>{warning}</p>
-                      ))}
+                  {Array.isArray(weatherSnapshotForDate.warnings) && weatherSnapshotForDate.warnings.filter((w) => !w.startsWith("Ingen enkelt værstasjon")).length > 0 && (
+                    <div className="px-3 py-2 border-b bg-amber-50 text-amber-800 text-xs space-y-0.5">
+                      {weatherSnapshotForDate.warnings
+                        .filter((w) => !w.startsWith("Ingen enkelt værstasjon"))
+                        .map((warning, index) => (
+                          <p key={`${warning}-${index}`}>⚠ {warning}</p>
+                        ))}
                     </div>
                   )}
                   <Table>
