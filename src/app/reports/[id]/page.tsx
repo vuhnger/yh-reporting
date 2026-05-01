@@ -10,17 +10,18 @@ type PageProps = {
 };
 
 export default async function ReportDraftPage({ params }: PageProps) {
+  const { id } = await params;
+  const callbackUrl = encodeURIComponent(`/reports/${id}`);
+
   const session = await getServerSession(authOptions);
   if (!session) {
-    redirect("/auth/signin?callbackUrl=%2Freports");
+    redirect(`/auth/signin?callbackUrl=${callbackUrl}`);
   }
 
   const identity = getSessionIdentity(session);
   if (!identity) {
-    redirect("/auth/signin?callbackUrl=%2Freports");
+    redirect(`/auth/signin?callbackUrl=${callbackUrl}`);
   }
-
-  const { id } = await params;
   const draft = await getDraftForUser(identity, id);
   if (!draft) {
     notFound();

@@ -79,7 +79,7 @@ function getDefaultTemplateData(reportType: ReportType | ""): ReportState["data"
 }
 
 function coerceStoredReportState(raw: unknown): ReportState {
-  const state = raw as Partial<ReportState>;
+  const state: Partial<ReportState> = typeof raw === "object" && raw !== null ? (raw as Partial<ReportState>) : {};
   const reportType = (state.reportType ?? "") as ReportState["reportType"];
   const defaultState: ReportState = {
     client: { orgNr: "", name: "", address: "", industry: "" },
@@ -111,7 +111,7 @@ function coerceStoredReportState(raw: unknown): ReportState {
 
 async function ensureSchema(): Promise<void> {
   if (!schemaReadyPromise) {
-    schemaReadyPromise = (async () => {
+    const p = (async () => {
       const pool = await getDbPool();
       await pool.query(`
         CREATE TABLE IF NOT EXISTS app_users (
@@ -156,6 +156,10 @@ async function ensureSchema(): Promise<void> {
           ON report_attachments (draft_id, created_at ASC);
       `);
     })();
+    schemaReadyPromise = p;
+    p.catch(() => {
+      if (schemaReadyPromise === p) schemaReadyPromise = null;
+    });
   }
 
   await schemaReadyPromise;
@@ -165,32 +169,18 @@ async function ensureUser(identity: SessionIdentity): Promise<{ id: string; emai
   await ensureSchema();
   const pool = await getDbPool();
 
-  const existing = await pool.query<{ id: string; email: string }>(
-    `SELECT id, email FROM app_users WHERE email = $1`,
-    [identity.email]
-  );
-
-  if (existing.rowCount && existing.rows[0]) {
-    const row = existing.rows[0];
-    await pool.query(
-      `UPDATE app_users
-       SET name = $2,
-           image_url = $3,
-           updated_at = NOW()
-       WHERE id = $1`,
-      [row.id, identity.name ?? null, identity.image ?? null]
-    );
-    return row;
-  }
-
-  const id = randomUUID();
-  await pool.query(
+  const result = await pool.query<{ id: string; email: string }>(
     `INSERT INTO app_users (id, email, name, image_url)
-     VALUES ($1, $2, $3, $4)`,
-    [id, identity.email, identity.name ?? null, identity.image ?? null]
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (email) DO UPDATE
+       SET name = EXCLUDED.name,
+           image_url = EXCLUDED.image_url,
+           updated_at = NOW()
+     RETURNING id, email`,
+    [randomUUID(), identity.email, identity.name ?? null, identity.image ?? null]
   );
 
-  return { id, email: identity.email };
+  return result.rows[0];
 }
 
 function mapDraftRow(row: Record<string, unknown>): ReportDraftSummary {

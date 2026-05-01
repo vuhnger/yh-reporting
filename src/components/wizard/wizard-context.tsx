@@ -75,12 +75,13 @@ const defaultState: ReportState = {
 };
 
 function createDefaultState(): ReportState {
+  const today = new Date().toISOString().split("T")[0];
   return {
     ...defaultState,
     client: { ...defaultState.client },
-    sharedMetadata: { ...defaultState.sharedMetadata },
+    sharedMetadata: { ...defaultState.sharedMetadata, date: today, reportDate: today },
     files: [],
-    weather: { ...defaultState.weather },
+    weather: { ...defaultState.weather, date: today },
   };
 }
 

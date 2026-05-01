@@ -58,7 +58,11 @@ async function createPool(): Promise<Pool> {
 
 export async function getDbPool(): Promise<Pool> {
   if (!poolPromise) {
-    poolPromise = createPool();
+    const p = createPool();
+    poolPromise = p;
+    p.catch(() => {
+      if (poolPromise === p) poolPromise = null;
+    });
   }
 
   return poolPromise;
