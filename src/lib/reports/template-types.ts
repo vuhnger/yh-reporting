@@ -34,6 +34,15 @@ export interface AIFieldConfig {
   outputStyle?: "paragraph" | "line-list";
 }
 
+export interface ReportAttachment {
+  id: string;
+  name: string;
+  contentType: string;
+  size: number;
+  storagePath: string;
+  createdAt?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Discriminated union for template-specific data
 // ---------------------------------------------------------------------------
@@ -59,7 +68,7 @@ export interface ReportState {
   step: number;
   reportType: ReportType | "";
   sharedMetadata: SharedMetadata;
-  files: File[];
+  files: ReportAttachment[];
   weather: {
     include: boolean;
     location: string;
