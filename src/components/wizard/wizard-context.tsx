@@ -73,10 +73,20 @@ const defaultState: ReportState = {
   data: null,
 };
 
+function createDefaultState(): ReportState {
+  return {
+    ...defaultState,
+    client: { ...defaultState.client },
+    sharedMetadata: { ...defaultState.sharedMetadata },
+    files: [],
+    weather: { ...defaultState.weather },
+  };
+}
+
 const WizardContext = createContext<WizardContextType | undefined>(undefined);
 
-export function WizardProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<ReportState>(defaultState);
+export function WizardProvider({ children, initialState }: { children: ReactNode; initialState?: ReportState }) {
+  const [state, setState] = useState<ReportState>(initialState ?? createDefaultState());
 
   const updateClient = useCallback((client: Partial<ReportState["client"]>) => {
     setState((prev) => {
@@ -326,7 +336,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const nextStep = useCallback(() => setState((prev) => ({ ...prev, step: prev.step + 1 })), []);
   const prevStep = useCallback(() => setState((prev) => ({ ...prev, step: Math.max(1, prev.step - 1) })), []);
   const setStep = useCallback((step: number) => setState((prev) => ({ ...prev, step })), []);
-  const reset = useCallback(() => setState(defaultState), []);
+  const reset = useCallback(() => setState(createDefaultState()), []);
   const loadReport = useCallback((report: ReportState) => setState(report), []);
 
   const value = useMemo(() => ({

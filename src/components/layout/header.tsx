@@ -27,7 +27,7 @@ export function Header() {
           <Link href="/" className="hover:underline hover:text-white/80 transition-colors">
             Ny rapport
           </Link>
-          <Link href="#" className="hover:underline hover:text-white/80 transition-colors">
+          <Link href="/reports" className="hover:underline hover:text-white/80 transition-colors">
             Lagrede rapporter
           </Link>
           <div className="flex items-center gap-2 ml-4 opacity-80">
