@@ -71,17 +71,18 @@ export function IndoorClimateMetadataStep() {
     const rows: IndoorClimateWeatherHour[] = [];
     for (let hour = weatherHourFrom; hour <= weatherHourTo; hour += 1) {
       const existing = rowsByHour.get(hour);
-      rows.push(
-        existing ?? {
-          date: weatherSnapshotForDate.date,
-          hour,
-          timeLabel: formatHourLabel(hour),
-          temperatureC: null,
-          precipitationMm: null,
-          windMs: null,
-          maxWindMs: null,
-          snowDepthCm: null,
-        }
+          rows.push(
+            existing ?? {
+              date: weatherSnapshotForDate.date,
+              hour,
+              timeLabel: formatHourLabel(hour),
+              temperatureC: null,
+              relativeHumidity: null,
+              precipitationMm: null,
+              windMs: null,
+              maxWindMs: null,
+              snowDepthCm: null,
+            }
       );
     }
     return rows;
@@ -404,6 +405,15 @@ export function IndoorClimateMetadataStep() {
                     <p className="text-xs text-muted-foreground">
                       Kilde: {weatherSnapshotForDate.sourceName} · {weatherSnapshotForDate.weatherEmoji} {weatherSnapshotForDate.weatherDescription}
                     </p>
+                    {Array.isArray(weatherSnapshotForDate.sourceSelections) && weatherSnapshotForDate.sourceSelections.length > 0 && (
+                      <div className="mt-1 text-xs text-muted-foreground space-y-1">
+                        {weatherSnapshotForDate.sourceSelections.map((selection) => (
+                          <p key={`${selection.parameter}-${selection.sourceId}`}>
+                            {selection.parameter}: {selection.sourceName}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {Array.isArray(weatherSnapshotForDate.warnings) && weatherSnapshotForDate.warnings.length > 0 && (
                     <div className="px-3 py-2 border-b bg-red-50 text-red-700 text-xs">
@@ -414,33 +424,35 @@ export function IndoorClimateMetadataStep() {
                   )}
                   <Table>
                     <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead>Tid</TableHead>
-                        <TableHead>Vær</TableHead>
-                        <TableHead className="text-right">Temp °C</TableHead>
-                        <TableHead className="text-right">Nedbør mm</TableHead>
-                        <TableHead className="text-right">Snødybde cm</TableHead>
-                        <TableHead className="text-right">Vind m/s</TableHead>
-                        <TableHead className="text-right">Kraftigste vind m/s</TableHead>
+                        <TableRow>
+                          <TableHead>Tid</TableHead>
+                          <TableHead>Vær</TableHead>
+                          <TableHead className="text-right">Temp °C</TableHead>
+                          <TableHead className="text-right">RH %</TableHead>
+                          <TableHead className="text-right">Nedbør mm</TableHead>
+                          <TableHead className="text-right">Snødybde cm</TableHead>
+                          <TableHead className="text-right">Vind m/s</TableHead>
+                          <TableHead className="text-right">Kraftigste vind m/s</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {weatherHourlyRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center text-muted-foreground">
                             Ingen timedata tilgjengelig for valgt tidsrom.
                           </TableCell>
                         </TableRow>
                       ) : (
                         weatherHourlyRows.map((row) => (
-                          <TableRow key={`${row.date}-${row.hour}`}>
-                            <TableCell>{row.timeLabel}</TableCell>
-                            <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
+                            <TableRow key={`${row.date}-${row.hour}`}>
+                              <TableCell>{row.timeLabel}</TableCell>
+                              <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
+                              <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
                           </TableRow>
                         ))
                       )}
@@ -449,7 +461,8 @@ export function IndoorClimateMetadataStep() {
                   <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
                     Døgnoppsummering: maks {weatherSnapshotForDate.maxTempC ?? "-"} °C, min{" "}
                     {weatherSnapshotForDate.minTempC ?? "-"} °C, gj.snitt{" "}
-                    {weatherSnapshotForDate.avgTempC ?? "-"} °C, normal{" "}
+                    {weatherSnapshotForDate.avgTempC ?? "-"} °C, luftfuktighet{" "}
+                    {weatherSnapshotForDate.avgRelativeHumidity ?? "-"} % RH, normal{" "}
                     {weatherSnapshotForDate.normalTempC ?? "-"} °C, nedbør{" "}
                     {weatherSnapshotForDate.precipitationMm ?? "-"} mm.
                   </div>

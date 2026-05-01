@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "test": "npm run test:unit"
   },
   "dependencies": {
     "@google/genai": "^1.38.0",

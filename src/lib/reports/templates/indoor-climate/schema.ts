@@ -45,12 +45,21 @@ export interface IndoorClimateWeatherSnapshot {
   address: string;
   date: string;
   sourceName: string;
+  sourceStrategy?: "single-station" | "group-fallback";
+  sourceSelections?: Array<{
+    parameter: string;
+    sourceName: string;
+    sourceId: string;
+  }>;
   weatherEmoji: string;
   weatherDescription: string;
   warnings?: string[];
   maxTempC: number | null;
   minTempC: number | null;
   avgTempC: number | null;
+  maxRelativeHumidity: number | null;
+  minRelativeHumidity: number | null;
+  avgRelativeHumidity: number | null;
   normalTempC: number | null;
   precipitationMm: number | null;
   snowDepthCm: number | null;
@@ -66,6 +75,7 @@ export interface IndoorClimateWeatherHour {
   weatherEmoji?: string;
   weatherDescription?: string;
   temperatureC: number | null;
+  relativeHumidity: number | null;
   precipitationMm: number | null;
   windMs: number | null;
   maxWindMs: number | null;

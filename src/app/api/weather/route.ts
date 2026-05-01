@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import {
+  buildObservationWarning,
+  buildSourceSummaryByGroup,
+  describeWeather,
+  getObservationSnapshot,
+  hasAnyObservationData,
+  normalizeSourceId,
+  pickBestCombinedSource,
+  PRIMARY_WEATHER_GROUPS,
+  shouldRetryObservationFetch,
+  WEATHER_GROUP_LABELS,
+  type FrostSourceCandidate,
+  type FrostSourceSelection,
+  type WeatherGroupKey,
+} from "@/lib/weather/frost-utils";
 import type {
-  IndoorClimateWeatherHour,
   IndoorClimateWeatherSnapshot,
 } from "@/lib/reports/templates/indoor-climate/schema";
 
@@ -20,29 +34,6 @@ interface KartverketAddressResponse {
   adresser?: KartverketAddress[];
 }
 
-interface HourBucket {
-  date: string;
-  hour: number;
-  timeLabel: string;
-  temperatureValues: number[];
-  precipitationSum: number;
-  hasPrecipitation: boolean;
-  windValues: number[];
-  gustValues: number[];
-  snowDepthValues: number[];
-}
-
-type WeatherGroupKey = "temperature" | "wind" | "precipitation" | "snow";
-
-interface FrostSourceSelection {
-  sourceId: string;
-  sourceName: string;
-}
-
-interface FrostSourceCandidate extends FrostSourceSelection {
-  normalizedSourceId: string;
-}
-
 interface ObservationPayloadResult {
   payload: unknown;
   warning: string | null;
@@ -50,27 +41,23 @@ interface ObservationPayloadResult {
 
 const WEATHER_GROUP_ELEMENTS: Record<WeatherGroupKey, string[]> = {
   temperature: ["air_temperature"],
+  humidity: ["relative_humidity"],
   wind: ["wind_speed", "wind_speed_of_gust"],
   precipitation: ["precipitation_amount"],
   snow: ["surface_snow_thickness"],
 };
 
-const WEATHER_GROUP_LABELS: Record<WeatherGroupKey, string> = {
-  temperature: "Temperatur",
-  wind: "Vind",
-  precipitation: "Nedbor",
-  snow: "Snodybde",
-};
-
 const FROST_NEAREST_MAX_COUNT = 20;
 const OBSERVATION_SOURCE_LIMIT_BY_GROUP: Record<WeatherGroupKey, number> = {
   temperature: 10,
+  humidity: 10,
   wind: 10,
   precipitation: 6,
   snow: 6,
 };
 const OBSERVATION_BATCH_SIZE_BY_GROUP: Record<WeatherGroupKey, number> = {
   temperature: 5,
+  humidity: 5,
   wind: 5,
   precipitation: 2,
   snow: 2,
@@ -105,11 +92,6 @@ function toNumber(value: unknown): number | null {
 function roundOne(value: number | null): number | null {
   if (value === null) return null;
   return Math.round(value * 10) / 10;
-}
-
-function average(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function getOsloDateHour(referenceTime: string): { date: string; hour: number; timeLabel: string } | null {
@@ -202,12 +184,6 @@ function extractStationName(node: unknown): string | null {
   return null;
 }
 
-function normalizeSourceId(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  return trimmed.split(":")[0].trim().toUpperCase();
-}
-
 function extractObservationSourceId(entry: unknown): string | null {
   if (!entry || typeof entry !== "object") return null;
 
@@ -224,68 +200,6 @@ function extractObservationSourceId(entry: unknown): string | null {
   }
 
   return null;
-}
-
-function describeWeather(
-  avgTempC: number | null,
-  precipitationMm: number | null,
-  maxWindMs: number | null,
-  snowDepthCm: number | null
-): { emoji: string; description: string } {
-  const precip = precipitationMm ?? 0;
-  const wind = maxWindMs ?? 0;
-  const snow = snowDepthCm ?? 0;
-  const temp = avgTempC ?? 0;
-
-  if (snow > 0 && temp <= 0) return { emoji: "❄️", description: "Snøpreg" };
-  if (precip >= 10) return { emoji: "🌧️", description: "Regnfullt" };
-  if (wind >= 12) return { emoji: "💨", description: "Vindfullt" };
-  if (precip > 0) return { emoji: "🌦️", description: "Byger" };
-  if (temp >= 20) return { emoji: "☀️", description: "Varmt og tørt" };
-  if (temp <= -5) return { emoji: "🥶", description: "Kaldt" };
-  return { emoji: "⛅", description: "Opphold" };
-}
-
-function buildObservationWarning(group: WeatherGroupKey, error: unknown): string {
-  const label = WEATHER_GROUP_LABELS[group];
-  const message = error instanceof Error ? error.message : String(error);
-  const statusCode = extractHttpStatusCode(error);
-  const statusCodeValue = statusCode ?? 0;
-  const reason =
-    message.match(/"reason"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
-    message.match(/"message"\s*:\s*"([^"]+)"/)?.[1]?.trim() ??
-    "";
-
-  if (statusCodeValue === 429) {
-    return `${label}: Frost svarte 429 (for mange foresporsler). Prov igjen om litt.`;
-  }
-  if (statusCodeValue === 500) {
-    return `${label}: Frost svarte 500 (intern feil hos datakilde).`;
-  }
-  if (statusCodeValue > 0 && reason) {
-    return `${label}: Kunne ikke hente data (${statusCodeValue}). ${reason}`;
-  }
-  if (statusCodeValue > 0) {
-    return `${label}: Kunne ikke hente data (${statusCodeValue}).`;
-  }
-  return `${label}: Kunne ikke hente data fra Frost.`;
-}
-
-function extractHttpStatusCode(error: unknown): number | null {
-  const message = error instanceof Error ? error.message : String(error);
-  const statusCode = Number(message.match(/Request failed \((\d+)\)/)?.[1] ?? "");
-  return Number.isFinite(statusCode) && statusCode > 0 ? statusCode : null;
-}
-
-function isTimeoutError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /timed out/i.test(message);
-}
-
-function shouldRetryObservationFetch(error: unknown): boolean {
-  if (isTimeoutError(error)) return true;
-  const statusCode = extractHttpStatusCode(error);
-  return statusCode === 429 || statusCode === 500 || statusCode === 502 || statusCode === 503 || statusCode === 504;
 }
 
 async function delay(ms: number): Promise<void> {
@@ -364,111 +278,28 @@ async function getNearestFrostSourceForElements(
   return candidates;
 }
 
-function collectObservationMetricsFromPayload(
-  payload: unknown,
-  date: string,
-  accumulator: {
-    temps: number[];
-    wind: number[];
-    gust: number[];
-    precipitationDaily: number[];
-    precipitationRaw: number[];
-    snowDepth: number[];
-    buckets: Map<string, HourBucket>;
-  },
-  allowedSourceIds: Set<string>
-): void {
-  const data = (payload as { data?: unknown }).data;
-
-  if (!Array.isArray(data)) return;
-
-  for (const entry of data) {
-    if (!entry || typeof entry !== "object") continue;
-    const sourceId = extractObservationSourceId(entry);
-    if (!sourceId || !allowedSourceIds.has(sourceId)) continue;
-
-    const reference = (entry as { referenceTime?: unknown }).referenceTime;
-    if (typeof reference !== "string") continue;
-    const slot = getOsloDateHour(reference);
-    if (!slot || slot.date !== date) continue;
-
-    const observations = (entry as { observations?: unknown }).observations;
-    if (!Array.isArray(observations)) continue;
-
-    const ensureBucket = (): HourBucket => {
-      const key = `${slot.date}-${slot.hour}`;
-      let bucket = accumulator.buckets.get(key);
-      if (!bucket) {
-        bucket = {
-          date: slot.date,
-          hour: slot.hour,
-          timeLabel: slot.timeLabel,
-          temperatureValues: [],
-          precipitationSum: 0,
-          hasPrecipitation: false,
-          windValues: [],
-          gustValues: [],
-          snowDepthValues: [],
-        };
-        accumulator.buckets.set(key, bucket);
-      }
-      return bucket;
-    };
-
-    for (const obs of observations) {
-      if (!obs || typeof obs !== "object") continue;
-      const elementId = (obs as { elementId?: unknown }).elementId;
-      const value = toNumber((obs as { value?: unknown }).value);
-      if (typeof elementId !== "string" || value === null) continue;
-
-      if (elementId.includes("air_temperature")) {
-        accumulator.temps.push(value);
-        ensureBucket().temperatureValues.push(value);
-        continue;
-      }
-      if (elementId === "wind_speed") {
-        accumulator.wind.push(value);
-        ensureBucket().windValues.push(value);
-        continue;
-      }
-      if (elementId.includes("wind_speed_of_gust")) {
-        accumulator.gust.push(value);
-        ensureBucket().gustValues.push(value);
-        continue;
-      }
-      if (elementId.includes("sum(precipitation_amount P1D)")) {
-        accumulator.precipitationDaily.push(value);
-        continue;
-      }
-      if (elementId === "precipitation_amount") {
-        accumulator.precipitationRaw.push(value);
-        const bucket = ensureBucket();
-        bucket.precipitationSum += value;
-        bucket.hasPrecipitation = true;
-        continue;
-      }
-      if (elementId.includes("surface_snow_thickness")) {
-        accumulator.snowDepth.push(value);
-        ensureBucket().snowDepthValues.push(value);
-        continue;
-      }
-    }
-  }
-}
 
 async function getObservationPayload(
-  group: WeatherGroupKey,
   sourceIds: string[],
   date: string,
   elements: string[],
-  frostAuth: string
+  frostAuth: string,
+  options: {
+    chunkSize: number;
+    emptyWarning: string;
+    fallbackWarning: string;
+    partialWarning: (failedChunks: number, totalChunks: number) => string;
+    buildChunkWarning: (error: unknown) => string;
+    logLabel: string;
+    logContext?: Record<string, unknown>;
+  }
 ): Promise<ObservationPayloadResult> {
   if (sourceIds.length === 0) {
-    return { payload: { data: [] }, warning: `${WEATHER_GROUP_LABELS[group]}: Ingen stasjonskandidater.` };
+    return { payload: { data: [] }, warning: options.emptyWarning };
   }
 
   const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
-  const sourceChunks = chunkArray(sourceIds, OBSERVATION_BATCH_SIZE_BY_GROUP[group]);
+  const sourceChunks = chunkArray(sourceIds, options.chunkSize);
   const mergedData: unknown[] = [];
   const chunkWarnings: string[] = [];
 
@@ -498,10 +329,9 @@ async function getObservationPayload(
     }
 
     if (lastError) {
-      const warning = buildObservationWarning(group, lastError);
+      const warning = options.buildChunkWarning(lastError);
       chunkWarnings.push(warning);
-      console.warn("Weather observation fetch failed", {
-        group,
+      console.warn(options.logLabel, {
         chunk: chunkIndex + 1,
         chunkCount: sourceChunks.length,
         sourceCount: sourceChunk.length,
@@ -509,6 +339,7 @@ async function getObservationPayload(
         elements: elements.join(","),
         warning,
         error: lastError instanceof Error ? lastError.message : String(lastError),
+        ...options.logContext,
       });
       continue;
     }
@@ -520,16 +351,14 @@ async function getObservationPayload(
   }
 
   if (mergedData.length === 0) {
-    const warning =
-      chunkWarnings[0] ??
-      `${WEATHER_GROUP_LABELS[group]}: Kunne ikke hente data fra Frost.`;
+    const warning = chunkWarnings[0] ?? options.fallbackWarning;
     return { payload: { data: [] }, warning };
   }
 
   if (chunkWarnings.length > 0) {
     return {
       payload: { data: mergedData },
-      warning: `${WEATHER_GROUP_LABELS[group]}: Delvis datatap fra Frost (${chunkWarnings.length}/${sourceChunks.length} delspørringer feilet).`,
+      warning: options.partialWarning(chunkWarnings.length, sourceChunks.length),
     };
   }
 
@@ -537,6 +366,24 @@ async function getObservationPayload(
     payload: { data: mergedData },
     warning: null,
   };
+}
+
+async function getCombinedObservationPayload(
+  sourceIds: string[],
+  date: string,
+  elements: string[],
+  frostAuth: string
+): Promise<ObservationPayloadResult> {
+  return getObservationPayload(sourceIds, date, elements, frostAuth, {
+    chunkSize: 3,
+    emptyWarning: "Komplett værstasjon: Ingen stasjonskandidater.",
+    fallbackWarning: "Komplett værstasjon: Kunne ikke hente data fra Frost.",
+    partialWarning: (failedChunks, totalChunks) =>
+      `Komplett værstasjon: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+    buildChunkWarning: (error) =>
+      buildObservationWarning("temperature", error).replace("Temperatur", "Komplett værstasjon"),
+    logLabel: "Combined weather observation fetch failed",
+  });
 }
 
 function pickNearestSourceWithData(
@@ -586,168 +433,6 @@ function pickNearestSourceWithData(
   }
 
   return candidates[0];
-}
-
-function buildSourceSummaryByGroup(sources: Record<WeatherGroupKey, FrostSourceSelection>): string {
-  const unique = new Map<string, string>();
-  for (const group of Object.values(sources)) {
-    unique.set(group.sourceId, group.sourceName);
-  }
-
-  if (unique.size === 1) {
-    return Array.from(unique.values())[0] ?? "-";
-  }
-
-  return [
-    `Temp: ${sources.temperature.sourceName}`,
-    `Vind: ${sources.wind.sourceName}`,
-    `Nedbor: ${sources.precipitation.sourceName}`,
-    `Sno: ${sources.snow.sourceName}`,
-  ].join(" · ");
-}
-
-type GroupObservationPayloads = Record<
-  WeatherGroupKey,
-  { payload: unknown; source: FrostSourceCandidate }
->;
-
-function getObservationSnapshot(
-  groupPayloads: GroupObservationPayloads,
-  date: string
-): {
-  maxTempC: number | null;
-  minTempC: number | null;
-  avgTempC: number | null;
-  precipitationMm: number | null;
-  snowDepthCm: number | null;
-  avgWindMs: number | null;
-  maxWindMs: number | null;
-  hourly: IndoorClimateWeatherHour[];
-} {
-
-  const accumulator = {
-    temps: [] as number[],
-    wind: [] as number[],
-    gust: [] as number[],
-    precipitationDaily: [] as number[],
-    precipitationRaw: [] as number[],
-    snowDepth: [] as number[],
-    buckets: new Map<string, HourBucket>(),
-  };
-
-  collectObservationMetricsFromPayload(
-    groupPayloads.temperature.payload,
-    date,
-    accumulator,
-    new Set([groupPayloads.temperature.source.normalizedSourceId])
-  );
-  collectObservationMetricsFromPayload(
-    groupPayloads.wind.payload,
-    date,
-    accumulator,
-    new Set([groupPayloads.wind.source.normalizedSourceId])
-  );
-  collectObservationMetricsFromPayload(
-    groupPayloads.precipitation.payload,
-    date,
-    accumulator,
-    new Set([groupPayloads.precipitation.source.normalizedSourceId])
-  );
-  collectObservationMetricsFromPayload(
-    groupPayloads.snow.payload,
-    date,
-    accumulator,
-    new Set([groupPayloads.snow.source.normalizedSourceId])
-  );
-
-  const hourly = Array.from(accumulator.buckets.values())
-    .sort((a, b) => a.hour - b.hour)
-    .map<IndoorClimateWeatherHour>((bucket) => {
-      const temperatureC = average(bucket.temperatureValues);
-      const precipitationMm = bucket.hasPrecipitation ? bucket.precipitationSum : null;
-      const windMs = average(bucket.windValues);
-      const maxWindMs =
-        [...bucket.windValues, ...bucket.gustValues].length > 0
-          ? Math.max(...bucket.windValues, ...bucket.gustValues)
-          : null;
-      const snowDepthCm =
-        bucket.snowDepthValues.length > 0
-          ? bucket.snowDepthValues[bucket.snowDepthValues.length - 1]
-          : null;
-      const hourlyWeather = describeWeather(
-        temperatureC,
-        precipitationMm,
-        maxWindMs,
-        snowDepthCm
-      );
-
-      return {
-        date: bucket.date,
-        hour: bucket.hour,
-        timeLabel: bucket.timeLabel,
-        weatherEmoji: hourlyWeather.emoji,
-        weatherDescription: hourlyWeather.description,
-        temperatureC,
-        precipitationMm,
-        windMs,
-        maxWindMs,
-        snowDepthCm,
-      };
-    });
-
-  const hourlyPrecipSum = hourly
-    .map((row) => row.precipitationMm)
-    .filter((value): value is number => value !== null)
-    .reduce((sum, value) => sum + value, 0);
-  const hasHourlyPrecip = hourly.some((row) => row.precipitationMm !== null);
-
-  const precipitationMm =
-    accumulator.precipitationDaily.length > 0
-      ? accumulator.precipitationDaily[accumulator.precipitationDaily.length - 1]
-      : hasHourlyPrecip
-        ? hourlyPrecipSum
-        : accumulator.precipitationRaw.length > 0
-        ? accumulator.precipitationRaw.reduce((sum, value) => sum + value, 0)
-        : null;
-
-  const combinedWindMaxCandidates = [...accumulator.wind, ...accumulator.gust];
-
-  return {
-    maxTempC: accumulator.temps.length > 0 ? Math.max(...accumulator.temps) : null,
-    minTempC: accumulator.temps.length > 0 ? Math.min(...accumulator.temps) : null,
-    avgTempC: average(accumulator.temps),
-    precipitationMm,
-    snowDepthCm:
-      accumulator.snowDepth.length > 0
-        ? accumulator.snowDepth[accumulator.snowDepth.length - 1]
-        : null,
-    avgWindMs: average(accumulator.wind),
-    maxWindMs:
-      combinedWindMaxCandidates.length > 0 ? Math.max(...combinedWindMaxCandidates) : null,
-    hourly,
-  };
-}
-
-function hasAnyObservationData(observation: {
-  maxTempC: number | null;
-  minTempC: number | null;
-  avgTempC: number | null;
-  precipitationMm: number | null;
-  snowDepthCm: number | null;
-  avgWindMs: number | null;
-  maxWindMs: number | null;
-  hourly: IndoorClimateWeatherHour[];
-}): boolean {
-  if (observation.hourly.length > 0) return true;
-  return [
-    observation.maxTempC,
-    observation.minTempC,
-    observation.avgTempC,
-    observation.precipitationMm,
-    observation.snowDepthCm,
-    observation.avgWindMs,
-    observation.maxWindMs,
-  ].some((value) => value !== null);
 }
 
 async function getClimateNormalTemperature(
@@ -836,13 +521,27 @@ export async function GET(request: Request) {
         ? { lat: latParam, lon: lonParam }
         : await geocodeNorwegianAddress(address);
     const { lat, lon } = coordinates;
+    const primaryStationCandidates = await getNearestFrostSourceForElements(
+      lat,
+      lon,
+      [
+        ...WEATHER_GROUP_ELEMENTS.temperature,
+        ...WEATHER_GROUP_ELEMENTS.humidity,
+        ...WEATHER_GROUP_ELEMENTS.precipitation,
+      ],
+      frostAuth
+    ).catch(() => []);
+
     const temperatureCandidates = await getNearestFrostSourceForElements(
       lat,
       lon,
       WEATHER_GROUP_ELEMENTS.temperature,
       frostAuth
     );
-    const [windCandidates, precipitationCandidates, snowCandidates] = await Promise.all([
+    const [humidityCandidates, windCandidates, precipitationCandidates, snowCandidates] = await Promise.all([
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.humidity, frostAuth).catch(
+        () => temperatureCandidates
+      ),
       getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.wind, frostAuth).catch(
         () => temperatureCandidates
       ),
@@ -857,70 +556,146 @@ export async function GET(request: Request) {
       ),
     ]);
 
-    const [temperatureResult, windResult, precipitationResult, snowResult] =
+    const combinedPrimaryResult = await getCombinedObservationPayload(
+      primaryStationCandidates.slice(0, 6).map((candidate) => candidate.sourceId),
+      date,
+      [
+        ...WEATHER_GROUP_ELEMENTS.temperature,
+        ...WEATHER_GROUP_ELEMENTS.humidity,
+        ...WEATHER_GROUP_ELEMENTS.precipitation,
+      ],
+      frostAuth
+    );
+
+    const completePrimarySource = pickBestCombinedSource(
+      primaryStationCandidates,
+      combinedPrimaryResult.payload,
+      date,
+      PRIMARY_WEATHER_GROUPS
+    );
+
+    const [temperatureResult, humidityResult, windResult, precipitationResult, snowResult] =
       await Promise.all([
+        completePrimarySource
+          ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: combinedPrimaryResult.warning })
+          : getObservationPayload(
+              temperatureCandidates
+                .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.temperature)
+                .map((candidate) => candidate.sourceId),
+              date,
+              WEATHER_GROUP_ELEMENTS.temperature,
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.temperature,
+                emptyWarning: `${WEATHER_GROUP_LABELS.temperature}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.temperature}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.temperature}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("temperature", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "temperature" },
+              }
+            ),
+        completePrimarySource
+          ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: null })
+          : getObservationPayload(
+              humidityCandidates
+                .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.humidity)
+                .map((candidate) => candidate.sourceId),
+              date,
+              WEATHER_GROUP_ELEMENTS.humidity,
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.humidity,
+                emptyWarning: `${WEATHER_GROUP_LABELS.humidity}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.humidity}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.humidity}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("humidity", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "humidity" },
+              }
+            ),
         getObservationPayload(
-          "temperature",
-          temperatureCandidates
-            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.temperature)
-            .map((candidate) => candidate.sourceId),
-          date,
-          WEATHER_GROUP_ELEMENTS.temperature,
-          frostAuth
-        ),
-        getObservationPayload(
-          "wind",
           windCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
             .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.wind,
-          frostAuth
+          frostAuth,
+          {
+            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.wind,
+            emptyWarning: `${WEATHER_GROUP_LABELS.wind}: Ingen stasjonskandidater.`,
+            fallbackWarning: `${WEATHER_GROUP_LABELS.wind}: Kunne ikke hente data fra Frost.`,
+            partialWarning: (failedChunks, totalChunks) =>
+              `${WEATHER_GROUP_LABELS.wind}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+            buildChunkWarning: (error) => buildObservationWarning("wind", error),
+            logLabel: "Weather observation fetch failed",
+            logContext: { group: "wind" },
+          }
         ),
+        completePrimarySource
+          ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: null })
+          : getObservationPayload(
+              precipitationCandidates
+                .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.precipitation)
+                .map((candidate) => candidate.sourceId),
+              date,
+              WEATHER_GROUP_ELEMENTS.precipitation,
+              frostAuth,
+              {
+                chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.precipitation,
+                emptyWarning: `${WEATHER_GROUP_LABELS.precipitation}: Ingen stasjonskandidater.`,
+                fallbackWarning: `${WEATHER_GROUP_LABELS.precipitation}: Kunne ikke hente data fra Frost.`,
+                partialWarning: (failedChunks, totalChunks) =>
+                  `${WEATHER_GROUP_LABELS.precipitation}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+                buildChunkWarning: (error) => buildObservationWarning("precipitation", error),
+                logLabel: "Weather observation fetch failed",
+                logContext: { group: "precipitation" },
+              }
+            ),
         getObservationPayload(
-          "precipitation",
-          precipitationCandidates
-            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.precipitation)
-            .map((candidate) => candidate.sourceId),
-          date,
-          WEATHER_GROUP_ELEMENTS.precipitation,
-          frostAuth
-        ),
-        getObservationPayload(
-          "snow",
           snowCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
             .map((candidate) => candidate.sourceId),
           date,
           WEATHER_GROUP_ELEMENTS.snow,
-          frostAuth
+          frostAuth,
+          {
+            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.snow,
+            emptyWarning: `${WEATHER_GROUP_LABELS.snow}: Ingen stasjonskandidater.`,
+            fallbackWarning: `${WEATHER_GROUP_LABELS.snow}: Kunne ikke hente data fra Frost.`,
+            partialWarning: (failedChunks, totalChunks) =>
+              `${WEATHER_GROUP_LABELS.snow}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+            buildChunkWarning: (error) => buildObservationWarning("snow", error),
+            logLabel: "Weather observation fetch failed",
+            logContext: { group: "snow" },
+          }
         ),
       ]);
 
     const observationWarnings = [
       temperatureResult.warning,
+      humidityResult.warning,
       windResult.warning,
       precipitationResult.warning,
       snowResult.warning,
     ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
-    const temperatureSource = pickNearestSourceWithData(
-      temperatureCandidates,
-      temperatureResult.payload,
-      date
-    );
+    const temperatureSource = completePrimarySource ?? pickNearestSourceWithData(temperatureCandidates, temperatureResult.payload, date);
+    const humiditySource = completePrimarySource ?? pickNearestSourceWithData(humidityCandidates, humidityResult.payload, date);
     const windSource = pickNearestSourceWithData(windCandidates, windResult.payload, date);
-    const precipitationSource = pickNearestSourceWithData(
-      precipitationCandidates,
-      precipitationResult.payload,
-      date
-    );
+    const precipitationSource = completePrimarySource ?? pickNearestSourceWithData(precipitationCandidates, precipitationResult.payload, date);
     const snowSource = pickNearestSourceWithData(snowCandidates, snowResult.payload, date);
 
     const selectedSources: Record<WeatherGroupKey, FrostSourceSelection> = {
       temperature: {
         sourceId: temperatureSource.sourceId,
         sourceName: temperatureSource.sourceName,
+      },
+      humidity: {
+        sourceId: humiditySource.sourceId,
+        sourceName: humiditySource.sourceName,
       },
       wind: {
         sourceId: windSource.sourceId,
@@ -939,6 +714,7 @@ export async function GET(request: Request) {
     const observation = getObservationSnapshot(
       {
         temperature: { payload: temperatureResult.payload, source: temperatureSource },
+        humidity: { payload: humidityResult.payload, source: humiditySource },
         wind: { payload: windResult.payload, source: windSource },
         precipitation: { payload: precipitationResult.payload, source: precipitationSource },
         snow: { payload: snowResult.payload, source: snowSource },
@@ -956,6 +732,37 @@ export async function GET(request: Request) {
       date,
       frostAuth
     );
+
+    if (completePrimarySource) {
+      const windSupplemented = selectedSources.wind.sourceId !== completePrimarySource.sourceId;
+      const snowSupplemented = selectedSources.snow.sourceId !== completePrimarySource.sourceId;
+      if (windSupplemented || snowSupplemented) {
+        observationWarnings.push(
+          "Temperatur, relativ luftfuktighet og nedbør er hentet fra nærmeste komplette værstasjon. Vind og/eller snødybde er supplert fra andre stasjoner."
+        );
+      }
+    } else {
+      observationWarnings.push(
+        "Ingen enkelt værstasjon hadde komplette data for temperatur, relativ luftfuktighet og nedbør på valgt dato. Rapporten bruker derfor nærmeste tilgjengelige stasjon per værparameter."
+      );
+    }
+
+    const missingFieldLabels = [
+      observation.maxTempC === null && observation.minTempC === null && observation.avgTempC === null
+        ? "Temperatur"
+        : null,
+      observation.maxRelativeHumidity === null &&
+      observation.minRelativeHumidity === null &&
+      observation.avgRelativeHumidity === null
+        ? "Relativ luftfuktighet"
+        : null,
+      observation.precipitationMm === null ? "Nedbør" : null,
+    ].filter((value): value is string => Boolean(value));
+
+    if (missingFieldLabels.length > 0) {
+      observationWarnings.push(`Manglende værfelt fra Frost: ${missingFieldLabels.join(", ")}.`);
+    }
+
     const sourceName = buildSourceSummaryByGroup(selectedSources);
     const weatherDescription = describeWeather(
       observation.avgTempC,
@@ -968,12 +775,23 @@ export async function GET(request: Request) {
       address,
       date,
       sourceName,
+      sourceStrategy: completePrimarySource ? "single-station" : "group-fallback",
+      sourceSelections: [
+        { parameter: "Temperatur", sourceName: selectedSources.temperature.sourceName, sourceId: selectedSources.temperature.sourceId },
+        { parameter: "Relativ luftfuktighet", sourceName: selectedSources.humidity.sourceName, sourceId: selectedSources.humidity.sourceId },
+        { parameter: "Nedbør", sourceName: selectedSources.precipitation.sourceName, sourceId: selectedSources.precipitation.sourceId },
+        { parameter: "Vind", sourceName: selectedSources.wind.sourceName, sourceId: selectedSources.wind.sourceId },
+        { parameter: "Snødybde", sourceName: selectedSources.snow.sourceName, sourceId: selectedSources.snow.sourceId },
+      ],
       weatherEmoji: weatherDescription.emoji,
       weatherDescription: weatherDescription.description,
       warnings: observationWarnings,
       maxTempC: roundOne(observation.maxTempC),
       minTempC: roundOne(observation.minTempC),
       avgTempC: roundOne(observation.avgTempC),
+      maxRelativeHumidity: roundOne(observation.maxRelativeHumidity),
+      minRelativeHumidity: roundOne(observation.minRelativeHumidity),
+      avgRelativeHumidity: roundOne(observation.avgRelativeHumidity),
       normalTempC: roundOne(normalTempC),
       precipitationMm: roundOne(observation.precipitationMm),
       snowDepthCm: roundOne(observation.snowDepthCm),
@@ -982,6 +800,7 @@ export async function GET(request: Request) {
       hourly: observation.hourly.map((row) => ({
         ...row,
         temperatureC: roundOne(row.temperatureC),
+        relativeHumidity: roundOne(row.relativeHumidity),
         precipitationMm: roundOne(row.precipitationMm),
         windMs: roundOne(row.windMs),
         maxWindMs: roundOne(row.maxWindMs),
