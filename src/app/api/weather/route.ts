@@ -47,23 +47,23 @@ const WEATHER_GROUP_ELEMENTS: Record<WeatherGroupKey, string[]> = {
   snow: ["surface_snow_thickness"],
 };
 
-const FROST_NEAREST_MAX_COUNT = 20;
+const FROST_NEAREST_MAX_COUNT = 5;
 const OBSERVATION_SOURCE_LIMIT_BY_GROUP: Record<WeatherGroupKey, number> = {
-  temperature: 10,
-  humidity: 10,
-  wind: 10,
-  precipitation: 6,
-  snow: 6,
+  temperature: 5,
+  humidity: 5,
+  wind: 5,
+  precipitation: 5,
+  snow: 5,
 };
 const OBSERVATION_BATCH_SIZE_BY_GROUP: Record<WeatherGroupKey, number> = {
   temperature: 5,
   humidity: 5,
   wind: 5,
-  precipitation: 2,
-  snow: 2,
+  precipitation: 5,
+  snow: 5,
 };
-const OBSERVATION_FETCH_TIMEOUT_MS = 12_000;
-const OBSERVATION_FETCH_RETRY_ATTEMPTS = 3;
+const OBSERVATION_FETCH_TIMEOUT_MS = 7_000;
+const OBSERVATION_FETCH_RETRY_ATTEMPTS = 2;
 const OBSERVATION_FETCH_RETRY_BASE_DELAY_MS = 350;
 const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente vaerdata.";
 
@@ -521,40 +521,29 @@ export async function GET(request: Request) {
         ? { lat: latParam, lon: lonParam }
         : await geocodeNorwegianAddress(address);
     const { lat, lon } = coordinates;
-    const primaryStationCandidates = await getNearestFrostSourceForElements(
-      lat,
-      lon,
-      [
-        ...WEATHER_GROUP_ELEMENTS.temperature,
-        ...WEATHER_GROUP_ELEMENTS.humidity,
-        ...WEATHER_GROUP_ELEMENTS.precipitation,
-      ],
-      frostAuth
-    ).catch(() => []);
-
-    const temperatureCandidates = await getNearestFrostSourceForElements(
-      lat,
-      lon,
-      WEATHER_GROUP_ELEMENTS.temperature,
-      frostAuth
-    );
-    const [humidityCandidates, windCandidates, precipitationCandidates, snowCandidates] = await Promise.all([
-      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.humidity, frostAuth).catch(
-        () => temperatureCandidates
-      ),
-      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.wind, frostAuth).catch(
-        () => temperatureCandidates
-      ),
+    const [
+      primaryStationCandidates,
+      temperatureCandidates,
+      humidityCandidatesRaw,
+      windCandidatesRaw,
+      precipitationCandidatesRaw,
+      snowCandidatesRaw,
+    ] = await Promise.all([
       getNearestFrostSourceForElements(
-        lat,
-        lon,
-        WEATHER_GROUP_ELEMENTS.precipitation,
+        lat, lon,
+        [...WEATHER_GROUP_ELEMENTS.temperature, ...WEATHER_GROUP_ELEMENTS.humidity, ...WEATHER_GROUP_ELEMENTS.precipitation],
         frostAuth
-      ).catch(() => temperatureCandidates),
-      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.snow, frostAuth).catch(
-        () => temperatureCandidates
-      ),
+      ).catch(() => []),
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.temperature, frostAuth),
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.humidity, frostAuth).catch(() => null),
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.wind, frostAuth).catch(() => null),
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.precipitation, frostAuth).catch(() => null),
+      getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.snow, frostAuth).catch(() => null),
     ]);
+    const humidityCandidates = humidityCandidatesRaw ?? temperatureCandidates;
+    const windCandidates = windCandidatesRaw ?? temperatureCandidates;
+    const precipitationCandidates = precipitationCandidatesRaw ?? temperatureCandidates;
+    const snowCandidates = snowCandidatesRaw ?? temperatureCandidates;
 
     const combinedPrimaryResult = await getCombinedObservationPayload(
       primaryStationCandidates.slice(0, 6).map((candidate) => candidate.sourceId),
@@ -574,7 +563,7 @@ export async function GET(request: Request) {
       PRIMARY_WEATHER_GROUPS
     );
 
-    const [temperatureResult, humidityResult, windResult, precipitationResult, snowResult] =
+    const [temperatureResult, humidityResult, windResult, precipitationResult, snowResult, normalTempC] =
       await Promise.all([
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: combinedPrimaryResult.warning })
@@ -672,6 +661,7 @@ export async function GET(request: Request) {
             logContext: { group: "snow" },
           }
         ),
+        getClimateNormalTemperature(temperatureCandidates[0]?.sourceId ?? "", date, frostAuth),
       ]);
 
     const observationWarnings = [
@@ -727,12 +717,6 @@ export async function GET(request: Request) {
           "Kunne ikke hente brukbare observasjoner fra Frost for valgt dato."
       );
     }
-    const normalTempC = await getClimateNormalTemperature(
-      selectedSources.temperature.sourceId,
-      date,
-      frostAuth
-    );
-
     if (completePrimarySource) {
       const windSupplemented = selectedSources.wind.sourceId !== completePrimarySource.sourceId;
       const snowSupplemented = selectedSources.snow.sourceId !== completePrimarySource.sourceId;
