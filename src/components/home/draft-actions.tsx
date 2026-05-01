@@ -251,7 +251,7 @@ export function DraftActions({ initialDraftId }: { initialDraftId?: string }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" asChild>
-          <Link href="/reports">Se lagrede rapporter</Link>
+          <Link href="/">Se lagrede rapporter</Link>
         </Button>
         <Button type="button" onClick={handleSave} disabled={status === "saving"} className="min-w-40">
           {status === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

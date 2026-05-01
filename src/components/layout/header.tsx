@@ -24,10 +24,10 @@ export function Header() {
           <span>Dr. Dropin Rapportering</span>
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium">
-          <Link href="/" className="hover:underline hover:text-white/80 transition-colors">
+          <Link href="/new" className="hover:underline hover:text-white/80 transition-colors">
             Ny rapport
           </Link>
-          <Link href="/reports" className="hover:underline hover:text-white/80 transition-colors">
+          <Link href="/" className="hover:underline hover:text-white/80 transition-colors">
             Lagrede rapporter
           </Link>
           <div className="flex items-center gap-2 ml-4 opacity-80">
