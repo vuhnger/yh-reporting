@@ -58,9 +58,10 @@ export function SharedMetadataStep() {
   }, [session?.user?.email, session?.user?.name, state.sharedMetadata.author, updateSharedMetadata]);
 
   useEffect(() => {
-    const orgNr = state.client.orgNr.replace(/\D/g, "");
+    const orgNr = state.client.orgNr.trim();
+    const normalizedOrgNr = orgNr.replace(/\D/g, "");
 
-    if (orgNr.length !== 9) {
+    if (normalizedOrgNr.length !== 9) {
       setAdvisorLoading(false);
       setAdvisorError(null);
       return;

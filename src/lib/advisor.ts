@@ -60,6 +60,20 @@ function normalizeOrgNr(orgNr: string): string {
   return orgNr.replace(/\D/g, "");
 }
 
+function formatOrgNrWithSpaces(orgNr: string): string {
+  const normalized = normalizeOrgNr(orgNr);
+  if (normalized.length !== 9) return normalized;
+  return `${normalized.slice(0, 3)} ${normalized.slice(3, 6)} ${normalized.slice(6)}`;
+}
+
+function getPortalOrgNrCandidates(orgNr: string): string[] {
+  const raw = orgNr.trim();
+  const normalized = normalizeOrgNr(orgNr);
+  const formatted = formatOrgNrWithSpaces(orgNr);
+
+  return [...new Set([raw, normalized, formatted].filter(Boolean))];
+}
+
 function toNonEmptyString(value: unknown): string | null {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -167,16 +181,33 @@ async function fetchPortalOrganization(orgNr: string): Promise<PortalOrganizatio
     throw new Error("Portalen API is not configured.");
   }
 
-  const url = `${portalApiBaseUrl}/api/integrations/organization?organizationNumber=${encodeURIComponent(orgNr)}`;
-  const payload = await fetchJson(url, {
-    Authorization: `Bearer ${portalApiKey}`,
-  });
+  let lastError: unknown = null;
 
-  if (!payload || typeof payload !== "object") {
-    throw new Error("Portalen svarte med ugyldig organisasjonsdata.");
+  for (const candidate of getPortalOrgNrCandidates(orgNr)) {
+    try {
+      const url = `${portalApiBaseUrl}/api/integrations/organization?organizationNumber=${encodeURIComponent(candidate)}`;
+      const payload = await fetchJson(url, {
+        Authorization: `Bearer ${portalApiKey}`,
+      });
+
+      if (!payload || typeof payload !== "object") {
+        throw new Error("Portalen svarte med ugyldig organisasjonsdata.");
+      }
+
+      return payload as PortalOrganizationPayload;
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof HttpError) || error.status !== 404) {
+        throw error;
+      }
+    }
   }
 
-  return payload as PortalOrganizationPayload;
+  if (lastError instanceof HttpError) {
+    throw lastError;
+  }
+
+  throw new Error("Portalen svarte med ugyldig organisasjonsdata.");
 }
 
 async function fetchMakeplansResource(resourceId: string): Promise<MakeplansResourceEnvelope> {

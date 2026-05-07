@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Ugyldig organisasjonsnummer." }, { status: 400 });
     }
 
-    const advisor = await resolveAdvisorByOrgNr(normalizedOrgNr);
+    const advisor = await resolveAdvisorByOrgNr(orgNr);
     return NextResponse.json({ advisor });
   } catch (error: unknown) {
     console.error("Advisor API error:", error);
