@@ -47,7 +47,7 @@ export function ClientStep() {
   }, [updateClient, state.client.name]);
 
   useEffect(() => {
-    const cleanOrgNr = state.client.orgNr.replace(/\s/g, "");
+    const cleanOrgNr = state.client.orgNr.replace(/\D/g, "");
     if (cleanOrgNr.length === 9 && cleanOrgNr !== lastFetchedOrgNr.current) {
       fetchClientData(cleanOrgNr);
     }
