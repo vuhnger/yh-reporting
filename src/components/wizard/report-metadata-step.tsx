@@ -36,8 +36,6 @@ export function SharedMetadataStep() {
   const weatherInFlightKeyRef = useRef<string | null>(null);
   const completedWeatherRequestsRef = useRef<Set<string>>(new Set());
   const weatherRequestContextRef = useRef<string>("");
-  const advisorInFlightOrgNrRef = useRef<string | null>(null);
-  const advisorResolvedOrgNrRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (state.sharedMetadata.reportDate) return;
@@ -63,25 +61,20 @@ export function SharedMetadataStep() {
     const orgNr = state.client.orgNr.replace(/\D/g, "");
 
     if (orgNr.length !== 9) {
-      advisorInFlightOrgNrRef.current = null;
-      advisorResolvedOrgNrRef.current = null;
       setAdvisorLoading(false);
       setAdvisorError(null);
       return;
     }
 
-    if (advisorResolvedOrgNrRef.current === orgNr || advisorInFlightOrgNrRef.current === orgNr) {
-      return;
-    }
-
     let cancelled = false;
-    advisorInFlightOrgNrRef.current = orgNr;
     setAdvisorLoading(true);
     setAdvisorError(null);
 
     const run = async () => {
       try {
-        const response = await fetch(`/api/advisor?orgNr=${encodeURIComponent(orgNr)}`);
+        const response = await fetch(`/api/advisor?orgNr=${encodeURIComponent(orgNr)}`, {
+          cache: "no-store",
+        });
         const payload = await response.json();
 
         if (!response.ok) {
@@ -92,20 +85,15 @@ export function SharedMetadataStep() {
           if (typeof payload?.advisor?.advisorName === "string" && payload.advisor.advisorName.trim()) {
             updateSharedMetadata({ advisor: payload.advisor.advisorName });
           }
-          advisorResolvedOrgNrRef.current = orgNr;
           setAdvisorError(null);
         }
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          advisorResolvedOrgNrRef.current = null;
           setAdvisorError(error instanceof Error ? error.message : "Kunne ikke hente rådgiver.");
         }
       } finally {
         if (!cancelled) {
-          if (advisorInFlightOrgNrRef.current === orgNr) {
-            advisorInFlightOrgNrRef.current = null;
-          }
           setAdvisorLoading(false);
         }
       }
