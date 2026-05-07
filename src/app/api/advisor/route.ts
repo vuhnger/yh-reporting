@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   } catch (error: unknown) {
     console.error("Advisor API error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Kunne ikke hente rådgiver." },
+      { error: "Kunne ikke hente rådgiver." },
       { status: 500 }
     );
   }

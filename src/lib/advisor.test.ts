@@ -19,6 +19,21 @@ test("extractAdvisorId prefers users with USER role", () => {
   });
 });
 
+test("extractAdvisorId does not treat partial role matches as USER roles", () => {
+  const advisor = extractAdvisorId({
+    users: [
+      { role: "ADMIN_USER", advisorMakePlansID: 11 },
+      { role: ["USER"], advisorMakePlansID: 22 },
+    ],
+  });
+
+  assert.deepEqual(advisor, {
+    advisorId: "22",
+    advisorName: "",
+    source: "users.user-role",
+  });
+});
+
 test("extractAdvisorId falls back through all configured portal fields", () => {
   assert.deepEqual(extractAdvisorId({ users: [{ role: "ADMIN", advisorMakePlansID: "44" }] }), {
     advisorId: "44",

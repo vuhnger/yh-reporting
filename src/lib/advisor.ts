@@ -34,6 +34,9 @@ class HttpError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 10_000;
+const USER_ROLE_ALLOWLIST = new Set(["USER", "END_USER"]);
+
 export interface AdvisorResolution {
   advisorId: string;
   advisorName: string;
@@ -89,11 +92,13 @@ function toNonEmptyString(value: unknown): string | null {
 
 function hasUserRole(role: unknown): boolean {
   if (typeof role === "string") {
-    return role.toUpperCase().includes("USER");
+    return USER_ROLE_ALLOWLIST.has(role.trim().toUpperCase());
   }
 
   if (Array.isArray(role)) {
-    return role.some((entry) => typeof entry === "string" && entry.toUpperCase().includes("USER"));
+    return role.some(
+      (entry) => typeof entry === "string" && USER_ROLE_ALLOWLIST.has(entry.trim().toUpperCase())
+    );
   }
 
   return false;
@@ -160,20 +165,33 @@ export function extractAdvisorName(payload: MakeplansResourceEnvelope): string |
 }
 
 async function fetchJson(url: string, headers: Record<string, string>): Promise<unknown> {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      ...headers,
-    },
-    cache: "no-store",
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new HttpError(response.status, body || `Request failed with status ${response.status}`);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        ...headers,
+      },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new HttpError(response.status, body || `Request failed with status ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return response.json();
 }
 
 async function fetchPortalOrganization(orgNr: string): Promise<PortalOrganizationPayload> {
@@ -252,7 +270,8 @@ export async function resolveAdvisorByOrgNr(orgNr: string): Promise<AdvisorResol
   const makeplansPayload = await fetchMakeplansResource(advisor.advisorId);
   const advisorName = extractAdvisorName(makeplansPayload);
   if (!advisorName) {
-    throw new Error(`Fant ikke navn for MakePlans-ressurs ${advisor.advisorId}.`);
+    console.error("Missing MakePlans advisor name", { advisorId: advisor.advisorId });
+    throw new Error("Fant ikke navn for MakePlans-ressurs.");
   }
 
   return {

@@ -64,6 +64,7 @@ export function SharedMetadataStep() {
     if (normalizedOrgNr.length !== 9) {
       setAdvisorLoading(false);
       setAdvisorError(null);
+      updateSharedMetadata({ advisor: "" });
       return;
     }
 
