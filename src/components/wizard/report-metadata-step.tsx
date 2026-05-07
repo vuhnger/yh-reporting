@@ -87,13 +87,14 @@ export function SharedMetadataStep() {
         }
 
         if (!cancelled) {
-          updateSharedMetadata({ advisor: payload?.advisor?.advisorName || "" });
+          if (typeof payload?.advisor?.advisorName === "string" && payload.advisor.advisorName.trim()) {
+            updateSharedMetadata({ advisor: payload.advisor.advisorName });
+          }
           setAdvisorError(null);
         }
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          updateSharedMetadata({ advisor: "" });
           setAdvisorError(error instanceof Error ? error.message : "Kunne ikke hente rådgiver.");
         }
       } finally {
