@@ -58,3 +58,15 @@ test("extractAdvisorName reads MakePlans resource title", () => {
   assert.equal(extractAdvisorName({ title: "Ola Nordmann" }), "Ola Nordmann");
   assert.equal(extractAdvisorName({ resource: {} }), null);
 });
+
+test("extractAdvisorId returns null when portal payload has no advisor fields", () => {
+  assert.equal(
+    extractAdvisorId({
+      users: [],
+      makeplanBookingsPersonIds: [],
+      divisions: [{ divisionType: "MOTHER_COMPANY", advisorMakePlansID: null }],
+      advisorId: null,
+    }),
+    null
+  );
+});

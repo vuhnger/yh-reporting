@@ -25,6 +25,15 @@ interface MakeplansResourceEnvelope {
   title?: unknown;
 }
 
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export interface AdvisorResolution {
   advisorId: string;
   advisorName: string;
@@ -147,7 +156,7 @@ async function fetchJson(url: string, headers: Record<string, string>): Promise<
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(body || `Request failed with status ${response.status}`);
+    throw new HttpError(response.status, body || `Request failed with status ${response.status}`);
   }
 
   return response.json();
@@ -194,7 +203,16 @@ export async function resolveAdvisorByOrgNr(orgNr: string): Promise<AdvisorResol
     return null;
   }
 
-  const portalPayload = await fetchPortalOrganization(normalizedOrgNr);
+  let portalPayload: PortalOrganizationPayload;
+  try {
+    portalPayload = await fetchPortalOrganization(normalizedOrgNr);
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
   const advisor = extractAdvisorId(portalPayload);
   if (!advisor) {
     return null;
