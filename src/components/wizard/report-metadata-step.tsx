@@ -30,6 +30,8 @@ export function SharedMetadataStep() {
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
   const [addressDropdownOpen, setAddressDropdownOpen] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
+  const [advisorError, setAdvisorError] = useState<string | null>(null);
   const [addressQuery, setAddressQuery] = useState(() => weatherAddress || state.client.address || "");
   const weatherInFlightKeyRef = useRef<string | null>(null);
   const completedWeatherRequestsRef = useRef<Set<string>>(new Set());
@@ -54,6 +56,57 @@ export function SharedMetadataStep() {
 
     updateSharedMetadata({ author: consultantName });
   }, [session?.user?.email, session?.user?.name, state.sharedMetadata.author, updateSharedMetadata]);
+
+  useEffect(() => {
+    const orgNr = state.client.orgNr.trim();
+    const normalizedOrgNr = orgNr.replace(/\D/g, "");
+
+    if (normalizedOrgNr.length !== 9) {
+      setAdvisorLoading(false);
+      setAdvisorError(null);
+      updateSharedMetadata({ advisor: "" });
+      return;
+    }
+
+    let cancelled = false;
+    setAdvisorLoading(true);
+    setAdvisorError(null);
+
+    const run = async () => {
+      try {
+        const response = await fetch(`/api/advisor?orgNr=${encodeURIComponent(orgNr)}`, {
+          cache: "no-store",
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error || "Kunne ikke hente rådgiver.");
+        }
+
+        if (!cancelled) {
+          if (typeof payload?.advisor?.advisorName === "string" && payload.advisor.advisorName.trim()) {
+            updateSharedMetadata({ advisor: payload.advisor.advisorName });
+          }
+          setAdvisorError(null);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setAdvisorError(error instanceof Error ? error.message : "Kunne ikke hente rådgiver.");
+        }
+      } finally {
+        if (!cancelled) {
+          setAdvisorLoading(false);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [state.client.orgNr, updateSharedMetadata]);
 
   useEffect(() => {
     if (state.reportType !== "indoor-climate") return;
@@ -340,6 +393,12 @@ export function SharedMetadataStep() {
                 onChange={(e) => updateSharedMetadata({ advisor: e.target.value })}
                 placeholder="F.eks. Ida Lund"
               />
+              {advisorLoading && (
+                <p className="text-xs text-muted-foreground">Henter rådgiver fra bedriftsportalen...</p>
+              )}
+              {advisorError && (
+                <p className="text-xs text-destructive">{advisorError}</p>
+              )}
             </div>
 
             {state.reportType === "indoor-climate" && indoor && (
