@@ -36,7 +36,8 @@ export function SharedMetadataStep() {
   const weatherInFlightKeyRef = useRef<string | null>(null);
   const completedWeatherRequestsRef = useRef<Set<string>>(new Set());
   const weatherRequestContextRef = useRef<string>("");
-  const advisorRequestOrgNrRef = useRef<string | null>(null);
+  const advisorInFlightOrgNrRef = useRef<string | null>(null);
+  const advisorResolvedOrgNrRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (state.sharedMetadata.reportDate) return;
@@ -62,18 +63,19 @@ export function SharedMetadataStep() {
     const orgNr = state.client.orgNr.replace(/\D/g, "");
 
     if (orgNr.length !== 9) {
-      advisorRequestOrgNrRef.current = null;
+      advisorInFlightOrgNrRef.current = null;
+      advisorResolvedOrgNrRef.current = null;
       setAdvisorLoading(false);
       setAdvisorError(null);
       return;
     }
 
-    if (advisorRequestOrgNrRef.current === orgNr) {
+    if (advisorResolvedOrgNrRef.current === orgNr || advisorInFlightOrgNrRef.current === orgNr) {
       return;
     }
 
     let cancelled = false;
-    advisorRequestOrgNrRef.current = orgNr;
+    advisorInFlightOrgNrRef.current = orgNr;
     setAdvisorLoading(true);
     setAdvisorError(null);
 
@@ -90,15 +92,20 @@ export function SharedMetadataStep() {
           if (typeof payload?.advisor?.advisorName === "string" && payload.advisor.advisorName.trim()) {
             updateSharedMetadata({ advisor: payload.advisor.advisorName });
           }
+          advisorResolvedOrgNrRef.current = orgNr;
           setAdvisorError(null);
         }
       } catch (error) {
         console.error(error);
         if (!cancelled) {
+          advisorResolvedOrgNrRef.current = null;
           setAdvisorError(error instanceof Error ? error.message : "Kunne ikke hente rådgiver.");
         }
       } finally {
         if (!cancelled) {
+          if (advisorInFlightOrgNrRef.current === orgNr) {
+            advisorInFlightOrgNrRef.current = null;
+          }
           setAdvisorLoading(false);
         }
       }
