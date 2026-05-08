@@ -141,7 +141,14 @@ export function SharedMetadataStep() {
   }, [addressQuery, indoor, state.reportType, weatherAddress, weatherLat, weatherLon]);
 
   useEffect(() => {
-    if (state.reportType !== "indoor-climate" || !indoor || !weatherInclude) {
+    // Note: do NOT depend on `indoor` here. `getIndoorClimateData(state)` returns
+    // a fresh object reference on every metadata update (including the
+    // `weatherFetching: true` flag flipped at the start of this very fetch),
+    // which would re-run the effect, fire its cleanup, set `cancelled = true`,
+    // and skip the success block — leaving requestKey out of
+    // `completedWeatherRequestsRef`, so the next render fetches again. The
+    // primitive deps below already capture every input the request depends on.
+    if (state.reportType !== "indoor-climate" || !weatherInclude) {
       setWeatherError(null);
       return;
     }
@@ -241,7 +248,6 @@ export function SharedMetadataStep() {
       cancelled = true;
     };
   }, [
-    indoor,
     state.reportType,
     state.sharedMetadata.date,
     updateIndoorClimateMetadata,
