@@ -67,14 +67,16 @@ const indoorClimateSampleData: IndoorClimateReportData = {
     weatherAddress: "Dronning Eufemias gate 16, Oslo",
     weatherLat: 59.9069,
     weatherLon: 10.7606,
-    weatherDate: "2026-02-04",
+    weatherDateFrom: "2026-02-04",
+    weatherDateTo: "2026-02-04",
     weatherFetching: false,
     weatherFetchError: "",
     weatherHourFrom: 8,
     weatherHourTo: 20,
     weatherSnapshot: {
       address: "Dronning Eufemias gate 16, Oslo",
-      date: "2026-02-04",
+      dateFrom: "2026-02-04",
+      dateTo: "2026-02-04",
       sourceName: "Oslo - Blindern",
       sourceStrategy: "single-station",
       sourceSelections: [

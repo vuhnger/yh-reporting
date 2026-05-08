@@ -24,6 +24,25 @@ function getLastAutoTableY(doc: jsPDF): number | null {
   return (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? null;
 }
 
+function formatShortDate(isoDate: string): string {
+  // YYYY-MM-DD → DD.MM. (e.g. "2026-04-29" → "29.04.")
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  return `${match[3]}.${match[2]}.`;
+}
+
+function formatDateRange(dateFrom: string, dateTo: string): string {
+  if (dateFrom === dateTo) return formatLongDate(dateFrom);
+  return `${formatLongDate(dateFrom)} – ${formatLongDate(dateTo)}`;
+}
+
+function formatLongDate(isoDate: string): string {
+  // YYYY-MM-DD → DD.MM.YYYY
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
 function getImageMimeType(image: string): string | null {
   const match = /^data:([^;,]+)[;,]/i.exec(image);
   return match ? match[1].toLowerCase() : null;
@@ -477,8 +496,9 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   }
   const appendices: string[] = state.files.map((file, index) => `Vedlegg ${index + 1}: ${file.name}`);
   if (metadata.weatherInclude && metadata.weatherSnapshot) {
+    const range = formatDateRange(metadata.weatherSnapshot.dateFrom, metadata.weatherSnapshot.dateTo);
     appendices.push(
-      `Vedlegg ${appendices.length + 1}: Værstatistikk fra ${metadata.weatherSnapshot.sourceName} (${metadata.weatherSnapshot.date})`
+      `Vedlegg ${appendices.length + 1}: Værstatistikk fra ${metadata.weatherSnapshot.sourceName} (${range})`
     );
   }
   if (appendices.length === 0) {
@@ -492,9 +512,11 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
     const hourlyRows = metadata.weatherSnapshot.hourly.filter(
       (row) => row.hour >= weatherFrom && row.hour <= weatherTo
     );
+    const isMultiDay = metadata.weatherSnapshot.dateFrom !== metadata.weatherSnapshot.dateTo;
+    const range = formatDateRange(metadata.weatherSnapshot.dateFrom, metadata.weatherSnapshot.dateTo);
 
     renderParagraph(
-      `Værtabell for oppdragsdato ${metadata.weatherSnapshot.date} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
+      `Værtabell for måleperiode ${range} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
     );
 
     if (hourlyRows.length === 0) {
@@ -504,9 +526,18 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Tid", "Vær", "Temp C", "RH %", "Nedbør mm", "Snødybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        head: [[
+          isMultiDay ? "Dato/tid" : "Tid",
+          "Vær",
+          "Temp C",
+          "RH %",
+          "Nedbør mm",
+          "Snødybde cm",
+          "Vind m/s",
+          "Kraftigste vind m/s",
+        ]],
         body: hourlyRows.map((row) => [
-          row.timeLabel,
+          isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
           row.weatherDescription ?? "-",
           formatValue(row.temperatureC),
           formatValue(row.relativeHumidity),

@@ -5,6 +5,7 @@ import {
   buildObservationWarning,
   buildSourceSummaryByGroup,
   describeWeather,
+  enumerateDates,
   getObservationSnapshot,
   hasAnyObservationData,
   normalizeSourceId,
@@ -281,7 +282,8 @@ async function getNearestFrostSourceForElements(
 
 async function getObservationPayload(
   sourceIds: string[],
-  date: string,
+  dateFrom: string,
+  dateTo: string,
   elements: string[],
   frostAuth: string,
   options: {
@@ -298,7 +300,7 @@ async function getObservationPayload(
     return { payload: { data: [] }, warning: options.emptyWarning };
   }
 
-  const referenceTime = `${date}T00:00:00Z/${date}T23:59:59Z`;
+  const referenceTime = `${dateFrom}T00:00:00Z/${dateTo}T23:59:59Z`;
   const sourceChunks = chunkArray(sourceIds, options.chunkSize);
   const mergedData: unknown[] = [];
   const chunkWarnings: string[] = [];
@@ -370,11 +372,12 @@ async function getObservationPayload(
 
 async function getCombinedObservationPayload(
   sourceIds: string[],
-  date: string,
+  dateFrom: string,
+  dateTo: string,
   elements: string[],
   frostAuth: string
 ): Promise<ObservationPayloadResult> {
-  return getObservationPayload(sourceIds, date, elements, frostAuth, {
+  return getObservationPayload(sourceIds, dateFrom, dateTo, elements, frostAuth, {
     chunkSize: 3,
     emptyWarning: "Komplett værstasjon: Ingen stasjonskandidater.",
     fallbackWarning: "Komplett værstasjon: Kunne ikke hente data fra Frost.",
@@ -389,7 +392,7 @@ async function getCombinedObservationPayload(
 function pickNearestSourceWithData(
   candidates: FrostSourceCandidate[],
   payload: unknown,
-  date: string
+  dates: ReadonlySet<string>
 ): FrostSourceCandidate {
   if (candidates.length === 0) {
     throw new Error("Fant ingen kandidater for vaerstasjon.");
@@ -409,7 +412,7 @@ function pickNearestSourceWithData(
       if (typeof reference !== "string") continue;
 
       const slot = getOsloDateHour(reference);
-      if (!slot || slot.date !== date) continue;
+      if (!slot || !dates.has(slot.date)) continue;
 
       const observations = (entry as { observations?: unknown }).observations;
       if (!Array.isArray(observations)) continue;
@@ -499,16 +502,38 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const address = (url.searchParams.get("address") || "").trim();
-    const date = (url.searchParams.get("date") || "").trim();
+    const dateFromParam = (url.searchParams.get("dateFrom") || "").trim();
+    const dateToParam = (url.searchParams.get("dateTo") || "").trim();
+    // Backwards compat: if a single `date` is sent, treat as both ends.
+    const legacyDate = (url.searchParams.get("date") || "").trim();
+    const dateFrom = dateFromParam || legacyDate;
+    const dateTo = dateToParam || legacyDate || dateFromParam;
     const latParam = toNumber(url.searchParams.get("lat"));
     const lonParam = toNumber(url.searchParams.get("lon"));
 
     if (!address) {
       return NextResponse.json({ error: "Adresse mangler." }, { status: 400 });
     }
-    if (!date || !validateDateString(date)) {
+    if (!dateFrom || !validateDateString(dateFrom)) {
       return NextResponse.json({ error: "Ugyldig dato. Bruk YYYY-MM-DD." }, { status: 400 });
     }
+    if (!dateTo || !validateDateString(dateTo)) {
+      return NextResponse.json({ error: "Ugyldig dato. Bruk YYYY-MM-DD." }, { status: 400 });
+    }
+    if (dateTo < dateFrom) {
+      return NextResponse.json(
+        { error: "dateTo må være lik eller etter dateFrom." },
+        { status: 400 },
+      );
+    }
+    const dateList = enumerateDates(dateFrom, dateTo);
+    if (dateList.length === 0) {
+      return NextResponse.json(
+        { error: "Periode for værdata er ugyldig eller for lang (maks 31 dager)." },
+        { status: 400 },
+      );
+    }
+    const dates = new Set(dateList);
 
     const frostClientId = process.env.MET_FROST_CLIENT_ID;
     if (!frostClientId) {
@@ -547,7 +572,8 @@ export async function GET(request: Request) {
 
     const combinedPrimaryResult = await getCombinedObservationPayload(
       primaryStationCandidates.slice(0, 6).map((candidate) => candidate.sourceId),
-      date,
+      dateFrom,
+      dateTo,
       [
         ...WEATHER_GROUP_ELEMENTS.temperature,
         ...WEATHER_GROUP_ELEMENTS.humidity,
@@ -559,7 +585,7 @@ export async function GET(request: Request) {
     const completePrimarySource = pickBestCombinedSource(
       primaryStationCandidates,
       combinedPrimaryResult.payload,
-      date,
+      dates,
       PRIMARY_WEATHER_GROUPS
     );
 
@@ -571,7 +597,8 @@ export async function GET(request: Request) {
               temperatureCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.temperature)
                 .map((candidate) => candidate.sourceId),
-              date,
+              dateFrom,
+              dateTo,
               WEATHER_GROUP_ELEMENTS.temperature,
               frostAuth,
               {
@@ -591,7 +618,8 @@ export async function GET(request: Request) {
               humidityCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.humidity)
                 .map((candidate) => candidate.sourceId),
-              date,
+              dateFrom,
+              dateTo,
               WEATHER_GROUP_ELEMENTS.humidity,
               frostAuth,
               {
@@ -609,7 +637,8 @@ export async function GET(request: Request) {
           windCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
             .map((candidate) => candidate.sourceId),
-          date,
+          dateFrom,
+          dateTo,
           WEATHER_GROUP_ELEMENTS.wind,
           frostAuth,
           {
@@ -629,7 +658,8 @@ export async function GET(request: Request) {
               precipitationCandidates
                 .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.precipitation)
                 .map((candidate) => candidate.sourceId),
-              date,
+              dateFrom,
+              dateTo,
               WEATHER_GROUP_ELEMENTS.precipitation,
               frostAuth,
               {
@@ -647,7 +677,8 @@ export async function GET(request: Request) {
           snowCandidates
             .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
             .map((candidate) => candidate.sourceId),
-          date,
+          dateFrom,
+          dateTo,
           WEATHER_GROUP_ELEMENTS.snow,
           frostAuth,
           {
@@ -661,7 +692,8 @@ export async function GET(request: Request) {
             logContext: { group: "snow" },
           }
         ),
-        getClimateNormalTemperature(temperatureCandidates[0]?.sourceId ?? "", date, frostAuth),
+        // Climate normals are monthly: use the start month as a representative.
+        getClimateNormalTemperature(temperatureCandidates[0]?.sourceId ?? "", dateFrom, frostAuth),
       ]);
 
     const observationWarnings = [
@@ -672,11 +704,11 @@ export async function GET(request: Request) {
       snowResult.warning,
     ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
-    const temperatureSource = completePrimarySource ?? pickNearestSourceWithData(temperatureCandidates, temperatureResult.payload, date);
-    const humiditySource = completePrimarySource ?? pickNearestSourceWithData(humidityCandidates, humidityResult.payload, date);
-    const windSource = pickNearestSourceWithData(windCandidates, windResult.payload, date);
-    const precipitationSource = completePrimarySource ?? pickNearestSourceWithData(precipitationCandidates, precipitationResult.payload, date);
-    const snowSource = pickNearestSourceWithData(snowCandidates, snowResult.payload, date);
+    const temperatureSource = completePrimarySource ?? pickNearestSourceWithData(temperatureCandidates, temperatureResult.payload, dates);
+    const humiditySource = completePrimarySource ?? pickNearestSourceWithData(humidityCandidates, humidityResult.payload, dates);
+    const windSource = pickNearestSourceWithData(windCandidates, windResult.payload, dates);
+    const precipitationSource = completePrimarySource ?? pickNearestSourceWithData(precipitationCandidates, precipitationResult.payload, dates);
+    const snowSource = pickNearestSourceWithData(snowCandidates, snowResult.payload, dates);
 
     const selectedSources: Record<WeatherGroupKey, FrostSourceSelection> = {
       temperature: {
@@ -709,7 +741,7 @@ export async function GET(request: Request) {
         precipitation: { payload: precipitationResult.payload, source: precipitationSource },
         snow: { payload: snowResult.payload, source: snowSource },
       },
-      date
+      dates
     );
     if (!hasAnyObservationData(observation)) {
       throw new Error(
@@ -757,7 +789,8 @@ export async function GET(request: Request) {
 
     const snapshot: IndoorClimateWeatherSnapshot = {
       address,
-      date,
+      dateFrom,
+      dateTo,
       sourceName,
       sourceStrategy: completePrimarySource ? "single-station" : "group-fallback",
       sourceSelections: [

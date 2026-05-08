@@ -90,7 +90,11 @@ export function IndoorClimateReviewSection() {
           <Label className="text-base font-semibold text-primary">Vaersnapshot</Label>
           <p className="text-sm">
             {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription} -{" "}
-            {metadata.weatherSnapshot.address} ({metadata.weatherSnapshot.date})
+            {metadata.weatherSnapshot.address} (
+            {metadata.weatherSnapshot.dateFrom === metadata.weatherSnapshot.dateTo
+              ? metadata.weatherSnapshot.dateFrom
+              : `${metadata.weatherSnapshot.dateFrom} – ${metadata.weatherSnapshot.dateTo}`}
+            )
           </p>
           <p className="text-xs text-muted-foreground">
             Maks/min/gj.snitt temperatur: {formatValue(metadata.weatherSnapshot.maxTempC)} /{" "}

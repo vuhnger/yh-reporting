@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SensorCsvUpload } from "@/components/inneklima-csv/sensor-csv-upload";
 import {
   getIndoorClimateData,
   type IndoorClimateInstrument,
@@ -133,7 +134,14 @@ function SensorImageField({
 }
 
 export function IndoorClimateSensorStep() {
-  const { state, addSensor, updateSensor, removeSensor } = useWizard();
+  const {
+    state,
+    addSensor,
+    updateSensor,
+    removeSensor,
+    updateSharedMetadata,
+    updateIndoorClimateMetadata,
+  } = useWizard();
   const indoor = getIndoorClimateData(state);
 
   const [options, setOptions] = useState<InstrumentOption[]>([]);
@@ -446,6 +454,17 @@ export function IndoorClimateSensorStep() {
 
               <section className="space-y-3">
                 <Label>6. Tabell med malinger</Label>
+                <SensorCsvUpload
+                  onStatsParsed={(stats) => updateSensor(sensor.id, { stats })}
+                  onChartImageReady={(dataUrl) => updateSensor(sensor.id, { chartImage: dataUrl })}
+                  onPeriodParsed={(startDate, endDate) => {
+                    updateSharedMetadata({ date: startDate });
+                    updateIndoorClimateMetadata({
+                      weatherDateFrom: startDate,
+                      weatherDateTo: endDate,
+                    });
+                  }}
+                />
                 <div className="rounded-md border overflow-hidden">
                   <Table>
                     <TableHeader className="bg-slate-50">
