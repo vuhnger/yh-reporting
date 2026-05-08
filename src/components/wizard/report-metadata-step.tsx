@@ -25,6 +25,8 @@ export function SharedMetadataStep() {
   const weatherInclude = indoor?.metadata.weatherInclude ?? false;
   const weatherLat = indoor?.metadata.weatherLat ?? null;
   const weatherLon = indoor?.metadata.weatherLon ?? null;
+  const weatherDateFrom = indoor?.metadata.weatherDateFrom ?? "";
+  const weatherDateTo = indoor?.metadata.weatherDateTo ?? "";
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
@@ -203,8 +205,17 @@ export function SharedMetadataStep() {
       return;
     }
 
-    const executionDate = state.sharedMetadata.date;
-    const requestKey = `${address}|${executionDate}|${weatherLat}|${weatherLon}`;
+    // Fall back to sharedMetadata.date if the indoor metadata seed effect
+    // hasn't run yet (user is on this step before visiting indoor-climate
+    // metadata) so weather still fetches with a sane single-day default.
+    const fallbackDate = state.sharedMetadata.date;
+    const dateFrom = (weatherDateFrom.trim() || fallbackDate).trim();
+    const dateTo = (weatherDateTo.trim() || fallbackDate).trim();
+    if (!dateFrom || !dateTo) {
+      setWeatherError(null);
+      return;
+    }
+    const requestKey = `${address}|${dateFrom}|${dateTo}|${weatherLat}|${weatherLon}`;
     if (weatherRequestContextRef.current !== requestKey) {
       weatherRequestContextRef.current = requestKey;
       completedWeatherRequestsRef.current.clear();
@@ -230,7 +241,8 @@ export function SharedMetadataStep() {
       try {
         const params = new URLSearchParams({
           address,
-          date: executionDate,
+          dateFrom,
+          dateTo,
         });
         params.set("lat", String(weatherLat));
         params.set("lon", String(weatherLon));
@@ -253,7 +265,8 @@ export function SharedMetadataStep() {
           updateIndoorClimateMetadata({
             weatherFetching: false,
             weatherAddress: address,
-            weatherDate: executionDate,
+            weatherDateFrom: dateFrom,
+            weatherDateTo: dateTo,
             weatherSnapshot: payload,
             weatherFetchError: "",
           });
@@ -286,6 +299,8 @@ export function SharedMetadataStep() {
     state.sharedMetadata.date,
     updateIndoorClimateMetadata,
     weatherAddress,
+    weatherDateFrom,
+    weatherDateTo,
     weatherInclude,
     weatherLat,
     weatherLon,

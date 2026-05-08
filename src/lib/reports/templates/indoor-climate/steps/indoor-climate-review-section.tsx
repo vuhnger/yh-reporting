@@ -4,6 +4,7 @@ import { useWizard } from "@/components/wizard/wizard-context";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getIndoorClimateData } from "../schema";
+import { formatDateRange } from "../format-dates";
 
 function formatValue(value: number | null, suffix = ""): string {
   if (value === null) return "-";
@@ -90,7 +91,12 @@ export function IndoorClimateReviewSection() {
           <Label className="text-base font-semibold text-primary">Vaersnapshot</Label>
           <p className="text-sm">
             {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription} -{" "}
-            {metadata.weatherSnapshot.address} ({metadata.weatherSnapshot.date})
+            {metadata.weatherSnapshot.address} (
+            {formatDateRange(
+              metadata.weatherSnapshot.dateFrom,
+              metadata.weatherSnapshot.dateTo,
+            )}
+            )
           </p>
           <p className="text-xs text-muted-foreground">
             Maks/min/gj.snitt temperatur: {formatValue(metadata.weatherSnapshot.maxTempC)} /{" "}

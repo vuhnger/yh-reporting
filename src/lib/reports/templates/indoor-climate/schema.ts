@@ -43,7 +43,8 @@ export interface IndoorClimateSensor {
 
 export interface IndoorClimateWeatherSnapshot {
   address: string;
-  date: string;
+  dateFrom: string;
+  dateTo: string;
   sourceName: string;
   sourceStrategy?: "single-station" | "group-fallback";
   sourceSelections?: Array<{
@@ -94,7 +95,8 @@ export interface IndoorClimateMetadata {
   weatherAddress: string;
   weatherLat: number | null;
   weatherLon: number | null;
-  weatherDate: string;
+  weatherDateFrom: string;
+  weatherDateTo: string;
   weatherFetching: boolean;
   weatherFetchError: string;
   weatherHourFrom: number;
@@ -206,7 +208,10 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   weatherAddress: "",
   weatherLat: null,
   weatherLon: null,
-  weatherDate: new Date().toISOString().split("T")[0],
+  // Empty until set by CSV upload or the metadata-step seed effect. This lets
+  // downstream code distinguish "user/CSV picked a date" from "still default".
+  weatherDateFrom: "",
+  weatherDateTo: "",
   weatherFetching: false,
   weatherFetchError: "",
   weatherHourFrom: 8,

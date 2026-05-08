@@ -22,8 +22,10 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({
   label: `${String(hour).padStart(2, "0")}:00`,
 }));
 
-function formatHourLabel(hour: number): string {
-  return `${String(hour).padStart(2, "0")}:00`;
+function formatShortDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  return `${match[3]}.${match[2]}.`;
 }
 
 function splitLines(text: string): string[] {
@@ -39,10 +41,16 @@ export function IndoorClimateMetadataStep() {
   const metadata = indoor?.metadata;
   const referencesSeededRef = useRef(false);
 
+  // Seed the weather range from `sharedMetadata.date` when the user has not
+  // yet uploaded a CSV (which would set both dates explicitly via
+  // `updateIndoorClimateMetadata({ weatherDateFrom, weatherDateTo })`).
   useEffect(() => {
     if (!indoor) return;
-    if (indoor.metadata.weatherDate === state.sharedMetadata.date) return;
-    updateIndoorClimateMetadata({ weatherDate: state.sharedMetadata.date });
+    if (indoor.metadata.weatherDateFrom && indoor.metadata.weatherDateTo) return;
+    updateIndoorClimateMetadata({
+      weatherDateFrom: indoor.metadata.weatherDateFrom || state.sharedMetadata.date,
+      weatherDateTo: indoor.metadata.weatherDateTo || state.sharedMetadata.date,
+    });
   }, [indoor, state.sharedMetadata.date, updateIndoorClimateMetadata]);
 
   useEffect(() => {
@@ -58,34 +66,19 @@ export function IndoorClimateMetadataStep() {
   const recommendationsText = metadata.recommendations.join("\n");
   const weatherHourFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
   const weatherHourTo = Math.min(23, Math.max(weatherHourFrom, metadata.weatherHourTo));
-  const weatherSnapshotForDate =
-    metadata.weatherSnapshot?.date === state.sharedMetadata.date ? metadata.weatherSnapshot : null;
+  const weatherSnapshotForRange =
+    metadata.weatherSnapshot?.dateFrom === metadata.weatherDateFrom &&
+    metadata.weatherSnapshot?.dateTo === metadata.weatherDateTo
+      ? metadata.weatherSnapshot
+      : null;
+  const weatherIsMultiDay =
+    !!weatherSnapshotForRange &&
+    weatherSnapshotForRange.dateFrom !== weatherSnapshotForRange.dateTo;
   const weatherHourlyRows: IndoorClimateWeatherHour[] = (() => {
-    if (!weatherSnapshotForDate) return [];
-
-    const rowsByHour = new Map<number, IndoorClimateWeatherHour>();
-    for (const row of weatherSnapshotForDate.hourly) {
-      rowsByHour.set(row.hour, row);
-    }
-
-    const rows: IndoorClimateWeatherHour[] = [];
-    for (let hour = weatherHourFrom; hour <= weatherHourTo; hour += 1) {
-      const existing = rowsByHour.get(hour);
-          rows.push(
-            existing ?? {
-              date: weatherSnapshotForDate.date,
-              hour,
-              timeLabel: formatHourLabel(hour),
-              temperatureC: null,
-              relativeHumidity: null,
-              precipitationMm: null,
-              windMs: null,
-              maxWindMs: null,
-              snowDepthCm: null,
-            }
-      );
-    }
-    return rows;
+    if (!weatherSnapshotForRange) return [];
+    return weatherSnapshotForRange.hourly.filter(
+      (row) => row.hour >= weatherHourFrom && row.hour <= weatherHourTo,
+    );
   })();
 
   return (
@@ -280,7 +273,11 @@ export function IndoorClimateMetadataStep() {
           <div>
             <h3 className="text-lg font-semibold text-primary">Vær</h3>
             <p className="text-xs text-muted-foreground">
-              Hentes for oppdragsdato ({state.sharedMetadata.date}), ikke rapportdato.
+              Hentes for måleperioden{" "}
+              {metadata.weatherDateFrom === metadata.weatherDateTo
+                ? metadata.weatherDateFrom
+                : `${metadata.weatherDateFrom} – ${metadata.weatherDateTo}`}
+              . Datoene fylles automatisk fra opplastet CSV, men kan endres her.
             </p>
           </div>
           <div className="space-y-2">
@@ -309,6 +306,40 @@ export function IndoorClimateMetadataStep() {
                 <p className="text-xs text-muted-foreground">
                   Redigeres i steget &quot;Forsideinformasjon&quot;.
                 </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="weather-date-from">Måleperiode fra</Label>
+                  <Input
+                    id="weather-date-from"
+                    type="date"
+                    value={metadata.weatherDateFrom}
+                    max={metadata.weatherDateTo || undefined}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      const nextTo =
+                        metadata.weatherDateTo && metadata.weatherDateTo >= next
+                          ? metadata.weatherDateTo
+                          : next;
+                      updateIndoorClimateMetadata({
+                        weatherDateFrom: next,
+                        weatherDateTo: nextTo,
+                      });
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weather-date-to">Måleperiode til</Label>
+                  <Input
+                    id="weather-date-to"
+                    type="date"
+                    value={metadata.weatherDateTo}
+                    min={metadata.weatherDateFrom || undefined}
+                    onChange={(e) => {
+                      updateIndoorClimateMetadata({ weatherDateTo: e.target.value });
+                    }}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -394,33 +425,37 @@ export function IndoorClimateMetadataStep() {
                   </p>
                 ) : metadata.weatherFetchError ? (
                   <p className="text-sm text-destructive">{metadata.weatherFetchError}</p>
-                ) : !weatherSnapshotForDate ? (
+                ) : !weatherSnapshotForRange ? (
                   <p className="text-sm text-muted-foreground">
                     Velg adresse i &quot;Forsideinformasjon&quot; for å hente værdata.
                   </p>
                 ) : null}
               </div>
-              {weatherSnapshotForDate && (
+              {weatherSnapshotForRange && (
                 <div className="rounded-md border overflow-hidden">
                   <div className="px-3 py-2 bg-slate-50 border-b">
                     <p className="text-sm font-medium">
-                      {weatherSnapshotForDate.weatherEmoji} {weatherSnapshotForDate.weatherDescription} · {String(weatherHourFrom).padStart(2, "0")}:00–{String(weatherHourTo).padStart(2, "0")}:00
+                      {weatherSnapshotForRange.weatherEmoji} {weatherSnapshotForRange.weatherDescription} ·{" "}
+                      {weatherSnapshotForRange.dateFrom === weatherSnapshotForRange.dateTo
+                        ? weatherSnapshotForRange.dateFrom
+                        : `${weatherSnapshotForRange.dateFrom} – ${weatherSnapshotForRange.dateTo}`}{" "}
+                      · {String(weatherHourFrom).padStart(2, "0")}:00–{String(weatherHourTo).padStart(2, "0")}:00
                     </p>
-                    {weatherSnapshotForDate.sourceStrategy === "group-fallback" && Array.isArray(weatherSnapshotForDate.sourceSelections) && weatherSnapshotForDate.sourceSelections.length > 0 ? (
+                    {weatherSnapshotForRange.sourceStrategy === "group-fallback" && Array.isArray(weatherSnapshotForRange.sourceSelections) && weatherSnapshotForRange.sourceSelections.length > 0 ? (
                       <div className="mt-1 text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        {weatherSnapshotForDate.sourceSelections.map((selection) => (
+                        {weatherSnapshotForRange.sourceSelections.map((selection) => (
                           <p key={`${selection.parameter}-${selection.sourceId}`}>
                             <span className="text-muted-foreground/70">{selection.parameter}:</span> {selection.sourceName}
                           </p>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">{weatherSnapshotForDate.sourceName}</p>
+                      <p className="text-xs text-muted-foreground">{weatherSnapshotForRange.sourceName}</p>
                     )}
                   </div>
-                  {Array.isArray(weatherSnapshotForDate.warnings) && weatherSnapshotForDate.warnings.filter((w) => !w.startsWith("Ingen enkelt værstasjon")).length > 0 && (
+                  {Array.isArray(weatherSnapshotForRange.warnings) && weatherSnapshotForRange.warnings.filter((w) => !w.startsWith("Ingen enkelt værstasjon")).length > 0 && (
                     <div className="px-3 py-2 border-b bg-amber-50 text-amber-800 text-xs space-y-0.5">
-                      {weatherSnapshotForDate.warnings
+                      {weatherSnapshotForRange.warnings
                         .filter((w) => !w.startsWith("Ingen enkelt værstasjon"))
                         .map((warning, index) => (
                           <p key={`${warning}-${index}`}>⚠ {warning}</p>
@@ -430,7 +465,7 @@ export function IndoorClimateMetadataStep() {
                   <Table>
                     <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead>Tid</TableHead>
+                          <TableHead>{weatherIsMultiDay ? "Dato/tid" : "Tid"}</TableHead>
                           <TableHead>Vær</TableHead>
                           <TableHead className="text-right">Temp °C</TableHead>
                           <TableHead className="text-right">RH %</TableHead>
@@ -450,7 +485,11 @@ export function IndoorClimateMetadataStep() {
                       ) : (
                         weatherHourlyRows.map((row) => (
                             <TableRow key={`${row.date}-${row.hour}`}>
-                              <TableCell>{row.timeLabel}</TableCell>
+                              <TableCell>
+                                {weatherIsMultiDay
+                                  ? `${formatShortDate(row.date)} ${row.timeLabel}`
+                                  : row.timeLabel}
+                              </TableCell>
                               <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
                               <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
                               <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
@@ -464,12 +503,13 @@ export function IndoorClimateMetadataStep() {
                     </TableBody>
                   </Table>
                   <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
-                    Døgnoppsummering: maks {weatherSnapshotForDate.maxTempC ?? "-"} °C, min{" "}
-                    {weatherSnapshotForDate.minTempC ?? "-"} °C, gj.snitt{" "}
-                    {weatherSnapshotForDate.avgTempC ?? "-"} °C, luftfuktighet{" "}
-                    {weatherSnapshotForDate.avgRelativeHumidity ?? "-"} % RH, normal{" "}
-                    {weatherSnapshotForDate.normalTempC ?? "-"} °C, nedbør{" "}
-                    {weatherSnapshotForDate.precipitationMm ?? "-"} mm.
+                    {weatherIsMultiDay ? "Periodeoppsummering" : "Døgnoppsummering"}: maks{" "}
+                    {weatherSnapshotForRange.maxTempC ?? "-"} °C, min{" "}
+                    {weatherSnapshotForRange.minTempC ?? "-"} °C, gj.snitt{" "}
+                    {weatherSnapshotForRange.avgTempC ?? "-"} °C, luftfuktighet{" "}
+                    {weatherSnapshotForRange.avgRelativeHumidity ?? "-"} % RH, normal{" "}
+                    {weatherSnapshotForRange.normalTempC ?? "-"} °C, nedbør{" "}
+                    {weatherSnapshotForRange.precipitationMm ?? "-"} mm.
                   </div>
                 </div>
               )}

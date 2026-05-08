@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Node's test runner needs the explicit extension here.
-import { buildObservationWarning, buildSourceSummaryByGroup, getObservationSnapshot, hasAnyObservationData, pickBestCombinedSource, PRIMARY_WEATHER_GROUPS } from "./frost-utils.ts";
+import { buildObservationWarning, buildSourceSummaryByGroup, enumerateDates, getObservationSnapshot, hasAnyObservationData, pickBestCombinedSource, PRIMARY_WEATHER_GROUPS } from "./frost-utils.ts";
 
 test("pickBestCombinedSource prefers nearest candidate with all required groups", () => {
   const candidates = [
@@ -32,7 +32,7 @@ test("pickBestCombinedSource prefers nearest candidate with all required groups"
   };
 
   assert.deepEqual(
-    pickBestCombinedSource(candidates, payload, "2026-04-29", PRIMARY_WEATHER_GROUPS),
+    pickBestCombinedSource(candidates, payload, new Set(["2026-04-29"]), PRIMARY_WEATHER_GROUPS),
     candidates[1]
   );
 });
@@ -132,7 +132,7 @@ test("getObservationSnapshot calculates humidity and precipitation fields", () =
     },
   };
 
-  const snapshot = getObservationSnapshot(payloads, "2026-04-29");
+  const snapshot = getObservationSnapshot(payloads, new Set(["2026-04-29"]));
 
   assert.equal(snapshot.maxTempC, 14);
   assert.equal(snapshot.minTempC, 10);
@@ -146,6 +146,76 @@ test("getObservationSnapshot calculates humidity and precipitation fields", () =
   assert.equal(snapshot.hourly.length, 2);
   assert.equal(snapshot.hourly[0]?.relativeHumidity, 40);
   assert.equal(hasAnyObservationData(snapshot), true);
+});
+
+test("enumerateDates returns inclusive YYYY-MM-DD list", () => {
+  assert.deepEqual(enumerateDates("2026-04-29", "2026-05-04"), [
+    "2026-04-29",
+    "2026-04-30",
+    "2026-05-01",
+    "2026-05-02",
+    "2026-05-03",
+    "2026-05-04",
+  ]);
+  assert.deepEqual(enumerateDates("2026-04-29", "2026-04-29"), ["2026-04-29"]);
+  assert.deepEqual(enumerateDates("2026-05-04", "2026-04-29"), []);
+});
+
+test("enumerateDates returns [] for ranges longer than the 31-day cap", () => {
+  // 2026-01-01 → 2026-12-31 spans 365 days; should be rejected with [].
+  assert.deepEqual(enumerateDates("2026-01-01", "2026-12-31"), []);
+  // 32-day boundary: also rejected.
+  assert.deepEqual(enumerateDates("2026-01-01", "2026-02-01"), []);
+  // 31-day boundary: accepted (returns exactly 31 dates).
+  const ok = enumerateDates("2026-01-01", "2026-01-31");
+  assert.equal(ok.length, 31);
+  assert.equal(ok[0], "2026-01-01");
+  assert.equal(ok[30], "2026-01-31");
+});
+
+test("getObservationSnapshot aggregates across multiple days", () => {
+  const source = { sourceId: "SN1", sourceName: "Oslo - Blindern", normalizedSourceId: "SN1" };
+  const payload = {
+    data: [
+      {
+        sourceId: "SN1:0",
+        referenceTime: "2026-04-29T09:00:00Z",
+        observations: [{ elementId: "air_temperature", value: 10 }],
+      },
+      {
+        sourceId: "SN1:0",
+        referenceTime: "2026-04-30T09:00:00Z",
+        observations: [{ elementId: "air_temperature", value: 14 }],
+      },
+      {
+        sourceId: "SN1:0",
+        referenceTime: "2026-05-01T09:00:00Z",
+        observations: [{ elementId: "air_temperature", value: 18 }],
+      },
+    ],
+  };
+  const empty = { source, payload: { data: [] } };
+  const payloads = {
+    temperature: { source, payload },
+    humidity: empty,
+    wind: empty,
+    precipitation: empty,
+    snow: empty,
+  };
+
+  const snapshot = getObservationSnapshot(
+    payloads,
+    new Set(["2026-04-29", "2026-04-30", "2026-05-01"]),
+  );
+
+  assert.equal(snapshot.minTempC, 10);
+  assert.equal(snapshot.maxTempC, 18);
+  assert.equal(snapshot.avgTempC, 14);
+  assert.equal(snapshot.hourly.length, 3);
+  assert.deepEqual(
+    snapshot.hourly.map((row) => row.date),
+    ["2026-04-29", "2026-04-30", "2026-05-01"],
+  );
 });
 
 test("buildObservationWarning keeps status-specific messages stable", () => {

@@ -34,6 +34,29 @@ export const WEATHER_GROUP_LABELS: Record<WeatherGroupKey, string> = {
 
 export const PRIMARY_WEATHER_GROUPS: WeatherGroupKey[] = ["temperature", "humidity", "precipitation"];
 
+/**
+ * Enumerate every YYYY-MM-DD between dateFrom and dateTo (inclusive). Returns
+ * an empty array on invalid input, reversed range, or ranges longer than the
+ * 31-day safety cap — callers treat empty as "reject the request" and surface
+ * a 400 to the user rather than silently truncating.
+ */
+export function enumerateDates(dateFrom: string, dateTo: string): string[] {
+  const start = new Date(`${dateFrom}T00:00:00Z`);
+  const end = new Date(`${dateTo}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+  if (end < start) return [];
+  const dayMs = 24 * 60 * 60 * 1000;
+  const span = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+  if (span > 31) return [];
+  const out: string[] = [];
+  const cursor = new Date(start);
+  for (let i = 0; i < span; i += 1) {
+    out.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+
 function toNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -157,7 +180,7 @@ function extractHttpStatusCode(error: unknown): number | null {
 
 function collectObservationMetricsFromPayload(
   payload: unknown,
-  date: string,
+  dates: ReadonlySet<string>,
   accumulator: {
     temps: number[];
     humidity: number[];
@@ -181,7 +204,7 @@ function collectObservationMetricsFromPayload(
     const reference = (entry as { referenceTime?: unknown }).referenceTime;
     if (typeof reference !== "string") continue;
     const slot = getOsloDateHour(reference);
-    if (!slot || slot.date !== date) continue;
+    if (!slot || !dates.has(slot.date)) continue;
 
     const observations = (entry as { observations?: unknown }).observations;
     if (!Array.isArray(observations)) continue;
@@ -255,7 +278,7 @@ function collectObservationMetricsFromPayload(
 export function pickBestCombinedSource(
   candidates: FrostSourceCandidate[],
   payload: unknown,
-  date: string,
+  dates: ReadonlySet<string>,
   requiredGroups: WeatherGroupKey[]
 ): FrostSourceCandidate | null {
   if (candidates.length === 0) return null;
@@ -273,7 +296,7 @@ export function pickBestCombinedSource(
       const reference = (entry as { referenceTime?: unknown }).referenceTime;
       if (typeof reference !== "string") continue;
       const slot = getOsloDateHour(reference);
-      if (!slot || slot.date !== date) continue;
+      if (!slot || !dates.has(slot.date)) continue;
 
       const observations = (entry as { observations?: unknown }).observations;
       if (!Array.isArray(observations)) continue;
@@ -312,7 +335,7 @@ export function pickBestCombinedSource(
 
 export function getObservationSnapshot(
   groupPayloads: Record<WeatherGroupKey, { payload: unknown; source: FrostSourceCandidate }>,
-  date: string
+  dates: ReadonlySet<string>
 ): {
   maxTempC: number | null;
   minTempC: number | null;
@@ -337,14 +360,15 @@ export function getObservationSnapshot(
     buckets: new Map<string, HourBucket>(),
   };
 
-  collectObservationMetricsFromPayload(groupPayloads.temperature.payload, date, accumulator, new Set([groupPayloads.temperature.source.normalizedSourceId]));
-  collectObservationMetricsFromPayload(groupPayloads.humidity.payload, date, accumulator, new Set([groupPayloads.humidity.source.normalizedSourceId]));
-  collectObservationMetricsFromPayload(groupPayloads.wind.payload, date, accumulator, new Set([groupPayloads.wind.source.normalizedSourceId]));
-  collectObservationMetricsFromPayload(groupPayloads.precipitation.payload, date, accumulator, new Set([groupPayloads.precipitation.source.normalizedSourceId]));
-  collectObservationMetricsFromPayload(groupPayloads.snow.payload, date, accumulator, new Set([groupPayloads.snow.source.normalizedSourceId]));
+  collectObservationMetricsFromPayload(groupPayloads.temperature.payload, dates, accumulator, new Set([groupPayloads.temperature.source.normalizedSourceId]));
+  collectObservationMetricsFromPayload(groupPayloads.humidity.payload, dates, accumulator, new Set([groupPayloads.humidity.source.normalizedSourceId]));
+  collectObservationMetricsFromPayload(groupPayloads.wind.payload, dates, accumulator, new Set([groupPayloads.wind.source.normalizedSourceId]));
+  collectObservationMetricsFromPayload(groupPayloads.precipitation.payload, dates, accumulator, new Set([groupPayloads.precipitation.source.normalizedSourceId]));
+  collectObservationMetricsFromPayload(groupPayloads.snow.payload, dates, accumulator, new Set([groupPayloads.snow.source.normalizedSourceId]));
 
+  // Sort by date first, then hour, so multi-day reports render chronologically.
   const hourly = Array.from(accumulator.buckets.values())
-    .sort((a, b) => a.hour - b.hour)
+    .sort((a, b) => (a.date === b.date ? a.hour - b.hour : a.date < b.date ? -1 : 1))
     .map<IndoorClimateWeatherHour>((bucket) => {
       const temperatureC = average(bucket.temperatureValues);
       const relativeHumidity = average(bucket.humidityValues);

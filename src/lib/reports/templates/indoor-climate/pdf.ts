@@ -11,6 +11,7 @@ import {
   TEMPERATURE_RANGES,
   getIndoorClimateData,
 } from "./schema";
+import { formatDateRange, formatShortDate } from "./format-dates";
 
 const emojiImageCache = new Map<string, string | null>();
 const PDF_IMAGE_FORMAT_BY_MIME: Record<string, "PNG" | "JPEG" | "WEBP"> = {
@@ -477,8 +478,9 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   }
   const appendices: string[] = state.files.map((file, index) => `Vedlegg ${index + 1}: ${file.name}`);
   if (metadata.weatherInclude && metadata.weatherSnapshot) {
+    const range = formatDateRange(metadata.weatherSnapshot.dateFrom, metadata.weatherSnapshot.dateTo);
     appendices.push(
-      `Vedlegg ${appendices.length + 1}: Værstatistikk fra ${metadata.weatherSnapshot.sourceName} (${metadata.weatherSnapshot.date})`
+      `Vedlegg ${appendices.length + 1}: Værstatistikk fra ${metadata.weatherSnapshot.sourceName} (${range})`
     );
   }
   if (appendices.length === 0) {
@@ -492,9 +494,11 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
     const hourlyRows = metadata.weatherSnapshot.hourly.filter(
       (row) => row.hour >= weatherFrom && row.hour <= weatherTo
     );
+    const isMultiDay = metadata.weatherSnapshot.dateFrom !== metadata.weatherSnapshot.dateTo;
+    const range = formatDateRange(metadata.weatherSnapshot.dateFrom, metadata.weatherSnapshot.dateTo);
 
     renderParagraph(
-      `Værtabell for oppdragsdato ${metadata.weatherSnapshot.date} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
+      `Værtabell for måleperiode ${range} (${String(weatherFrom).padStart(2, "0")}:00-${String(weatherTo).padStart(2, "0")}:00).`
     );
 
     if (hourlyRows.length === 0) {
@@ -504,9 +508,18 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
       autoTable(doc, {
         startY: finalY + 2,
-        head: [["Tid", "Vær", "Temp C", "RH %", "Nedbør mm", "Snødybde cm", "Vind m/s", "Kraftigste vind m/s"]],
+        head: [[
+          isMultiDay ? "Dato/tid" : "Tid",
+          "Vær",
+          "Temp C",
+          "RH %",
+          "Nedbør mm",
+          "Snødybde cm",
+          "Vind m/s",
+          "Kraftigste vind m/s",
+        ]],
         body: hourlyRows.map((row) => [
-          row.timeLabel,
+          isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
           row.weatherDescription ?? "-",
           formatValue(row.temperatureC),
           formatValue(row.relativeHumidity),
