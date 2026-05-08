@@ -161,6 +161,18 @@ test("enumerateDates returns inclusive YYYY-MM-DD list", () => {
   assert.deepEqual(enumerateDates("2026-05-04", "2026-04-29"), []);
 });
 
+test("enumerateDates returns [] for ranges longer than the 31-day cap", () => {
+  // 2026-01-01 → 2026-12-31 spans 365 days; should be rejected with [].
+  assert.deepEqual(enumerateDates("2026-01-01", "2026-12-31"), []);
+  // 32-day boundary: also rejected.
+  assert.deepEqual(enumerateDates("2026-01-01", "2026-02-01"), []);
+  // 31-day boundary: accepted (returns exactly 31 dates).
+  const ok = enumerateDates("2026-01-01", "2026-01-31");
+  assert.equal(ok.length, 31);
+  assert.equal(ok[0], "2026-01-01");
+  assert.equal(ok[30], "2026-01-31");
+});
+
 test("getObservationSnapshot aggregates across multiple days", () => {
   const source = { sourceId: "SN1", sourceName: "Oslo - Blindern", normalizedSourceId: "SN1" };
   const payload = {

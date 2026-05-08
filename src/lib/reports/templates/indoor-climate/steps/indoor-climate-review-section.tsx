@@ -4,6 +4,7 @@ import { useWizard } from "@/components/wizard/wizard-context";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getIndoorClimateData } from "../schema";
+import { formatDateRange } from "../format-dates";
 
 function formatValue(value: number | null, suffix = ""): string {
   if (value === null) return "-";
@@ -91,9 +92,10 @@ export function IndoorClimateReviewSection() {
           <p className="text-sm">
             {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription} -{" "}
             {metadata.weatherSnapshot.address} (
-            {metadata.weatherSnapshot.dateFrom === metadata.weatherSnapshot.dateTo
-              ? metadata.weatherSnapshot.dateFrom
-              : `${metadata.weatherSnapshot.dateFrom} – ${metadata.weatherSnapshot.dateTo}`}
+            {formatDateRange(
+              metadata.weatherSnapshot.dateFrom,
+              metadata.weatherSnapshot.dateTo,
+            )}
             )
           </p>
           <p className="text-xs text-muted-foreground">

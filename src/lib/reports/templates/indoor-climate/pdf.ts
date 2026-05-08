@@ -11,6 +11,7 @@ import {
   TEMPERATURE_RANGES,
   getIndoorClimateData,
 } from "./schema";
+import { formatDateRange, formatShortDate } from "./format-dates";
 
 const emojiImageCache = new Map<string, string | null>();
 const PDF_IMAGE_FORMAT_BY_MIME: Record<string, "PNG" | "JPEG" | "WEBP"> = {
@@ -22,25 +23,6 @@ const PDF_IMAGE_FORMAT_BY_MIME: Record<string, "PNG" | "JPEG" | "WEBP"> = {
 
 function getLastAutoTableY(doc: jsPDF): number | null {
   return (doc as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? null;
-}
-
-function formatShortDate(isoDate: string): string {
-  // YYYY-MM-DD → DD.MM. (e.g. "2026-04-29" → "29.04.")
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) return isoDate;
-  return `${match[3]}.${match[2]}.`;
-}
-
-function formatDateRange(dateFrom: string, dateTo: string): string {
-  if (dateFrom === dateTo) return formatLongDate(dateFrom);
-  return `${formatLongDate(dateFrom)} – ${formatLongDate(dateTo)}`;
-}
-
-function formatLongDate(isoDate: string): string {
-  // YYYY-MM-DD → DD.MM.YYYY
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) return isoDate;
-  return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
 function getImageMimeType(image: string): string | null {

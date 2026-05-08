@@ -273,7 +273,7 @@ export function IndoorClimateMetadataStep() {
           <div>
             <h3 className="text-lg font-semibold text-primary">Vær</h3>
             <p className="text-xs text-muted-foreground">
-              Hentes for målepåperioden{" "}
+              Hentes for måleperioden{" "}
               {metadata.weatherDateFrom === metadata.weatherDateTo
                 ? metadata.weatherDateFrom
                 : `${metadata.weatherDateFrom} – ${metadata.weatherDateTo}`}

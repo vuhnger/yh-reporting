@@ -36,19 +36,22 @@ export const PRIMARY_WEATHER_GROUPS: WeatherGroupKey[] = ["temperature", "humidi
 
 /**
  * Enumerate every YYYY-MM-DD between dateFrom and dateTo (inclusive). Returns
- * a single-entry array if the dates match. Caps at 31 days as a safety guard
- * against runaway requests; longer ranges should be rejected upstream.
+ * an empty array on invalid input, reversed range, or ranges longer than the
+ * 31-day safety cap — callers treat empty as "reject the request" and surface
+ * a 400 to the user rather than silently truncating.
  */
 export function enumerateDates(dateFrom: string, dateTo: string): string[] {
   const start = new Date(`${dateFrom}T00:00:00Z`);
   const end = new Date(`${dateTo}T00:00:00Z`);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
   if (end < start) return [];
+  const dayMs = 24 * 60 * 60 * 1000;
+  const span = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+  if (span > 31) return [];
   const out: string[] = [];
   const cursor = new Date(start);
-  for (let i = 0; i < 31; i += 1) {
+  for (let i = 0; i < span; i += 1) {
     out.push(cursor.toISOString().slice(0, 10));
-    if (cursor.getTime() === end.getTime()) return out;
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;

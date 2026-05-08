@@ -152,8 +152,12 @@ export function SharedMetadataStep() {
       return;
     }
 
-    const dateFrom = weatherDateFrom.trim();
-    const dateTo = weatherDateTo.trim();
+    // Fall back to sharedMetadata.date if the indoor metadata seed effect
+    // hasn't run yet (user is on this step before visiting indoor-climate
+    // metadata) so weather still fetches with a sane single-day default.
+    const fallbackDate = state.sharedMetadata.date;
+    const dateFrom = (weatherDateFrom.trim() || fallbackDate).trim();
+    const dateTo = (weatherDateTo.trim() || fallbackDate).trim();
     if (!dateFrom || !dateTo) {
       setWeatherError(null);
       return;
@@ -239,6 +243,7 @@ export function SharedMetadataStep() {
   }, [
     indoor,
     state.reportType,
+    state.sharedMetadata.date,
     updateIndoorClimateMetadata,
     weatherAddress,
     weatherDateFrom,

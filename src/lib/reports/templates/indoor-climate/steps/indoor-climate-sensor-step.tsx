@@ -458,10 +458,20 @@ export function IndoorClimateSensorStep() {
                   onStatsParsed={(stats) => updateSensor(sensor.id, { stats })}
                   onChartImageReady={(dataUrl) => updateSensor(sensor.id, { chartImage: dataUrl })}
                   onPeriodParsed={(startDate, endDate) => {
-                    updateSharedMetadata({ date: startDate });
+                    // Merge into the existing global range so multi-sensor
+                    // uploads with slightly different periods produce a union
+                    // (earliest start, latest end). Empty strings are treated
+                    // as "unset" and replaced by the new values.
+                    const currentFrom = indoor?.metadata.weatherDateFrom ?? "";
+                    const currentTo = indoor?.metadata.weatherDateTo ?? "";
+                    const mergedFrom =
+                      !currentFrom || startDate < currentFrom ? startDate : currentFrom;
+                    const mergedTo =
+                      !currentTo || endDate > currentTo ? endDate : currentTo;
+                    updateSharedMetadata({ date: mergedFrom });
                     updateIndoorClimateMetadata({
-                      weatherDateFrom: startDate,
-                      weatherDateTo: endDate,
+                      weatherDateFrom: mergedFrom,
+                      weatherDateTo: mergedTo,
                     });
                   }}
                 />

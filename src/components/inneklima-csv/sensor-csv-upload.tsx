@@ -165,7 +165,11 @@ export function SensorCsvUpload({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFile(file);
+            if (file) {
+              void handleFile(file);
+            }
+            // Reset the input value so re-selecting the same file fires onChange again.
+            e.target.value = "";
           }}
         />
         <Button

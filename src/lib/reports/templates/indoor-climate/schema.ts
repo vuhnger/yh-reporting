@@ -208,8 +208,10 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   weatherAddress: "",
   weatherLat: null,
   weatherLon: null,
-  weatherDateFrom: new Date().toISOString().split("T")[0],
-  weatherDateTo: new Date().toISOString().split("T")[0],
+  // Empty until set by CSV upload or the metadata-step seed effect. This lets
+  // downstream code distinguish "user/CSV picked a date" from "still default".
+  weatherDateFrom: "",
+  weatherDateTo: "",
   weatherFetching: false,
   weatherFetchError: "",
   weatherHourFrom: 8,

@@ -166,8 +166,16 @@ export function InneklimaChart({ samples, onImageReady, height = 320 }: Inneklim
     if (sampleCount === 0) return;
     const chart = chartRef.current;
     if (!chart) return;
-    const dataUrl = chart.toBase64Image("image/png", 1.0);
-    onImageReadyRef.current?.(dataUrl);
+    try {
+      const dataUrl = chart.toBase64Image("image/png", 1.0);
+      onImageReadyRef.current?.(dataUrl);
+    } catch (error) {
+      // toBase64Image delegates to canvas.toDataURL which can throw SecurityError
+      // if the canvas is tainted. We render no cross-origin images, so this is
+      // defensive only — log and leave any previously-saved chartImage untouched
+      // rather than overwriting it with an empty value.
+      console.warn("Failed to capture inneklima chart as image", error);
+    }
   }, [sampleCount, firstTs, lastTs]);
 
   return (
