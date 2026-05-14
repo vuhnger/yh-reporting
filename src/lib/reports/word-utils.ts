@@ -19,11 +19,17 @@ import {
 
 type HeadingLevelValue = (typeof HeadingLevel)[keyof typeof HeadingLevel];
 type SupportedWordImageType = "jpg" | "png" | "gif" | "bmp";
+interface ParsedWordImage {
+  type: SupportedWordImageType;
+  data: Uint8Array;
+  width: number | null;
+  height: number | null;
+}
 
 const BRAND_TEAL = "005041";
 const BRAND_LIGHT_GRAY = "F0F0F0";
-const BORDER_GRAY = "D1D5DB";
-const SOFT_BORDER_GRAY = "E5E7EB";
+const BORDER_GRAY = "D2D2D2";
+const SOFT_BORDER_GRAY = "E5E5E5";
 const MUTED_TEXT = "4B5563";
 const STANDARD_FOOTER_TEXT =
   "Dr.Dropin BHT AS | Sørkedalsveien 8, 0369 Oslo | +47 22 12 02 92 | bedrift@drdropin.no | bedrift.drdropin.no";
@@ -250,23 +256,108 @@ function decodeBase64(base64: string): Uint8Array {
   return Uint8Array.from(Buffer.from(base64, "base64"));
 }
 
-function parseImageDataUrl(imageDataUrl: string): { type: SupportedWordImageType; data: Uint8Array } | null {
+function readJpegSize(data: Uint8Array): { width: number; height: number } | null {
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8) return null;
+
+  let offset = 2;
+  while (offset + 8 < data.length) {
+    if (data[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    const marker = data[offset + 1];
+    const segmentLength = (data[offset + 2] << 8) | data[offset + 3];
+    if (segmentLength < 2 || offset + 2 + segmentLength > data.length) return null;
+
+    const isStartOfFrame =
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf);
+
+    if (isStartOfFrame) {
+      const height = (data[offset + 5] << 8) | data[offset + 6];
+      const width = (data[offset + 7] << 8) | data[offset + 8];
+      return width > 0 && height > 0 ? { width, height } : null;
+    }
+
+    offset += 2 + segmentLength;
+  }
+
+  return null;
+}
+
+function readImageSize(type: SupportedWordImageType, data: Uint8Array): { width: number; height: number } | null {
+  if (type === "png") {
+    if (data.length < 24) return null;
+    const width = (data[16] << 24) | (data[17] << 16) | (data[18] << 8) | data[19];
+    const height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
+    return width > 0 && height > 0 ? { width, height } : null;
+  }
+
+  if (type === "gif") {
+    if (data.length < 10) return null;
+    const width = data[6] | (data[7] << 8);
+    const height = data[8] | (data[9] << 8);
+    return width > 0 && height > 0 ? { width, height } : null;
+  }
+
+  if (type === "bmp") {
+    if (data.length < 26) return null;
+    const width = data[18] | (data[19] << 8) | (data[20] << 16) | (data[21] << 24);
+    const height = Math.abs(data[22] | (data[23] << 8) | (data[24] << 16) | (data[25] << 24));
+    return width > 0 && height > 0 ? { width, height } : null;
+  }
+
+  if (type === "jpg") {
+    return readJpegSize(data);
+  }
+
+  return null;
+}
+
+function fitImageWithinBox(
+  width: number | null,
+  height: number | null,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } {
+  if (!width || !height || width <= 0 || height <= 0) {
+    return { width: maxWidth, height: maxHeight };
+  }
+
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function parseImageDataUrl(imageDataUrl: string): ParsedWordImage | null {
   const match = /^data:(image\/(png|jpeg|jpg|gif|bmp));base64,(.+)$/i.exec(imageDataUrl.trim());
   if (!match) return null;
 
+  const type = (match[2].toLowerCase() === "jpeg" ? "jpg" : match[2].toLowerCase()) as SupportedWordImageType;
+  const data = decodeBase64(match[3]);
+  const size = readImageSize(type, data);
+
   return {
-    type: (match[2].toLowerCase() === "jpeg" ? "jpg" : match[2].toLowerCase()) as SupportedWordImageType,
-    data: decodeBase64(match[3]),
+    type,
+    data,
+    width: size?.width ?? null,
+    height: size?.height ?? null,
   };
 }
 
 export function createImageRunFromDataUrl(
   imageDataUrl: string,
-  width: number,
-  height: number
+  maxWidth: number,
+  maxHeight: number
 ): ImageRun | null {
   const image = parseImageDataUrl(imageDataUrl);
   if (!image) return null;
+  const { width, height } = fitImageWithinBox(image.width, image.height, maxWidth, maxHeight);
 
   return new ImageRun({
     type: image.type,
@@ -276,7 +367,7 @@ export function createImageRunFromDataUrl(
 }
 
 export function createBrandedCover(title: string, logoDataUrl: string | null): Table {
-  const logoRun = logoDataUrl ? createImageRunFromDataUrl(logoDataUrl, 150, 36) : null;
+  const logoRun = logoDataUrl ? createImageRunFromDataUrl(logoDataUrl, 42, 36) : null;
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -292,7 +383,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
       new TableRow({
         children: [
           new TableCell({
-            width: { size: 78, type: WidthType.PERCENTAGE },
+            width: { size: 74, type: WidthType.PERCENTAGE },
             shading: { fill: BRAND_TEAL },
             verticalAlign: VerticalAlign.CENTER,
             margins: { top: 220, bottom: 220, left: 180, right: 120 },
@@ -317,7 +408,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
             ],
           }),
           new TableCell({
-            width: { size: 22, type: WidthType.PERCENTAGE },
+            width: { size: 26, type: WidthType.PERCENTAGE },
             shading: { fill: BRAND_TEAL },
             verticalAlign: VerticalAlign.CENTER,
             margins: { top: 220, bottom: 220, left: 120, right: 160 },
@@ -371,17 +462,20 @@ export function createImageParagraphs(imageDataUrl: string | null, caption?: str
   }
 
   const paragraphs = [
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 80, after: 80 },
-      children: [
-        new ImageRun({
-          type: image.type,
-          data: image.data,
-          transformation: { width: 480, height: 300 },
-        }),
-      ],
-    }),
+    (() => {
+      const { width, height } = fitImageWithinBox(image.width, image.height, 480, 300);
+      return new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 80, after: 80 },
+        children: [
+          new ImageRun({
+            type: image.type,
+            data: image.data,
+            transformation: { width, height },
+          }),
+        ],
+      });
+    })(),
   ];
 
   if (caption?.trim()) {
