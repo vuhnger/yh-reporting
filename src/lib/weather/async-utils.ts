@@ -1,6 +1,6 @@
 export function chunkArray<T>(items: T[], size: number): T[][] {
-  if (size <= 0) {
-    throw new RangeError("chunkArray requires a chunk size greater than 0");
+  if (!Number.isFinite(size) || !Number.isInteger(size) || size <= 0) {
+    throw new RangeError("chunkArray requires a finite positive integer chunk size");
   }
 
   const chunks: T[][] = [];

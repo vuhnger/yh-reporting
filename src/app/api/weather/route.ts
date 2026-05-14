@@ -494,11 +494,29 @@ export async function GET(request: Request) {
   const markTiming = (label: string) => {
     timingMarks[label] = Date.now() - startedAtMs;
   };
+  const logTimingSummary = (outcome: "success" | "early-exit" | "error", extra: Record<string, unknown> = {}) => {
+    console.info("Weather API timing", {
+      outcome,
+      totalMs: Date.now() - startedAtMs,
+      stagesMs: timingMarks,
+      ...extra,
+    });
+  };
+  const respondWithLoggedTiming = (
+    body: { error: string },
+    init: { status: number },
+    finalLabel: string,
+    extra: Record<string, unknown> = {}
+  ) => {
+    markTiming(finalLabel);
+    logTimingSummary("early-exit", { status: init.status, ...extra });
+    return NextResponse.json(body, init);
+  };
 
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return respondWithLoggedTiming({ error: "Unauthorized" }, { status: 401 }, "early-exit-401");
     }
 
     const url = new URL(request.url);
@@ -513,32 +531,55 @@ export async function GET(request: Request) {
     const lonParam = toNumber(url.searchParams.get("lon"));
 
     if (!address) {
-      return NextResponse.json({ error: "Adresse mangler." }, { status: 400 });
+      return respondWithLoggedTiming(
+        { error: "Adresse mangler." },
+        { status: 400 },
+        "early-exit-validation-400",
+        { reason: "missing-address" }
+      );
     }
     if (!dateFrom || !validateDateString(dateFrom)) {
-      return NextResponse.json({ error: "Ugyldig dato. Bruk YYYY-MM-DD." }, { status: 400 });
+      return respondWithLoggedTiming(
+        { error: "Ugyldig dato. Bruk YYYY-MM-DD." },
+        { status: 400 },
+        "early-exit-validation-400",
+        { reason: "invalid-date-from" }
+      );
     }
     if (!dateTo || !validateDateString(dateTo)) {
-      return NextResponse.json({ error: "Ugyldig dato. Bruk YYYY-MM-DD." }, { status: 400 });
+      return respondWithLoggedTiming(
+        { error: "Ugyldig dato. Bruk YYYY-MM-DD." },
+        { status: 400 },
+        "early-exit-validation-400",
+        { reason: "invalid-date-to" }
+      );
     }
     if (dateTo < dateFrom) {
-      return NextResponse.json(
+      return respondWithLoggedTiming(
         { error: "dateTo må være lik eller etter dateFrom." },
         { status: 400 },
+        "early-exit-validation-400",
+        { reason: "reversed-date-range" }
       );
     }
     const dateList = enumerateDates(dateFrom, dateTo);
     if (dateList.length === 0) {
-      return NextResponse.json(
+      return respondWithLoggedTiming(
         { error: "Periode for værdata er ugyldig eller for lang (maks 31 dager)." },
         { status: 400 },
+        "early-exit-validation-400",
+        { reason: "invalid-or-too-long-range" }
       );
     }
     const dates = new Set(dateList);
 
     const frostClientId = process.env.MET_FROST_CLIENT_ID;
     if (!frostClientId) {
-      return NextResponse.json({ error: "Missing configuration" }, { status: 500 });
+      return respondWithLoggedTiming(
+        { error: "Missing configuration" },
+        { status: 500 },
+        "early-exit-config-500"
+      );
     }
 
     const frostAuth = buildFrostAuth(frostClientId);
@@ -834,9 +875,7 @@ export async function GET(request: Request) {
       })),
     };
 
-    console.info("Weather API timing", {
-      totalMs: Date.now() - startedAtMs,
-      stagesMs: timingMarks,
+    logTimingSummary("success", {
       dateCount: dates.size,
       usedProvidedCoordinates: latParam !== null && lonParam !== null && isValidCoordinate(latParam, lonParam),
       completePrimarySource: Boolean(completePrimarySource),
@@ -852,6 +891,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(snapshot);
   } catch (error: unknown) {
+    logTimingSummary("error");
     if (error instanceof Error) {
       console.error("Weather API error:", {
         durationMs: Date.now() - startedAtMs,

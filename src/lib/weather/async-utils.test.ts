@@ -10,7 +10,22 @@ async function delay(ms: number): Promise<void> {
 test("chunkArray splits items by chunk size", () => {
   assert.deepEqual(chunkArray([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(chunkArray([1, 2], 10), [[1, 2]]);
-  assert.throws(() => chunkArray([1, 2], 0), /chunkArray requires a chunk size greater than 0/);
+  assert.throws(
+    () => chunkArray([1, 2], 0),
+    /chunkArray requires a finite positive integer chunk size/
+  );
+  assert.throws(
+    () => chunkArray([1, 2], -1),
+    /chunkArray requires a finite positive integer chunk size/
+  );
+  assert.throws(
+    () => chunkArray([1, 2], 1.5),
+    /chunkArray requires a finite positive integer chunk size/
+  );
+  assert.throws(
+    () => chunkArray([1, 2], Number.NaN),
+    /chunkArray requires a finite positive integer chunk size/
+  );
 });
 
 test("mapChunksInParallel runs chunks concurrently and preserves order", async () => {
