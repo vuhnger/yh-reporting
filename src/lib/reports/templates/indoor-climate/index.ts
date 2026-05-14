@@ -2,6 +2,7 @@ import type { ReportTemplate } from "../../template-types";
 import type { IndoorClimateReportData } from "./schema";
 import { defaultIndoorClimateData, getIndoorClimateData } from "./schema";
 import { generateIndoorClimateReportPDF, generateIndoorClimateReportPDFBlob } from "./pdf";
+import { generateIndoorClimateReportWord, generateIndoorClimateReportWordBlob } from "./word";
 import {
   indoorClimateSystemInstruction,
   indoorClimateAIFields,
@@ -27,6 +28,8 @@ export const indoorClimateTemplate: ReportTemplate<IndoorClimateReportData> = {
 
   generatePDF: generateIndoorClimateReportPDF,
   generatePDFBlob: generateIndoorClimateReportPDFBlob,
+  generateWord: generateIndoorClimateReportWord,
+  generateWordBlob: generateIndoorClimateReportWordBlob,
 
   isReadyForExport: (state) => {
     const indoor = getIndoorClimateData(state);

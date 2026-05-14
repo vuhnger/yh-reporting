@@ -2,6 +2,7 @@ import type { ReportTemplate } from "../../template-types";
 import type { NoiseReportData } from "./schema";
 import { defaultNoiseData, getNoiseData } from "./schema";
 import { generateNoiseReportPDF, generateNoiseReportPDFBlob } from "./pdf";
+import { generateNoiseReportWord, generateNoiseReportWordBlob } from "./word";
 import { noiseSystemInstruction, noiseAIFields, buildNoiseAIContext } from "./ai";
 import { noiseSampleReport } from "./sample";
 import { NoiseMetadataStep } from "./steps/noise-metadata-step";
@@ -23,6 +24,8 @@ export const noiseTemplate: ReportTemplate<NoiseReportData> = {
 
   generatePDF: generateNoiseReportPDF,
   generatePDFBlob: generateNoiseReportPDFBlob,
+  generateWord: generateNoiseReportWord,
+  generateWordBlob: generateNoiseReportWordBlob,
 
   isReadyForExport: (state) => {
     const noise = getNoiseData(state);

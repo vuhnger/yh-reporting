@@ -127,7 +127,7 @@ function getEmojiImageDataUrl(emoji: string): string | null {
   }
 }
 
-function getDefaultSummary(state: ReportState): string {
+export function getDefaultSummary(state: ReportState): string {
   const indoor = getIndoorClimateData(state);
   if (!indoor) return "";
 
@@ -153,7 +153,7 @@ function getDefaultSummary(state: ReportState): string {
   return `${intro}\n${co2Summary}\n${pointer}`;
 }
 
-function buildFallbackRecommendations(state: ReportState): string[] {
+export function buildFallbackRecommendations(state: ReportState): string[] {
   const indoor = getIndoorClimateData(state);
   if (!indoor) return [];
 

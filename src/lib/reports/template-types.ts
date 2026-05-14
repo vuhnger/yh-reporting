@@ -98,6 +98,8 @@ export interface ReportTemplate<TData = unknown> {
 
   generatePDF: (state: ReportState) => void | Promise<void>;
   generatePDFBlob: (state: ReportState) => Blob | Promise<Blob>;
+  generateWord: (state: ReportState) => void | Promise<void>;
+  generateWordBlob: (state: ReportState) => Blob | Promise<Blob>;
   isReadyForExport: (state: ReportState) => boolean;
   exportValidationMessage?: string;
 

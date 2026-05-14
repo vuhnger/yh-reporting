@@ -26,6 +26,12 @@ export const lightTemplate: ReportTemplate<Record<string, never>> = {
   generatePDFBlob: () => {
     throw new Error("Light PDF generation not yet implemented");
   },
+  generateWord: () => {
+    throw new Error("Light Word generation not yet implemented");
+  },
+  generateWordBlob: () => {
+    throw new Error("Light Word generation not yet implemented");
+  },
   isReadyForExport: () => false,
   exportValidationMessage: "Belysningsrapporter er under utvikling.",
 

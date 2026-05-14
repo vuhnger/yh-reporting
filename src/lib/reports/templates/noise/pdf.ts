@@ -489,7 +489,7 @@ export async function generateNoiseReportPDF(state: ReportState): Promise<void> 
   doc.save(`Stoyrapport_${state.client.name.replace(/\s+/g, "_")}.pdf`);
 }
 
-function buildSummaryFromMeasurements(state: ReportState) {
+export function buildSummaryFromMeasurements(state: ReportState) {
   const noise = getNoiseData(state);
   if (!noise) return "";
   const { measurements, thresholds } = noise;
@@ -565,7 +565,7 @@ function buildSummaryFromMeasurements(state: ReportState) {
   return `${intro}\n${exceedanceText} ${rangeText} ${peakText}\n${recommendationText}`;
 }
 
-function buildRecommendations(
+export function buildRecommendations(
   measurements: { lex8h: number | ""; maxPeak: number | "" }[],
   thresholds: { lex8h: { red: number; orange: number; yellow: number }; peak: { red: number; yellow: number } }
 ) {
@@ -593,7 +593,7 @@ function buildRecommendations(
   return items;
 }
 
-function summarizeMeasurementComments(
+export function summarizeMeasurementComments(
   measurements: { comment: string }[]
 ) {
   const comments = measurements

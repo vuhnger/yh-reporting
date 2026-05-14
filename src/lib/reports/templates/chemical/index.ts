@@ -26,6 +26,12 @@ export const chemicalTemplate: ReportTemplate<Record<string, never>> = {
   generatePDFBlob: () => {
     throw new Error("Chemical PDF generation not yet implemented");
   },
+  generateWord: () => {
+    throw new Error("Chemical Word generation not yet implemented");
+  },
+  generateWordBlob: () => {
+    throw new Error("Chemical Word generation not yet implemented");
+  },
   isReadyForExport: () => false,
   exportValidationMessage: "Kjemisk helsefare-rapporter er under utvikling.",
 
