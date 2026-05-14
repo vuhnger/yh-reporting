@@ -2,16 +2,18 @@ import { HeadingLevel } from "docx";
 import type { ReportState } from "../../template-types";
 import {
   createBodyParagraph,
+  createBrandedCover,
   createBulletList,
   createHeading,
   createParagraphsFromText,
+  createSpacer,
   createTable,
-  createTitle,
   createWordDocument,
   downloadBlob,
   packWordDocumentToBlob,
   sanitizeFileNameSegment,
 } from "../../word-utils";
+import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
 import { buildRecommendations, buildSummaryFromMeasurements, summarizeMeasurementComments } from "./pdf";
 import { getMeasurementLabel, getNoiseData, groupMeasurementsByLocation } from "./schema";
 
@@ -54,7 +56,8 @@ export function createNoiseReportWordDoc(state: ReportState) {
   );
 
   const children = [
-    createTitle("Rapport etter kartlegging av støy"),
+    createBrandedCover("Rapport etter kartlegging av støy", LIGHT_LOGO_PNG_DATA_URL),
+    createSpacer(180),
     createTable(
       [
         ["Bedrift og avdeling", state.client.name || "-"],
@@ -69,6 +72,7 @@ export function createNoiseReportWordDoc(state: ReportState) {
       ],
       { firstColumnBold: true }
     ),
+    createSpacer(120),
     createHeading("Sammendrag"),
     ...createParagraphsFromText(summaryText),
     createHeading("Innledning"),
