@@ -87,6 +87,14 @@ function formatValue(value: number | null, suffix = ""): string {
   return `${value}${suffix}`;
 }
 
+function formatWeatherSourceLabel(selection: {
+  parameter: string;
+  sourceName: string;
+  sourceId: string;
+}): string {
+  return `${selection.parameter}: ${selection.sourceName} (${selection.sourceId})`;
+}
+
 function getEmojiImageDataUrl(emoji: string): string | null {
   if (!emoji.trim()) return null;
   if (emojiImageCache.has(emoji)) return emojiImageCache.get(emoji) ?? null;
@@ -175,6 +183,9 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   if (!indoor) throw new Error("Cannot generate indoor climate PDF without data.");
 
   const metadata = indoor.metadata;
+  const weatherSourceLabels = Array.isArray(metadata.weatherSnapshot?.sourceSelections)
+    ? metadata.weatherSnapshot.sourceSelections.map(formatWeatherSourceLabel)
+    : [];
   const doc = new jsPDF();
   await applyGraphikPdfFont(doc);
   const pageWidth = doc.internal.pageSize.width;
@@ -444,15 +455,6 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   if (metadata.weatherInclude) {
     renderParagraph("Værstatistikk for oppdragsdato er oppgitt i vedlegg.");
   }
-  if (metadata.weatherSnapshot?.sourceSelections?.length) {
-    renderParagraph("Værdata er hentet fra følgende stasjoner:");
-    renderBullets(
-      metadata.weatherSnapshot.sourceSelections.map(
-        (selection) => `${selection.parameter}: ${selection.sourceName}`
-      )
-    );
-  }
-
   renderHeading("Anbefalinger");
   renderParagraph("Følgende tiltak bør vurderes:");
   renderBullets(
@@ -556,6 +558,11 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
         },
       });
       finalY = (getLastAutoTableY(doc) ?? finalY) + 5;
+    }
+
+    if (weatherSourceLabels.length > 0) {
+      renderParagraph("Målepunktene i tabellen er hentet fra følgende stasjoner:");
+      renderBullets(weatherSourceLabels);
     }
   }
 

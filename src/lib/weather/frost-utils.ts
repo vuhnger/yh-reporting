@@ -260,7 +260,10 @@ function collectObservationMetricsFromPayload(
         accumulator.precipitationDaily.push(value);
         continue;
       }
-      if (elementId === "precipitation_amount") {
+      if (
+        elementId === "precipitation_amount" ||
+        elementId.includes("sum(precipitation_amount PT1H)")
+      ) {
         accumulator.precipitationRaw.push(value);
         const bucket = ensureBucket();
         bucket.precipitationSum += value;
