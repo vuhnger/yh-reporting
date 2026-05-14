@@ -89,7 +89,7 @@ export function createTitle(text: string): Paragraph {
       new TextRun({
         text,
         bold: true,
-        color: BRAND_TEAL,
+        color: "000000",
         size: 30,
       }),
     ],
@@ -114,7 +114,7 @@ export function createHeading(text: string, level: HeadingLevelValue = HeadingLe
       new TextRun({
         text,
         bold: true,
-        color: BRAND_TEAL,
+        color: "000000",
         size: sizeByLevel[level],
       }),
     ],
@@ -367,7 +367,7 @@ export function createImageRunFromDataUrl(
 }
 
 export function createBrandedCover(title: string, logoDataUrl: string | null): Table {
-  const logoRun = logoDataUrl ? createImageRunFromDataUrl(logoDataUrl, 42, 36) : null;
+  const logoRun = logoDataUrl ? createImageRunFromDataUrl(logoDataUrl, 128, 109) : null;
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -386,7 +386,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
             width: { size: 74, type: WidthType.PERCENTAGE },
             shading: { fill: BRAND_TEAL },
             verticalAlign: VerticalAlign.CENTER,
-            margins: { top: 220, bottom: 220, left: 180, right: 120 },
+            margins: { top: 100, bottom: 100, left: 160, right: 120 },
             borders: {
               top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
               bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -401,7 +401,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
                     text: title,
                     color: "FFFFFF",
                     bold: true,
-                    size: 34,
+                    size: 48,
                   }),
                 ],
               }),
@@ -411,7 +411,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
             width: { size: 26, type: WidthType.PERCENTAGE },
             shading: { fill: BRAND_TEAL },
             verticalAlign: VerticalAlign.CENTER,
-            margins: { top: 220, bottom: 220, left: 120, right: 160 },
+            margins: { top: 80, bottom: 80, left: 100, right: 140 },
             borders: {
               top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
               bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
