@@ -80,6 +80,17 @@ export function IndoorClimateMetadataStep() {
       (row) => row.hour >= weatherHourFrom && row.hour <= weatherHourTo,
     );
   })();
+  const weatherRowsByDate = weatherHourlyRows.reduce<
+    Array<{ date: string; rows: IndoorClimateWeatherHour[] }>
+  >((groups, row) => {
+    const existing = groups[groups.length - 1];
+    if (!existing || existing.date !== row.date) {
+      groups.push({ date: row.date, rows: [row] });
+      return groups;
+    }
+    existing.rows.push(row);
+    return groups;
+  }, []);
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -462,10 +473,58 @@ export function IndoorClimateMetadataStep() {
                         ))}
                     </div>
                   )}
-                  <Table>
-                    <TableHeader className="bg-slate-50">
+                  {weatherHourlyRows.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      Ingen timedata tilgjengelig for valgt tidsrom.
+                    </div>
+                  ) : weatherIsMultiDay ? (
+                    <div className="divide-y">
+                      {weatherRowsByDate.map((group, index) => (
+                        <details key={group.date} open={index === 0} className="group">
+                          <summary className="cursor-pointer list-none px-3 py-2 bg-slate-50 text-sm font-medium flex items-center justify-between gap-3">
+                            <span>
+                              {formatShortDate(group.date)} · {group.rows.length} målepunkter
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {group.rows[0]?.timeLabel}–{group.rows[group.rows.length - 1]?.timeLabel}
+                            </span>
+                          </summary>
+                          <Table>
+                            <TableHeader className="bg-slate-50/60">
+                              <TableRow>
+                                <TableHead>Tid</TableHead>
+                                <TableHead>Vær</TableHead>
+                                <TableHead className="text-right">Temp °C</TableHead>
+                                <TableHead className="text-right">RH %</TableHead>
+                                <TableHead className="text-right">Nedbør mm</TableHead>
+                                <TableHead className="text-right">Snødybde cm</TableHead>
+                                <TableHead className="text-right">Vind m/s</TableHead>
+                                <TableHead className="text-right">Kraftigste vind m/s</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {group.rows.map((row) => (
+                                <TableRow key={`${row.date}-${row.hour}`}>
+                                  <TableCell>{row.timeLabel}</TableCell>
+                                  <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
+                                  <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </details>
+                      ))}
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
                         <TableRow>
-                          <TableHead>{weatherIsMultiDay ? "Dato/tid" : "Tid"}</TableHead>
+                          <TableHead>Tid</TableHead>
                           <TableHead>Vær</TableHead>
                           <TableHead className="text-right">Temp °C</TableHead>
                           <TableHead className="text-right">RH %</TableHead>
@@ -473,35 +532,24 @@ export function IndoorClimateMetadataStep() {
                           <TableHead className="text-right">Snødybde cm</TableHead>
                           <TableHead className="text-right">Vind m/s</TableHead>
                           <TableHead className="text-right">Kraftigste vind m/s</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {weatherHourlyRows.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground">
-                            Ingen timedata tilgjengelig for valgt tidsrom.
-                          </TableCell>
                         </TableRow>
-                      ) : (
-                        weatherHourlyRows.map((row) => (
-                            <TableRow key={`${row.date}-${row.hour}`}>
-                              <TableCell>
-                                {weatherIsMultiDay
-                                  ? `${formatShortDate(row.date)} ${row.timeLabel}`
-                                  : row.timeLabel}
-                              </TableCell>
-                              <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
-                              <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
+                      </TableHeader>
+                      <TableBody>
+                        {weatherHourlyRows.map((row) => (
+                          <TableRow key={`${row.date}-${row.hour}`}>
+                            <TableCell>{row.timeLabel}</TableCell>
+                            <TableCell>{row.weatherEmoji ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                   <div className="px-3 py-2 border-t bg-slate-50 text-xs text-muted-foreground">
                     {weatherIsMultiDay ? "Periodeoppsummering" : "Døgnoppsummering"}: maks{" "}
                     {weatherSnapshotForRange.maxTempC ?? "-"} °C, min{" "}

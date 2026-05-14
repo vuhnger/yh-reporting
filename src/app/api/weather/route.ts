@@ -45,7 +45,7 @@ const WEATHER_GROUP_ELEMENTS: Record<WeatherGroupKey, string[]> = {
   temperature: ["air_temperature"],
   humidity: ["relative_humidity"],
   wind: ["wind_speed", "wind_speed_of_gust"],
-  precipitation: ["precipitation_amount"],
+  precipitation: ["sum(precipitation_amount PT1H)"],
   snow: ["surface_snow_thickness"],
 };
 
@@ -208,6 +208,48 @@ async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function fetchObservationRowsForSources(
+  sourceChunk: string[],
+  referenceTime: string,
+  elements: string[],
+  frostAuth: string
+): Promise<{ rows: unknown[]; error: unknown | null }> {
+  const url =
+    `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceChunk.join(","))}` +
+    `&referencetime=${encodeURIComponent(referenceTime)}` +
+    `&elements=${encodeURIComponent(elements.join(","))}`;
+
+  let lastError: unknown = null;
+  let payload: unknown = null;
+
+  for (let attempt = 1; attempt <= OBSERVATION_FETCH_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      payload = await fetchJson(url, { Authorization: frostAuth }, OBSERVATION_FETCH_TIMEOUT_MS);
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      const retryable = shouldRetryObservationFetch(error);
+      if (!retryable || attempt === OBSERVATION_FETCH_RETRY_ATTEMPTS) break;
+
+      const jitterMs = Math.floor(Math.random() * 120);
+      const delayMs = OBSERVATION_FETCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + jitterMs;
+      await delay(delayMs);
+    }
+  }
+
+  if (lastError) {
+    return { rows: [], error: lastError };
+  }
+
+  return {
+    rows: Array.isArray((payload as { data?: unknown }).data)
+      ? ((payload as { data: unknown[] }).data)
+      : [],
+    error: null,
+  };
+}
+
 async function geocodeNorwegianAddress(address: string): Promise<{ lat: number; lon: number }> {
   const url =
     `https://ws.geonorge.no/adresser/v1/sok?sok=${encodeURIComponent(address)}` +
@@ -297,49 +339,57 @@ async function getObservationPayload(
   const chunkWarnings: string[] = [];
   const chunkCount = Math.ceil(sourceIds.length / Math.max(options.chunkSize, 1));
   const chunkResults = await mapChunksInParallel(sourceIds, options.chunkSize, async (sourceChunk, chunkIndex) => {
-    const url =
-      `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceChunk.join(","))}` +
-      `&referencetime=${encodeURIComponent(referenceTime)}` +
-      `&elements=${encodeURIComponent(elements.join(","))}`;
+    const batchResult = await fetchObservationRowsForSources(
+      sourceChunk,
+      referenceTime,
+      elements,
+      frostAuth
+    );
 
-    let lastError: unknown = null;
-    let payload: unknown = null;
-
-    for (let attempt = 1; attempt <= OBSERVATION_FETCH_RETRY_ATTEMPTS; attempt += 1) {
-      try {
-        payload = await fetchJson(url, { Authorization: frostAuth }, OBSERVATION_FETCH_TIMEOUT_MS);
-        lastError = null;
-        break;
-      } catch (error) {
-        lastError = error;
-        const retryable = shouldRetryObservationFetch(error);
-        if (!retryable || attempt === OBSERVATION_FETCH_RETRY_ATTEMPTS) break;
-
-        const jitterMs = Math.floor(Math.random() * 120);
-        const delayMs = OBSERVATION_FETCH_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1) + jitterMs;
-        await delay(delayMs);
-      }
-    }
-
-    if (lastError) {
-      const warning = options.buildChunkWarning(lastError);
+    if (batchResult.error) {
       console.warn(options.logLabel, {
         chunk: chunkIndex + 1,
         chunkCount,
         sourceCount: sourceChunk.length,
         sources: sourceChunk,
         elements: elements.join(","),
-        warning,
-        error: lastError instanceof Error ? lastError.message : String(lastError),
+        warning: options.buildChunkWarning(batchResult.error),
+        error: batchResult.error instanceof Error ? batchResult.error.message : String(batchResult.error),
+        salvageMode: sourceChunk.length > 1 ? "per-source" : "none",
         ...options.logContext,
       });
-      return { rows: [] as unknown[], warning };
+
+      if (sourceChunk.length === 1) {
+        return {
+          rows: [] as unknown[],
+          warning: options.buildChunkWarning(batchResult.error),
+        };
+      }
+
+      const salvageResults = await mapChunksInParallel(sourceChunk, 1, async (singleSourceChunk) =>
+        fetchObservationRowsForSources(singleSourceChunk, referenceTime, elements, frostAuth)
+      );
+      const salvageRows = salvageResults.flatMap((result) => result.rows);
+      const salvageFailures = salvageResults.filter((result) => result.error);
+
+      if (salvageRows.length > 0) {
+        return {
+          rows: salvageRows,
+          warning:
+            salvageFailures.length > 0
+              ? options.partialWarning(salvageFailures.length, sourceChunk.length)
+              : null,
+        };
+      }
+
+      const fallbackError = salvageFailures[0]?.error ?? batchResult.error;
+      return {
+        rows: [] as unknown[],
+        warning: options.buildChunkWarning(fallbackError),
+      };
     }
 
-    const rows = Array.isArray((payload as { data?: unknown }).data)
-      ? ((payload as { data: unknown[] }).data)
-      : [];
-    return { rows, warning: null as string | null };
+    return { rows: batchResult.rows, warning: null as string | null };
   });
 
   for (const result of chunkResults) {
