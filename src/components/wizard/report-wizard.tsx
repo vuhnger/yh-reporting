@@ -9,13 +9,13 @@ import { Separator } from "@/components/ui/separator";
 import { useWizard } from "./wizard-context";
 import type { ReportType } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
-import { FileDown } from "lucide-react";
+import { FileDown, FileText } from "lucide-react";
 
 export function ReportWizardContent() {
   const { state } = useWizard();
   const [showReview, setShowReview] = useState(false);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<"pdf" | "word" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const template = state.reportType
     ? getTemplate(state.reportType as ReportType)
@@ -72,33 +72,58 @@ export function ReportWizardContent() {
                 "Du må fylle ut bedriftsinformasjon og velge rapporttype før du kan laste ned."}
             </p>
           )}
-          {pdfError && (
-            <p className="rounded-md border border-destructive/30 bg-white px-3 py-2 text-xs text-destructive shadow sm:max-w-sm">
-              {pdfError}
+          {exportError && (
+            <p role="alert" aria-live="assertive" className="rounded-md border border-destructive/30 bg-white px-3 py-2 text-xs text-destructive shadow sm:max-w-sm">
+              {exportError}
             </p>
           )}
-          <Button
-            type="button"
-            size="lg"
-            className="w-full gap-2 shadow-lg sm:w-auto"
-            disabled={!template || !isReadyForExport || isGeneratingPdf}
-            onClick={async () => {
-              if (!template) return;
-              setPdfError(null);
-              setIsGeneratingPdf(true);
-              try {
-                await template.generatePDF(state);
-              } catch (error) {
-                console.error("PDF generation failed:", error);
-                setPdfError("Kunne ikke laste ned PDF. Prøv igjen.");
-              } finally {
-                setIsGeneratingPdf(false);
-              }
-            }}
-          >
-            <FileDown className="h-4 w-4" />
-            {isGeneratingPdf ? "Genererer PDF..." : "Last ned PDF"}
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              size="lg"
+              className="w-full gap-2 shadow-lg sm:w-auto"
+              disabled={!template || !isReadyForExport || exportingFormat !== null}
+              onClick={async () => {
+                if (!template) return;
+                setExportError(null);
+                setExportingFormat("pdf");
+                try {
+                  await template.generatePDF(state);
+                } catch (error) {
+                  console.error("PDF generation failed:", error);
+                  setExportError("Kunne ikke laste ned PDF. Prøv igjen.");
+                } finally {
+                  setExportingFormat(null);
+                }
+              }}
+            >
+              <FileDown className="h-4 w-4" />
+              {exportingFormat === "pdf" ? "Genererer PDF..." : "Last ned PDF"}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              className="w-full gap-2 shadow-lg sm:w-auto"
+              disabled={!template || !isReadyForExport || exportingFormat !== null}
+              onClick={async () => {
+                if (!template) return;
+                setExportError(null);
+                setExportingFormat("word");
+                try {
+                  await template.generateWord(state);
+                } catch (error) {
+                  console.error("Word generation failed:", error);
+                  setExportError("Kunne ikke laste ned Word-dokument. Prøv igjen.");
+                } finally {
+                  setExportingFormat(null);
+                }
+              }}
+            >
+              <FileText className="h-4 w-4" />
+              {exportingFormat === "word" ? "Genererer Word..." : "Last ned Word"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
