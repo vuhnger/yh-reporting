@@ -151,7 +151,7 @@ export function createNoiseReportWordDoc(state: ReportState) {
       "bruke skjermer / innbygging / lydabsorbenter etc. for å dempe lydutbredelse gjennom luft",
       "redusere strukturlyd og vibrasjoner ved å avbalansere, dempe eller isolere lydkilder",
       "ha systematisk vedlikehold av arbeidsutstyr, arbeidsplassen og støydempingstiltak",
-      "tilrettelegge for begrensning av eksponeringstid og intensitet, og med stoyfrie hvileperioder",
+      "tilrettelegge for begrensning av eksponeringstid og intensitet, og med støyfrie hvileperioder",
       "sørge for helseundersøkelser.",
     ]),
     ...(noiseMeta.riskExtraText.trim() ? createParagraphsFromText(noiseMeta.riskExtraText.trim()) : []),
