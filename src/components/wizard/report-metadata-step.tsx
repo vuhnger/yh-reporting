@@ -21,6 +21,7 @@ export function SharedMetadataStep() {
   const { state, updateSharedMetadata, setReportType, updateClient, updateIndoorClimateMetadata } = useWizard();
   const { data: session } = useSession();
   const indoor = getIndoorClimateData(state);
+  const hasIndoor = Boolean(indoor);
   const weatherAddress = indoor?.metadata.weatherAddress ?? "";
   const weatherInclude = indoor?.metadata.weatherInclude ?? false;
   const weatherLat = indoor?.metadata.weatherLat ?? null;
@@ -194,7 +195,7 @@ export function SharedMetadataStep() {
   }, [addressQuery, indoor, state.reportType, weatherAddress, weatherLat, weatherLon]);
 
   useEffect(() => {
-    if (state.reportType !== "indoor-climate" || !indoor || !weatherInclude) {
+    if (state.reportType !== "indoor-climate" || !hasIndoor || !weatherInclude) {
       setWeatherError(null);
       return;
     }
@@ -279,10 +280,11 @@ export function SharedMetadataStep() {
           updateIndoorClimateMetadata({ weatherFetching: false, weatherFetchError: message });
         }
       } finally {
-        if (weatherInFlightKeyRef.current === requestKey) {
+        const completedOwnRequest = weatherInFlightKeyRef.current === requestKey;
+        if (completedOwnRequest) {
           weatherInFlightKeyRef.current = null;
         }
-        if (cancelled) {
+        if (cancelled && completedOwnRequest) {
           updateIndoorClimateMetadata({ weatherFetching: false });
         }
       }
@@ -294,7 +296,7 @@ export function SharedMetadataStep() {
       cancelled = true;
     };
   }, [
-    indoor,
+    hasIndoor,
     state.reportType,
     state.sharedMetadata.date,
     updateIndoorClimateMetadata,
