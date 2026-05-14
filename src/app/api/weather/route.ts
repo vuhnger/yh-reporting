@@ -17,6 +17,7 @@ import {
   type FrostSourceSelection,
   type WeatherGroupKey,
 } from "@/lib/weather/frost-utils";
+import { mapChunksInParallel } from "@/lib/weather/async-utils";
 import type {
   IndoorClimateWeatherSnapshot,
 } from "@/lib/reports/templates/indoor-climate/schema";
@@ -207,15 +208,6 @@ async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  if (size <= 0) return [items];
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
-}
-
 async function geocodeNorwegianAddress(address: string): Promise<{ lat: number; lon: number }> {
   const url =
     `https://ws.geonorge.no/adresser/v1/sok?sok=${encodeURIComponent(address)}` +
@@ -301,11 +293,10 @@ async function getObservationPayload(
   }
 
   const referenceTime = `${dateFrom}T00:00:00Z/${dateTo}T23:59:59Z`;
-  const sourceChunks = chunkArray(sourceIds, options.chunkSize);
   const mergedData: unknown[] = [];
   const chunkWarnings: string[] = [];
-
-  for (const [chunkIndex, sourceChunk] of sourceChunks.entries()) {
+  const chunkCount = Math.ceil(sourceIds.length / Math.max(options.chunkSize, 1));
+  const chunkResults = await mapChunksInParallel(sourceIds, options.chunkSize, async (sourceChunk, chunkIndex) => {
     const url =
       `https://frost.met.no/observations/v0.jsonld?sources=${encodeURIComponent(sourceChunk.join(","))}` +
       `&referencetime=${encodeURIComponent(referenceTime)}` +
@@ -332,10 +323,9 @@ async function getObservationPayload(
 
     if (lastError) {
       const warning = options.buildChunkWarning(lastError);
-      chunkWarnings.push(warning);
       console.warn(options.logLabel, {
         chunk: chunkIndex + 1,
-        chunkCount: sourceChunks.length,
+        chunkCount,
         sourceCount: sourceChunk.length,
         sources: sourceChunk,
         elements: elements.join(","),
@@ -343,13 +333,18 @@ async function getObservationPayload(
         error: lastError instanceof Error ? lastError.message : String(lastError),
         ...options.logContext,
       });
-      continue;
+      return { rows: [] as unknown[], warning };
     }
 
     const rows = Array.isArray((payload as { data?: unknown }).data)
       ? ((payload as { data: unknown[] }).data)
       : [];
-    mergedData.push(...rows);
+    return { rows, warning: null as string | null };
+  });
+
+  for (const result of chunkResults) {
+    if (result.warning) chunkWarnings.push(result.warning);
+    mergedData.push(...result.rows);
   }
 
   if (mergedData.length === 0) {
@@ -360,7 +355,7 @@ async function getObservationPayload(
   if (chunkWarnings.length > 0) {
     return {
       payload: { data: mergedData },
-      warning: options.partialWarning(chunkWarnings.length, sourceChunks.length),
+      warning: options.partialWarning(chunkWarnings.length, chunkCount),
     };
   }
 
@@ -494,6 +489,12 @@ function isValidCoordinate(lat: number, lon: number): boolean {
 }
 
 export async function GET(request: Request) {
+  const startedAtMs = Date.now();
+  const timingMarks: Record<string, number> = {};
+  const markTiming = (label: string) => {
+    timingMarks[label] = Date.now() - startedAtMs;
+  };
+
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -545,6 +546,7 @@ export async function GET(request: Request) {
       latParam !== null && lonParam !== null && isValidCoordinate(latParam, lonParam)
         ? { lat: latParam, lon: lonParam }
         : await geocodeNorwegianAddress(address);
+    markTiming("coordinatesResolvedMs");
     const { lat, lon } = coordinates;
     const [
       primaryStationCandidates,
@@ -565,12 +567,13 @@ export async function GET(request: Request) {
       getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.precipitation, frostAuth).catch(() => null),
       getNearestFrostSourceForElements(lat, lon, WEATHER_GROUP_ELEMENTS.snow, frostAuth).catch(() => null),
     ]);
+    markTiming("sourceCandidatesResolvedMs");
     const humidityCandidates = humidityCandidatesRaw ?? temperatureCandidates;
     const windCandidates = windCandidatesRaw ?? temperatureCandidates;
     const precipitationCandidates = precipitationCandidatesRaw ?? temperatureCandidates;
     const snowCandidates = snowCandidatesRaw ?? temperatureCandidates;
 
-    const combinedPrimaryResult = await getCombinedObservationPayload(
+    const combinedPrimaryPromise = getCombinedObservationPayload(
       primaryStationCandidates.slice(0, 6).map((candidate) => candidate.sourceId),
       dateFrom,
       dateTo,
@@ -581,6 +584,48 @@ export async function GET(request: Request) {
       ],
       frostAuth
     );
+    const windResultPromise = getObservationPayload(
+      windCandidates
+        .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
+        .map((candidate) => candidate.sourceId),
+      dateFrom,
+      dateTo,
+      WEATHER_GROUP_ELEMENTS.wind,
+      frostAuth,
+      {
+        chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.wind,
+        emptyWarning: `${WEATHER_GROUP_LABELS.wind}: Ingen stasjonskandidater.`,
+        fallbackWarning: `${WEATHER_GROUP_LABELS.wind}: Kunne ikke hente data fra Frost.`,
+        partialWarning: (failedChunks, totalChunks) =>
+          `${WEATHER_GROUP_LABELS.wind}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+        buildChunkWarning: (error) => buildObservationWarning("wind", error),
+        logLabel: "Weather observation fetch failed",
+        logContext: { group: "wind" },
+      }
+    );
+    const snowResultPromise = getObservationPayload(
+      snowCandidates
+        .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
+        .map((candidate) => candidate.sourceId),
+      dateFrom,
+      dateTo,
+      WEATHER_GROUP_ELEMENTS.snow,
+      frostAuth,
+      {
+        chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.snow,
+        emptyWarning: `${WEATHER_GROUP_LABELS.snow}: Ingen stasjonskandidater.`,
+        fallbackWarning: `${WEATHER_GROUP_LABELS.snow}: Kunne ikke hente data fra Frost.`,
+        partialWarning: (failedChunks, totalChunks) =>
+          `${WEATHER_GROUP_LABELS.snow}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
+        buildChunkWarning: (error) => buildObservationWarning("snow", error),
+        logLabel: "Weather observation fetch failed",
+        logContext: { group: "snow" },
+      }
+    );
+    const normalTempPromise = getClimateNormalTemperature(temperatureCandidates[0]?.sourceId ?? "", dateFrom, frostAuth);
+
+    const combinedPrimaryResult = await combinedPrimaryPromise;
+    markTiming("combinedPrimaryResolvedMs");
 
     const completePrimarySource = pickBestCombinedSource(
       primaryStationCandidates,
@@ -589,7 +634,7 @@ export async function GET(request: Request) {
       PRIMARY_WEATHER_GROUPS
     );
 
-    const [temperatureResult, humidityResult, windResult, precipitationResult, snowResult, normalTempC] =
+    const [temperatureResult, humidityResult, precipitationResult, windResult, snowResult, normalTempC] =
       await Promise.all([
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: combinedPrimaryResult.warning })
@@ -633,25 +678,6 @@ export async function GET(request: Request) {
                 logContext: { group: "humidity" },
               }
             ),
-        getObservationPayload(
-          windCandidates
-            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.wind)
-            .map((candidate) => candidate.sourceId),
-          dateFrom,
-          dateTo,
-          WEATHER_GROUP_ELEMENTS.wind,
-          frostAuth,
-          {
-            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.wind,
-            emptyWarning: `${WEATHER_GROUP_LABELS.wind}: Ingen stasjonskandidater.`,
-            fallbackWarning: `${WEATHER_GROUP_LABELS.wind}: Kunne ikke hente data fra Frost.`,
-            partialWarning: (failedChunks, totalChunks) =>
-              `${WEATHER_GROUP_LABELS.wind}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
-            buildChunkWarning: (error) => buildObservationWarning("wind", error),
-            logLabel: "Weather observation fetch failed",
-            logContext: { group: "wind" },
-          }
-        ),
         completePrimarySource
           ? Promise.resolve({ payload: combinedPrimaryResult.payload, warning: null })
           : getObservationPayload(
@@ -673,28 +699,11 @@ export async function GET(request: Request) {
                 logContext: { group: "precipitation" },
               }
             ),
-        getObservationPayload(
-          snowCandidates
-            .slice(0, OBSERVATION_SOURCE_LIMIT_BY_GROUP.snow)
-            .map((candidate) => candidate.sourceId),
-          dateFrom,
-          dateTo,
-          WEATHER_GROUP_ELEMENTS.snow,
-          frostAuth,
-          {
-            chunkSize: OBSERVATION_BATCH_SIZE_BY_GROUP.snow,
-            emptyWarning: `${WEATHER_GROUP_LABELS.snow}: Ingen stasjonskandidater.`,
-            fallbackWarning: `${WEATHER_GROUP_LABELS.snow}: Kunne ikke hente data fra Frost.`,
-            partialWarning: (failedChunks, totalChunks) =>
-              `${WEATHER_GROUP_LABELS.snow}: Delvis datatap fra Frost (${failedChunks}/${totalChunks} delspørringer feilet).`,
-            buildChunkWarning: (error) => buildObservationWarning("snow", error),
-            logLabel: "Weather observation fetch failed",
-            logContext: { group: "snow" },
-          }
-        ),
-        // Climate normals are monthly: use the start month as a representative.
-        getClimateNormalTemperature(temperatureCandidates[0]?.sourceId ?? "", dateFrom, frostAuth),
+        windResultPromise,
+        snowResultPromise,
+        normalTempPromise,
       ]);
+    markTiming("observationsResolvedMs");
 
     const observationWarnings = [
       temperatureResult.warning,
@@ -825,15 +834,37 @@ export async function GET(request: Request) {
       })),
     };
 
+    console.info("Weather API timing", {
+      totalMs: Date.now() - startedAtMs,
+      stagesMs: timingMarks,
+      dateCount: dates.size,
+      usedProvidedCoordinates: latParam !== null && lonParam !== null && isValidCoordinate(latParam, lonParam),
+      completePrimarySource: Boolean(completePrimarySource),
+      candidateCounts: {
+        primary: primaryStationCandidates.length,
+        temperature: temperatureCandidates.length,
+        humidity: humidityCandidates.length,
+        wind: windCandidates.length,
+        precipitation: precipitationCandidates.length,
+        snow: snowCandidates.length,
+      },
+    });
+
     return NextResponse.json(snapshot);
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error("Weather API error:", {
+        durationMs: Date.now() - startedAtMs,
+        stagesMs: timingMarks,
         message: error.message,
         stack: error.stack,
       });
     } else {
-      console.error("Weather API error:", error);
+      console.error("Weather API error:", {
+        durationMs: Date.now() - startedAtMs,
+        stagesMs: timingMarks,
+        error,
+      });
     }
     return NextResponse.json({ error: getSafeWeatherErrorMessage(error) }, { status: 500 });
   }
