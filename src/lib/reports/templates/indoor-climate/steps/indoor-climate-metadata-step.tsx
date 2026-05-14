@@ -35,6 +35,14 @@ function splitLines(text: string): string[] {
     .filter(Boolean);
 }
 
+function formatWeatherSourceLabel(selection: {
+  parameter: string;
+  sourceName: string;
+  sourceId: string;
+}): string {
+  return `${selection.parameter}: ${selection.sourceName} (${selection.sourceId})`;
+}
+
 export function IndoorClimateMetadataStep() {
   const { state, updateIndoorClimateMetadata } = useWizard();
   const indoor = getIndoorClimateData(state);
@@ -91,6 +99,9 @@ export function IndoorClimateMetadataStep() {
     existing.rows.push(row);
     return groups;
   }, []);
+  const weatherSourceLabels = Array.isArray(weatherSnapshotForRange?.sourceSelections)
+    ? weatherSnapshotForRange.sourceSelections.map(formatWeatherSourceLabel)
+    : [];
 
   return (
     <Card className="w-full max-w-4xl mx-auto border-primary/20 shadow-lg">
@@ -452,12 +463,10 @@ export function IndoorClimateMetadataStep() {
                         : `${weatherSnapshotForRange.dateFrom} – ${weatherSnapshotForRange.dateTo}`}{" "}
                       · {String(weatherHourFrom).padStart(2, "0")}:00–{String(weatherHourTo).padStart(2, "0")}:00
                     </p>
-                    {weatherSnapshotForRange.sourceStrategy === "group-fallback" && Array.isArray(weatherSnapshotForRange.sourceSelections) && weatherSnapshotForRange.sourceSelections.length > 0 ? (
-                      <div className="mt-1 text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        {weatherSnapshotForRange.sourceSelections.map((selection) => (
-                          <p key={`${selection.parameter}-${selection.sourceId}`}>
-                            <span className="text-muted-foreground/70">{selection.parameter}:</span> {selection.sourceName}
-                          </p>
+                    {weatherSourceLabels.length > 0 ? (
+                      <div className="mt-1 text-xs text-muted-foreground grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-0.5">
+                        {weatherSourceLabels.map((label) => (
+                          <p key={label}>{label}</p>
                         ))}
                       </div>
                     ) : (
@@ -559,6 +568,16 @@ export function IndoorClimateMetadataStep() {
                     {weatherSnapshotForRange.normalTempC ?? "-"} °C, nedbør{" "}
                     {weatherSnapshotForRange.precipitationMm ?? "-"} mm.
                   </div>
+                  {weatherSourceLabels.length > 0 && (
+                    <div className="px-3 py-2 border-t bg-white text-xs text-muted-foreground space-y-1">
+                      <p className="font-medium text-foreground">Stasjoner brukt i tabellen</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-0.5">
+                        {weatherSourceLabels.map((label) => (
+                          <p key={`table-source-${label}`}>{label}</p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>
