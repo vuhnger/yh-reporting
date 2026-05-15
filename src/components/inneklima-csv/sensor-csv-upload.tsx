@@ -82,7 +82,8 @@ function toDateTimeLocalValue(date: Date | null): string {
   const day = String(date.getDate()).padStart(2, "0");
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 export function SensorCsvUpload({
@@ -271,6 +272,7 @@ export function SensorCsvUpload({
               <input
                 id="crop-start"
                 type="datetime-local"
+                step="1"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
                 value={cropStart}
                 max={cropEnd || undefined}
@@ -282,6 +284,7 @@ export function SensorCsvUpload({
               <input
                 id="crop-end"
                 type="datetime-local"
+                step="1"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
                 value={cropEnd}
                 min={cropStart || undefined}

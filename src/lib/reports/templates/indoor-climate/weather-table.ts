@@ -62,8 +62,8 @@ export function buildDailyWeatherRows(hourlyRows: IndoorClimateWeatherHour[]): D
         weatherEmoji: firstWeatherRow?.weatherEmoji ?? "",
         weatherDescription: firstWeatherRow?.weatherDescription ?? "-",
         avgTempC: roundOne(average(temperatures)),
-        minTempC: temperatures.length > 0 ? Math.min(...temperatures) : null,
-        maxTempC: temperatures.length > 0 ? Math.max(...temperatures) : null,
+        minTempC: temperatures.length > 0 ? roundOne(Math.min(...temperatures)) : null,
+        maxTempC: temperatures.length > 0 ? roundOne(Math.max(...temperatures)) : null,
         avgRelativeHumidity: roundOne(average(humidities)),
         precipitationMm:
           precipitation.length > 0

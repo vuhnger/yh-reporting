@@ -188,9 +188,9 @@ export function IndoorClimateSensorStep() {
             const record = item as Partial<Instrument>;
             const hva = typeof record.hva === "string" ? record.hva.trim() : "";
             const serienr = typeof record.serienr === "string" ? record.serienr.trim() : "";
-            const malerNummer = typeof record.malerNummer === "string" ? record.malerNummer : "";
+            const malerNummer = typeof record.malerNummer === "string" ? record.malerNummer.trim() : "";
             const maleutstyrssett =
-              typeof record.maleutstyrssett === "string" ? record.maleutstyrssett : "";
+              typeof record.maleutstyrssett === "string" ? record.maleutstyrssett.trim() : "";
             if (!hva && !serienr && !malerNummer && !maleutstyrssett) return null;
 
             const modell = typeof record.modell === "string" ? record.modell : "";
