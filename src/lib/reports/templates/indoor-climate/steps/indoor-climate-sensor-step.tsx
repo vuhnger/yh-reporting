@@ -24,6 +24,21 @@ type BoundKey = "min" | "max" | "avg";
 
 interface InstrumentOption extends Instrument {
   optionId: string;
+  displayLabel: string;
+}
+
+function buildInstrumentDisplayName(
+  option: Pick<Instrument, "maleutstyrssett" | "malerNummer" | "hva" | "modell" | "serienr">,
+): string {
+  const parts = [
+    option.maleutstyrssett?.trim(),
+    option.malerNummer?.trim(),
+    option.hva?.trim(),
+    option.modell?.trim(),
+  ].filter(Boolean);
+
+  const label = Array.from(new Set(parts)).join(" · ");
+  return label || option.serienr?.trim() || "Instrument";
 }
 
 function toInputValue(value: number | null): string {
@@ -173,11 +188,23 @@ export function IndoorClimateSensorStep() {
             const record = item as Partial<Instrument>;
             const hva = typeof record.hva === "string" ? record.hva.trim() : "";
             const serienr = typeof record.serienr === "string" ? record.serienr.trim() : "";
-            if (!hva && !serienr) return null;
+            const malerNummer = typeof record.malerNummer === "string" ? record.malerNummer.trim() : "";
+            const maleutstyrssett =
+              typeof record.maleutstyrssett === "string" ? record.maleutstyrssett.trim() : "";
+            if (!hva && !serienr && !malerNummer && !maleutstyrssett) return null;
+
+            const modell = typeof record.modell === "string" ? record.modell : "";
+            const displayLabel = buildInstrumentDisplayName({
+              hva,
+              modell,
+              serienr,
+              malerNummer,
+              maleutstyrssett,
+            });
 
             return {
               hva,
-              modell: typeof record.modell === "string" ? record.modell : "",
+              modell,
               produsent: typeof record.produsent === "string" ? record.produsent : "",
               leverandor: typeof record.leverandor === "string" ? record.leverandor : "",
               serienr,
@@ -189,9 +216,8 @@ export function IndoorClimateSensorStep() {
                 typeof record.nesteKalibrering === "string" || record.nesteKalibrering === null
                   ? record.nesteKalibrering
                   : null,
-              malerNummer: typeof record.malerNummer === "string" ? record.malerNummer : "",
-              maleutstyrssett:
-                typeof record.maleutstyrssett === "string" ? record.maleutstyrssett : "",
+              malerNummer,
+              maleutstyrssett,
               kalibreringssertifikat:
                 typeof record.kalibreringssertifikat === "string"
                   ? record.kalibreringssertifikat
@@ -200,6 +226,7 @@ export function IndoorClimateSensorStep() {
               bruksanvisning: typeof record.bruksanvisning === "string" ? record.bruksanvisning : "",
               kommentar: typeof record.kommentar === "string" ? record.kommentar : "",
               optionId: `sheet-${index}-${serienr || hva}`,
+              displayLabel,
             };
           })
           .filter((instrument): instrument is InstrumentOption => instrument !== null);
@@ -295,11 +322,14 @@ export function IndoorClimateSensorStep() {
     updateSensor(sensor.id, {
       instrument: {
         id: option.optionId,
+        displayName: option.displayLabel,
         hva: option.hva,
         modell: option.modell,
         serienr: option.serienr,
         sistKalibrert: option.sistKalibrert,
         kilde: "sheets",
+        malerNummer: option.malerNummer,
+        maleutstyrssett: option.maleutstyrssett,
         innkjopsar: "",
         programvareNavn: option.programvare,
         programvareVersjon: "",
@@ -328,6 +358,7 @@ export function IndoorClimateSensorStep() {
               ? "manual"
               : sensor.instrument?.id ?? "none";
           const sensorTableLabel =
+            sensor.instrument?.displayName?.trim() ||
             sensor.instrument?.hva?.trim() ||
             sensor.locationName.trim() ||
             "Maler";
@@ -351,12 +382,12 @@ export function IndoorClimateSensorStep() {
                       <SelectValue placeholder="Velg instrument" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Ingen valgt</SelectItem>
-                      {options.map((option) => (
-                        <SelectItem key={option.optionId} value={option.optionId}>
-                          {option.hva} {option.serienr ? `· ${option.serienr}` : ""}
-                        </SelectItem>
-                      ))}
+                       <SelectItem value="none">Ingen valgt</SelectItem>
+                       {options.map((option) => (
+                         <SelectItem key={option.optionId} value={option.optionId}>
+                           {option.displayLabel}
+                         </SelectItem>
+                       ))}
                       <SelectItem value="manual">Legg inn manuelt</SelectItem>
                     </SelectContent>
                   </Select>
@@ -458,16 +489,25 @@ export function IndoorClimateSensorStep() {
                   onStatsParsed={(stats) => updateSensor(sensor.id, { stats })}
                   onChartImageReady={(dataUrl) => updateSensor(sensor.id, { chartImage: dataUrl })}
                   onPeriodParsed={(startDate, endDate) => {
-                    // Merge into the existing global range so multi-sensor
-                    // uploads with slightly different periods produce a union
-                    // (earliest start, latest end). Empty strings are treated
-                    // as "unset" and replaced by the new values.
-                    const currentFrom = indoor?.metadata.weatherDateFrom ?? "";
-                    const currentTo = indoor?.metadata.weatherDateTo ?? "";
-                    const mergedFrom =
-                      !currentFrom || startDate < currentFrom ? startDate : currentFrom;
-                    const mergedTo =
-                      !currentTo || endDate > currentTo ? endDate : currentTo;
+                    const nextSensors = indoor.metadata.sensors.map((item) =>
+                      item.id === sensor.id
+                        ? { ...item, measurementPeriodStart: startDate, measurementPeriodEnd: endDate }
+                        : item
+                    );
+                    const periodStarts = nextSensors
+                      .map((item) => item.measurementPeriodStart || "")
+                      .filter(Boolean)
+                      .sort();
+                    const periodEnds = nextSensors
+                      .map((item) => item.measurementPeriodEnd || "")
+                      .filter(Boolean)
+                      .sort();
+                    const mergedFrom = periodStarts[0] || startDate;
+                    const mergedTo = periodEnds[periodEnds.length - 1] || endDate;
+                    updateSensor(sensor.id, {
+                      measurementPeriodStart: startDate,
+                      measurementPeriodEnd: endDate,
+                    });
                     updateSharedMetadata({ date: mergedFrom });
                     updateIndoorClimateMetadata({
                       weatherDateFrom: mergedFrom,

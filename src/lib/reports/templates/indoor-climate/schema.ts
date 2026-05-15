@@ -2,11 +2,14 @@ import type { ReportState } from "../../template-types";
 
 export interface IndoorClimateInstrument {
   id: string;
+  displayName?: string;
   hva: string;
   modell: string;
   serienr: string;
   sistKalibrert: string | null;
   kilde: "sheets" | "manuell";
+  malerNummer?: string;
+  maleutstyrssett?: string;
   innkjopsar?: string;
   programvareNavn?: string;
   programvareVersjon?: string;
@@ -21,6 +24,8 @@ export interface IndoorClimateMetricStats {
 export interface IndoorClimateSensor {
   id: string;
   instrument: IndoorClimateInstrument | null;
+  measurementPeriodStart?: string;
+  measurementPeriodEnd?: string;
   locationName: string;
   placementDescription: string;
   placementImage: string | null;
@@ -101,6 +106,7 @@ export interface IndoorClimateMetadata {
   weatherFetchError: string;
   weatherHourFrom: number;
   weatherHourTo: number;
+  weatherTableMode: "daily" | "hourly";
   weatherSnapshot: IndoorClimateWeatherSnapshot | null;
   sensors: IndoorClimateSensor[];
 }
@@ -175,6 +181,8 @@ export function defaultSensor(): IndoorClimateSensor {
   return {
     id: createSensorId(),
     instrument: null,
+    measurementPeriodStart: "",
+    measurementPeriodEnd: "",
     locationName: "",
     placementDescription: "",
     placementImage: null,
@@ -216,6 +224,7 @@ export const defaultIndoorClimateMetadata: IndoorClimateMetadata = {
   weatherFetchError: "",
   weatherHourFrom: 8,
   weatherHourTo: 20,
+  weatherTableMode: "daily",
   weatherSnapshot: null,
   sensors: [],
 };
