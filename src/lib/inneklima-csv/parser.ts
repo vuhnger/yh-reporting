@@ -57,6 +57,12 @@ export interface InneklimaParseResult {
   warnings: InneklimaParseWarning[];
 }
 
+interface InneklimaChannelFlags {
+  temperature: boolean;
+  humidity: boolean;
+  co2: boolean;
+}
+
 const NORWEGIAN_DATETIME = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/;
 
 interface ColumnMap {
@@ -220,6 +226,30 @@ function computeStats(values: Array<number | null>): MetricStats {
   };
 }
 
+export function summarizeInneklimaSamples(
+  samples: InneklimaSample[],
+  channels: InneklimaChannelFlags,
+): Pick<InneklimaParseResult, "stats" | "metadata"> {
+  const startTime = samples[0]?.timestamp ?? null;
+  const endTime = samples[samples.length - 1]?.timestamp ?? null;
+
+  return {
+    stats: {
+      temperature: computeStats(samples.map((s) => s.temperatureC)),
+      humidity: computeStats(samples.map((s) => s.relativeHumidity)),
+      co2: computeStats(samples.map((s) => s.co2Ppm)),
+    },
+    metadata: {
+      startTime,
+      endTime,
+      durationMs: startTime && endTime ? endTime.getTime() - startTime.getTime() : null,
+      sampleCount: samples.length,
+      intervalSeconds: detectInterval(samples),
+      channels,
+    },
+  };
+}
+
 /**
  * Parse a Kimo Kistock CSV file from raw text.
  *
@@ -297,18 +327,9 @@ export function parseInneklimaCsv(text: string): InneklimaParseResult {
 
   if (result.samples.length === 0) return result;
 
-  result.stats = {
-    temperature: computeStats(result.samples.map((s) => s.temperatureC)),
-    humidity: computeStats(result.samples.map((s) => s.relativeHumidity)),
-    co2: computeStats(result.samples.map((s) => s.co2Ppm)),
-  };
-
-  result.metadata.sampleCount = result.samples.length;
-  result.metadata.startTime = result.samples[0].timestamp;
-  result.metadata.endTime = result.samples[result.samples.length - 1].timestamp;
-  result.metadata.durationMs =
-    result.metadata.endTime.getTime() - result.metadata.startTime.getTime();
-  result.metadata.intervalSeconds = detectInterval(result.samples);
+  const summary = summarizeInneklimaSamples(result.samples, result.metadata.channels);
+  result.stats = summary.stats;
+  result.metadata = summary.metadata;
 
   return result;
 }

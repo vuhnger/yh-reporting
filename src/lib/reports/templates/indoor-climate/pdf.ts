@@ -12,6 +12,7 @@ import {
   getIndoorClimateData,
 } from "./schema";
 import { formatDateRange, formatShortDate } from "./format-dates";
+import { buildDailyWeatherRows, filterWeatherHourlyRows } from "./weather-table";
 
 const emojiImageCache = new Map<string, string | null>();
 const PDF_IMAGE_FORMAT_BY_MIME: Record<string, "PNG" | "JPEG" | "WEBP"> = {
@@ -493,10 +494,10 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
   if (metadata.weatherInclude && metadata.weatherSnapshot) {
     const weatherFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
     const weatherTo = Math.min(23, Math.max(weatherFrom, metadata.weatherHourTo));
-    const hourlyRows = metadata.weatherSnapshot.hourly.filter(
-      (row) => row.hour >= weatherFrom && row.hour <= weatherTo
-    );
+    const hourlyRows = filterWeatherHourlyRows(metadata.weatherSnapshot, weatherFrom, weatherTo);
+    const dailyRows = buildDailyWeatherRows(hourlyRows);
     const isMultiDay = metadata.weatherSnapshot.dateFrom !== metadata.weatherSnapshot.dateTo;
+    const weatherTableMode = isMultiDay && metadata.weatherTableMode === "hourly" ? "hourly" : isMultiDay ? "daily" : "hourly";
     const range = formatDateRange(metadata.weatherSnapshot.dateFrom, metadata.weatherSnapshot.dateTo);
 
     renderParagraph(
@@ -507,29 +508,34 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
       renderParagraph("Ingen timedata tilgjengelig for valgt tidsrom.");
     } else {
       ensureSpace(40);
-      const hourlyEmojiImages = hourlyRows.map((row) => getEmojiImageDataUrl(row.weatherEmoji ?? ""));
+      const emojiImages = (weatherTableMode === "daily" ? dailyRows : hourlyRows).map((row) =>
+        getEmojiImageDataUrl(row.weatherEmoji ?? "")
+      );
       autoTable(doc, {
         startY: finalY + 2,
         head: [[
-          isMultiDay ? "Dato/tid" : "Tid",
-          "Vær",
-          "Temp C",
-          "RH %",
-          "Nedbør mm",
-          "Snødybde cm",
-          "Vind m/s",
-          "Kraftigste vind m/s",
+          ...(weatherTableMode === "daily"
+            ? ["Dato", "Vær", "Snitt temp C", "Min temp C", "Maks temp C", "RH %", "Nedbør mm"]
+            : [isMultiDay ? "Dato/tid" : "Tid", "Vær", "Temp C", "RH %", "Nedbør mm"]),
         ]],
-        body: hourlyRows.map((row) => [
-          isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
-          row.weatherDescription ?? "-",
-          formatValue(row.temperatureC),
-          formatValue(row.relativeHumidity),
-          formatValue(row.precipitationMm),
-          formatValue(row.snowDepthCm),
-          formatValue(row.windMs),
-          formatValue(row.maxWindMs),
-        ]),
+        body:
+          weatherTableMode === "daily"
+            ? dailyRows.map((row) => [
+                formatShortDate(row.date),
+                row.weatherDescription ?? "-",
+                formatValue(row.avgTempC),
+                formatValue(row.minTempC),
+                formatValue(row.maxTempC),
+                formatValue(row.avgRelativeHumidity),
+                formatValue(row.precipitationMm),
+              ])
+            : hourlyRows.map((row) => [
+                isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
+                row.weatherDescription ?? "-",
+                formatValue(row.temperatureC),
+                formatValue(row.relativeHumidity),
+                formatValue(row.precipitationMm),
+              ]),
         styles: { fontSize: 8.5 },
         headStyles: { fillColor: TEAL },
         didParseCell: (hookData) => {
@@ -544,7 +550,7 @@ export async function createIndoorClimateReportPDFDoc(state: ReportState): Promi
         },
         didDrawCell: (hookData) => {
           if (hookData.section !== "body" || hookData.column.index !== 1) return;
-          const image = hourlyEmojiImages[hookData.row.index];
+          const image = emojiImages[hookData.row.index];
           if (!image) return;
 
           const iconSize = Math.min(4.2, Math.max(2.8, hookData.cell.height - 2));

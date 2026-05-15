@@ -1,6 +1,7 @@
 export {
   parseInneklimaCsv,
   parseInneklimaCsvBytes,
+  summarizeInneklimaSamples,
   toReportStats,
 } from "./parser";
 export type {

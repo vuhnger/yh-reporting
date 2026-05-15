@@ -16,6 +16,7 @@ import {
   getIndoorClimateData,
   type IndoorClimateWeatherHour,
 } from "../schema";
+import { buildDailyWeatherRows, filterWeatherHourlyRows } from "../weather-table";
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => ({
   value: hour,
@@ -82,12 +83,13 @@ export function IndoorClimateMetadataStep() {
   const weatherIsMultiDay =
     !!weatherSnapshotForRange &&
     weatherSnapshotForRange.dateFrom !== weatherSnapshotForRange.dateTo;
-  const weatherHourlyRows: IndoorClimateWeatherHour[] = (() => {
-    if (!weatherSnapshotForRange) return [];
-    return weatherSnapshotForRange.hourly.filter(
-      (row) => row.hour >= weatherHourFrom && row.hour <= weatherHourTo,
-    );
-  })();
+  const weatherHourlyRows: IndoorClimateWeatherHour[] =
+    weatherSnapshotForRange
+      ? filterWeatherHourlyRows(weatherSnapshotForRange, weatherHourFrom, weatherHourTo)
+      : [];
+  const weatherDailyRows = buildDailyWeatherRows(weatherHourlyRows);
+  const storedWeatherTableMode = metadata.weatherTableMode === "hourly" ? "hourly" : "daily";
+  const weatherTableMode = weatherIsMultiDay ? storedWeatherTableMode : "hourly";
   const weatherRowsByDate = weatherHourlyRows.reduce<
     Array<{ date: string; rows: IndoorClimateWeatherHour[] }>
   >((groups, row) => {
@@ -439,6 +441,25 @@ export function IndoorClimateMetadataStep() {
                     </SelectContent>
                   </Select>
                 </div>
+                {weatherIsMultiDay && (
+                  <div className="space-y-2">
+                    <Label>Tabellvisning</Label>
+                    <Select
+                      value={storedWeatherTableMode}
+                      onValueChange={(value: "daily" | "hourly") =>
+                        updateIndoorClimateMetadata({ weatherTableMode: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Døgnsnitt</SelectItem>
+                        <SelectItem value="hourly">Time for time</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 {metadata.weatherFetching ? (
@@ -486,7 +507,7 @@ export function IndoorClimateMetadataStep() {
                     <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                       Ingen timedata tilgjengelig for valgt tidsrom.
                     </div>
-                  ) : weatherIsMultiDay ? (
+                  ) : weatherIsMultiDay && weatherTableMode === "hourly" ? (
                     <div className="divide-y">
                       {weatherRowsByDate.map((group, index) => (
                         <details key={group.date} open={index === 0} className="group">
@@ -506,9 +527,6 @@ export function IndoorClimateMetadataStep() {
                                 <TableHead className="text-right">Temp °C</TableHead>
                                 <TableHead className="text-right">RH %</TableHead>
                                 <TableHead className="text-right">Nedbør mm</TableHead>
-                                <TableHead className="text-right">Snødybde cm</TableHead>
-                                <TableHead className="text-right">Vind m/s</TableHead>
-                                <TableHead className="text-right">Kraftigste vind m/s</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -519,9 +537,6 @@ export function IndoorClimateMetadataStep() {
                                   <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
                                   <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
                                   <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
-                                  <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
-                                  <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
-                                  <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -529,6 +544,33 @@ export function IndoorClimateMetadataStep() {
                         </details>
                       ))}
                     </div>
+                  ) : weatherIsMultiDay ? (
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead>Dato</TableHead>
+                          <TableHead>Vær</TableHead>
+                          <TableHead className="text-right">Snitt temp °C</TableHead>
+                          <TableHead className="text-right">Min temp °C</TableHead>
+                          <TableHead className="text-right">Maks temp °C</TableHead>
+                          <TableHead className="text-right">RH %</TableHead>
+                          <TableHead className="text-right">Nedbør mm</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {weatherDailyRows.map((row) => (
+                          <TableRow key={row.date}>
+                            <TableCell>{formatShortDate(row.date)}</TableCell>
+                            <TableCell>{row.weatherEmoji || row.weatherDescription || "-"}</TableCell>
+                            <TableCell className="text-right">{row.avgTempC ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.minTempC ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.maxTempC ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.avgRelativeHumidity ?? "-"}</TableCell>
+                            <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   ) : (
                     <Table>
                       <TableHeader className="bg-slate-50">
@@ -538,9 +580,6 @@ export function IndoorClimateMetadataStep() {
                           <TableHead className="text-right">Temp °C</TableHead>
                           <TableHead className="text-right">RH %</TableHead>
                           <TableHead className="text-right">Nedbør mm</TableHead>
-                          <TableHead className="text-right">Snødybde cm</TableHead>
-                          <TableHead className="text-right">Vind m/s</TableHead>
-                          <TableHead className="text-right">Kraftigste vind m/s</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -551,9 +590,6 @@ export function IndoorClimateMetadataStep() {
                             <TableCell className="text-right">{row.temperatureC ?? "-"}</TableCell>
                             <TableCell className="text-right">{row.relativeHumidity ?? "-"}</TableCell>
                             <TableCell className="text-right">{row.precipitationMm ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.snowDepthCm ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.windMs ?? "-"}</TableCell>
-                            <TableCell className="text-right">{row.maxWindMs ?? "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

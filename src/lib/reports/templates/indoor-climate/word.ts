@@ -16,6 +16,7 @@ import {
 } from "../../word-utils";
 import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
 import { formatDateRange, formatShortDate } from "./format-dates";
+import { buildDailyWeatherRows, filterWeatherHourlyRows } from "./weather-table";
 import {
   DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
   INDOOR_CLIMATE_REFERENCES,
@@ -218,10 +219,10 @@ export function createIndoorClimateReportWordDoc(state: ReportState) {
           ...((() => {
             const weatherFrom = Math.min(23, Math.max(0, metadata.weatherHourFrom));
             const weatherTo = Math.min(23, Math.max(weatherFrom, metadata.weatherHourTo));
-            const hourlyRows = metadata.weatherSnapshot!.hourly.filter(
-              (row) => row.hour >= weatherFrom && row.hour <= weatherTo
-            );
+            const hourlyRows = filterWeatherHourlyRows(metadata.weatherSnapshot!, weatherFrom, weatherTo);
+            const dailyRows = buildDailyWeatherRows(hourlyRows);
             const isMultiDay = metadata.weatherSnapshot!.dateFrom !== metadata.weatherSnapshot!.dateTo;
+            const weatherTableMode = isMultiDay && metadata.weatherTableMode === "hourly" ? "hourly" : isMultiDay ? "daily" : "hourly";
 
             if (hourlyRows.length === 0) {
               return [createBodyParagraph("Ingen timedata tilgjengelig for valgt tidsrom.")];
@@ -229,27 +230,28 @@ export function createIndoorClimateReportWordDoc(state: ReportState) {
 
             const items = [
               createTable(
-                hourlyRows.map((row) => [
-                  isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
-                  row.weatherDescription || row.weatherEmoji || "-",
-                  formatValue(row.temperatureC),
-                  formatValue(row.relativeHumidity),
-                  formatValue(row.precipitationMm),
-                  formatValue(row.snowDepthCm),
-                  formatValue(row.windMs),
-                  formatValue(row.maxWindMs),
-                ]),
+                weatherTableMode === "daily"
+                  ? dailyRows.map((row) => [
+                      formatShortDate(row.date),
+                      row.weatherDescription || row.weatherEmoji || "-",
+                      formatValue(row.avgTempC),
+                      formatValue(row.minTempC),
+                      formatValue(row.maxTempC),
+                      formatValue(row.avgRelativeHumidity),
+                      formatValue(row.precipitationMm),
+                    ])
+                  : hourlyRows.map((row) => [
+                      isMultiDay ? `${formatShortDate(row.date)} ${row.timeLabel}` : row.timeLabel,
+                      row.weatherDescription || row.weatherEmoji || "-",
+                      formatValue(row.temperatureC),
+                      formatValue(row.relativeHumidity),
+                      formatValue(row.precipitationMm),
+                    ]),
                 {
-                  header: [
-                    isMultiDay ? "Dato/tid" : "Tid",
-                    "Vær",
-                    "Temp C",
-                    "RH %",
-                    "Nedbør mm",
-                    "Snødybde cm",
-                    "Vind m/s",
-                    "Kraftigste vind m/s",
-                  ],
+                  header:
+                    weatherTableMode === "daily"
+                      ? ["Dato", "Vær", "Snitt temp C", "Min temp C", "Maks temp C", "RH %", "Nedbør mm"]
+                      : [isMultiDay ? "Dato/tid" : "Tid", "Vær", "Temp C", "RH %", "Nedbør mm"],
                 }
               ),
             ];

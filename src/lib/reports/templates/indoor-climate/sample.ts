@@ -73,6 +73,7 @@ const indoorClimateSampleData: IndoorClimateReportData = {
     weatherFetchError: "",
     weatherHourFrom: 8,
     weatherHourTo: 20,
+    weatherTableMode: "daily",
     weatherSnapshot: {
       address: "Dronning Eufemias gate 16, Oslo",
       dateFrom: "2026-02-04",

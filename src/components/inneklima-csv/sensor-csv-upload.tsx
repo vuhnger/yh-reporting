@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   parseInneklimaCsvBytes,
   roundMetricStats,
+  summarizeInneklimaSamples,
   type InneklimaParseResult,
 } from "@/lib/inneklima-csv";
 
@@ -74,6 +75,16 @@ function formatInterval(seconds: number | null): string {
   return `${seconds} s`;
 }
 
+function toDateTimeLocalValue(date: Date | null): string {
+  if (!date) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function SensorCsvUpload({
   onStatsParsed,
   onChartImageReady,
@@ -83,6 +94,8 @@ export function SensorCsvUpload({
   const [uploaded, setUploaded] = useState<UploadedCsv | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [cropStart, setCropStart] = useState("");
+  const [cropEnd, setCropEnd] = useState("");
 
   // Keep the latest "fire once per upload" callbacks in refs so the upload
   // effect below doesn't depend on them. The chart image callback can be
@@ -97,9 +110,27 @@ export function SensorCsvUpload({
     onPeriodParsedRef.current = onPeriodParsed;
   }, [onPeriodParsed]);
 
-  const samples = uploaded?.result.samples ?? [];
+  const samples = useMemo(() => uploaded?.result.samples ?? [], [uploaded]);
   const metadata = uploaded?.result.metadata ?? null;
   const warnings = uploaded?.result.warnings ?? [];
+  const croppedSamples = useMemo(() => {
+    const cropStartDate = cropStart ? new Date(cropStart) : null;
+    const cropEndDate = cropEnd ? new Date(cropEnd) : null;
+    return samples.filter((sample) => {
+      const timestamp = sample.timestamp.getTime();
+      if (cropStartDate && !Number.isNaN(cropStartDate.getTime()) && timestamp < cropStartDate.getTime()) {
+        return false;
+      }
+      if (cropEndDate && !Number.isNaN(cropEndDate.getTime()) && timestamp > cropEndDate.getTime()) {
+        return false;
+      }
+      return true;
+    });
+  }, [cropEnd, cropStart, samples]);
+  const croppedSummary = useMemo(() => {
+    if (!uploaded) return null;
+    return summarizeInneklimaSamples(croppedSamples, uploaded.result.metadata.channels);
+  }, [croppedSamples, uploaded]);
 
   const channelSummary = useMemo(() => {
     if (!metadata) return "";
@@ -110,10 +141,11 @@ export function SensorCsvUpload({
     return items.join(", ") || "Ingen kjente kanaler funnet";
   }, [metadata]);
 
-  // Push parsed stats and period up exactly once per new upload.
+  // Push parsed stats and period up whenever the selected crop changes.
   useEffect(() => {
     if (!uploaded) return;
-    const { stats, metadata: meta } = uploaded.result;
+    const stats = croppedSummary?.stats ?? uploaded.result.stats;
+    const meta = croppedSummary?.metadata ?? uploaded.result.metadata;
     onStatsParsedRef.current({
       temperature: roundMetricStats(stats.temperature, 1),
       humidity: roundMetricStats(stats.humidity, 1),
@@ -125,7 +157,7 @@ export function SensorCsvUpload({
         toLocalIsoDate(meta.endTime),
       );
     }
-  }, [uploaded]);
+  }, [croppedSummary, uploaded]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -140,6 +172,8 @@ export function SensorCsvUpload({
         setUploaded(null);
         return;
       }
+      setCropStart(toDateTimeLocalValue(result.metadata.startTime));
+      setCropEnd(toDateTimeLocalValue(result.metadata.endTime));
       setUploaded({ fileName: file.name, result });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ukjent feil ved lesing av filen.");
@@ -152,6 +186,8 @@ export function SensorCsvUpload({
   function handleClear() {
     setUploaded(null);
     setError(null);
+    setCropStart("");
+    setCropEnd("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -208,18 +244,18 @@ export function SensorCsvUpload({
             <div>
               <dt className="inline font-medium text-muted-foreground">Måleperiode:</dt>{" "}
               <dd className="inline">
-                {formatDate(metadata.startTime)} → {formatDate(metadata.endTime)}
+                {formatDate(croppedSummary?.metadata.startTime ?? metadata.startTime)} → {formatDate(croppedSummary?.metadata.endTime ?? metadata.endTime)}
               </dd>
             </div>
             <div>
               <dt className="inline font-medium text-muted-foreground">Varighet / intervall:</dt>{" "}
               <dd className="inline">
-                {formatDuration(metadata.durationMs)} · {formatInterval(metadata.intervalSeconds)}
+                {formatDuration(croppedSummary?.metadata.durationMs ?? metadata.durationMs)} · {formatInterval(croppedSummary?.metadata.intervalSeconds ?? metadata.intervalSeconds)}
               </dd>
             </div>
             <div>
               <dt className="inline font-medium text-muted-foreground">Antall målinger:</dt>{" "}
-              <dd className="inline">{metadata.sampleCount}</dd>
+              <dd className="inline">{croppedSummary?.metadata.sampleCount ?? metadata.sampleCount}</dd>
             </div>
             {warnings.length > 0 && (
               <div>
@@ -229,7 +265,52 @@ export function SensorCsvUpload({
             )}
           </dl>
 
-          <InneklimaChart samples={samples} onImageReady={onChartImageReady} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded border bg-white p-3">
+            <div className="space-y-1">
+              <label htmlFor="crop-start" className="text-sm font-medium">Start på utsnitt</label>
+              <input
+                id="crop-start"
+                type="datetime-local"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                value={cropStart}
+                max={cropEnd || undefined}
+                onChange={(e) => setCropStart(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="crop-end" className="text-sm font-medium">Slutt på utsnitt</label>
+              <input
+                id="crop-end"
+                type="datetime-local"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                value={cropEnd}
+                min={cropStart || undefined}
+                onChange={(e) => setCropEnd(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Juster start og slutt for å croppe datasettet. Graf, måleperiode og gjennomsnitt oppdateres automatisk.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCropStart(toDateTimeLocalValue(metadata.startTime));
+                  setCropEnd(toDateTimeLocalValue(metadata.endTime));
+                }}
+              >
+                Nullstill utsnitt
+              </Button>
+            </div>
+          </div>
+
+          {croppedSamples.length === 0 && (
+            <p className="text-sm text-destructive">Ingen målinger i valgt utsnitt.</p>
+          )}
+
+          <InneklimaChart samples={croppedSamples} onImageReady={onChartImageReady} />
 
           <p className="text-xs text-muted-foreground">
             Min/max/gjennomsnitt og graf er fylt ut automatisk. Du kan fortsatt redigere
