@@ -11,7 +11,7 @@ const sensorA = {
   id: "indoor-sensor-1",
   locationName: "Kontorlandskap 2. etasje",
   placementDescription:
-    "Maleren ble plassert i oppholdssonen, cirka 1.2 m over gulv, utenfor direkte solinnstraling.",
+    "Måleren ble plassert i oppholdssonen, cirka 1.2 m over gulv, utenfor direkte solinnstråling.",
   stats: {
     temperature: { min: 20.1, max: 24.8, avg: 22.7 },
     humidity: { min: 18.2, max: 34.6, avg: 25.3 },
@@ -19,20 +19,20 @@ const sensorA = {
   },
   interpretation: {
     temperatureText:
-      "Temperaturen var i hovedsak innenfor anbefalt omrade, men med perioder over 22 C i arbeidstiden.",
+      "Temperaturen var i hovedsak innenfor anbefalt område, men med perioder over 22 C i arbeidstiden.",
     humidityText:
-      "Relativ luftfuktighet var lav i deler av perioden, noe som kan bidra til opplevd torr luft.",
+      "Relativ luftfuktighet var lav i deler av perioden, noe som kan bidra til opplevd tørr luft.",
     co2Text:
-      "CO2-nivaene var stort sett moderate, men med topper over 1000 ppm i perioder med hoy personbelastning.",
+      "CO2-nivåene var stort sett moderate, men med topper over 1000 ppm i perioder med høy personbelastning.",
   },
 };
 
 const sensorB = {
   ...defaultSensor(),
   id: "indoor-sensor-2",
-  locationName: "Moterom 3",
+  locationName: "Møterom 3",
   placementDescription:
-    "Maleren ble plassert pa bordhoyde i motsatt ende av tilluftsventil.",
+    "Måleren ble plassert på bordhøyde i motsatt ende av tilluftsventil.",
   stats: {
     temperature: { min: 19.5, max: 23.7, avg: 21.8 },
     humidity: { min: 21.1, max: 37.4, avg: 29.2 },
@@ -42,9 +42,9 @@ const sensorB = {
     temperatureText:
       "Temperaturen var stabil med mindre variasjoner mellom morgen og ettermiddag.",
     humidityText:
-      "Fuktigheten la innenfor normalt variasjonsomrade for sesongen.",
+      "Fuktigheten lå innenfor normalt variasjonsområde for sesongen.",
     co2Text:
-      "Gjennomsnitt over 1000 ppm tilsier at ventilasjonen i perioder kan vaere underdimensjonert for rombelastningen.",
+      "Gjennomsnitt over 1000 ppm tilsier at ventilasjonen i perioder kan være underdimensjonert for rombelastningen.",
   },
 };
 
@@ -52,17 +52,17 @@ const indoorClimateSampleData: IndoorClimateReportData = {
   metadata: {
     thanksText: DEFAULT_INDOOR_CLIMATE_THANKS_TEXT,
     summaryText:
-      "Malingene viser at temperatur i hovedsak er innenfor anbefalte nivaer, med enkelte varme perioder i oppholdssoner. Luftfuktighet var lav i deler av perioden, og CO2 oversteg 1000 ppm i perioder med hoy belastning i moterom. Resultatene tilsier behov for vurdering av ventilasjonsdrift og enkle driftstiltak.",
+      "Målingene viser at temperatur i hovedsak er innenfor anbefalte nivåer, med enkelte varme perioder i oppholdssoner. Luftfuktighet var lav i deler av perioden, og CO2 oversteg 1000 ppm i perioder med høy belastning i møterom. Resultatene tilsier behov for vurdering av ventilasjonsdrift og enkle driftstiltak.",
     methodText:
-      "Malerne ble programmert for logging av temperatur, relativ luftfuktighet og CO2 gjennom en representativ arbeidsuke. Etter maleperioden ble data hentet ut og analysert i rapportverktoy med sammenstilling av min, max og gjennomsnitt.",
+      "Målerne ble programmert for logging av temperatur, relativ luftfuktighet og CO2 gjennom en representativ arbeidsuke. Etter måleperioden ble data hentet ut og analysert i rapportverktøy med sammenstilling av min, max og gjennomsnitt.",
     recommendations: [
-      "Vurder okt luftutskifting i moterom ved hoy personbelastning.",
-      "Vurder justering av temperaturstyring i perioder med forhoyet innendors temperatur.",
-      "Folg opp renhold og driftsrutiner for a redusere opplevd torr luft.",
+      "Vurder økt luftutskifting i møterom ved høy personbelastning.",
+      "Vurder justering av temperaturstyring i perioder med forhøyet innendørs temperatur.",
+      "Følg opp renhold og driftsrutiner for å redusere opplevd tørr luft.",
     ],
     manualReferences: [...INDOOR_CLIMATE_REFERENCES],
     referencesExtraText: "",
-    appendicesIntroText: "Vedleggene dokumenterer vaerforhold og datagrunnlag for vurderingene.",
+    appendicesIntroText: "Vedleggene dokumenterer værforhold og datagrunnlag for vurderingene.",
     weatherInclude: true,
     weatherAddress: "Dronning Eufemias gate 16, Oslo",
     weatherLat: 59.9069,

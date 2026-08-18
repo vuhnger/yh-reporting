@@ -11,6 +11,9 @@
 // The parser is permissive about column ordering and additional/unknown channels.
 // Channels are matched by header keywords, not by fixed position.
 
+// @ts-expect-error Node's test runner needs the explicit extension here.
+import { normalizeNorwegian } from "../text/norwegian.ts";
+
 export interface InneklimaSample {
   index: number;
   timestamp: Date;
@@ -335,20 +338,24 @@ export function parseInneklimaCsv(text: string): InneklimaParseResult {
 }
 
 /**
- * Decode a raw byte buffer (typically ISO-8859-1 from Kimo) and parse it.
+ * Decode a raw byte buffer and parse it.
  *
- * If the buffer begins with a UTF-8 BOM, UTF-8 is used; otherwise ISO-8859-1
- * is assumed since Kimo's exports are not UTF-8. ISO-8859-1 is byte-safe for
- * ASCII content, so this never corrupts the numeric data we care about.
+ * Kimo exports ISO-8859-1, but files re-saved from Excel, Sheets or a text
+ * editor are UTF-8 — often without a BOM. Decoding UTF-8 bytes as ISO-8859-1
+ * turns "Møterom" into "MÃ¸terom", so try strict UTF-8 first and only fall back
+ * to ISO-8859-1 when the bytes are not valid UTF-8.
  */
 export function parseInneklimaCsvBytes(bytes: Uint8Array | ArrayBuffer): InneklimaParseResult {
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  const hasUtf8Bom =
-    view.length >= 3 && view[0] === 0xef && view[1] === 0xbb && view[2] === 0xbf;
-  const encoding = hasUtf8Bom ? "utf-8" : "iso-8859-1";
-  const decoder = new TextDecoder(encoding);
-  const text = decoder.decode(view);
-  return parseInneklimaCsv(text);
+
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(view);
+  } catch {
+    text = new TextDecoder("iso-8859-1").decode(view);
+  }
+
+  return parseInneklimaCsv(normalizeNorwegian(text));
 }
 
 /**

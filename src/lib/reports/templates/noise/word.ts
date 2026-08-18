@@ -292,5 +292,5 @@ export async function generateNoiseReportWordBlob(state: ReportState): Promise<B
 export async function generateNoiseReportWord(state: ReportState): Promise<void> {
   const blob = await generateNoiseReportWordBlob(state);
   const baseName = sanitizeFileNameSegment(state.client.name || "Kunde", "Kunde");
-  downloadBlob(blob, `Stoyrapport_${baseName}.docx`);
+  downloadBlob(blob, `Støyrapport_${baseName}.docx`);
 }

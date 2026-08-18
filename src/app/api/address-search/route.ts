@@ -105,7 +105,7 @@ export async function GET(request: Request) {
   } catch (error: unknown) {
     console.error("Address search API error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Kunne ikke hente adressesok." },
+      { error: error instanceof Error ? error.message : "Kunne ikke hente adressesøk." },
       { status: 500 }
     );
   }

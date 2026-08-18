@@ -21,7 +21,7 @@ export const indoorClimateTemplate: ReportTemplate<IndoorClimateReportData> = {
 
   steps: [
     { id: "indoor-climate-metadata", label: "Inneklima - detaljer", Component: IndoorClimateMetadataStep },
-    { id: "indoor-climate-sensors", label: "Inneklimamalere", Component: IndoorClimateSensorStep },
+    { id: "indoor-climate-sensors", label: "Inneklimamålere", Component: IndoorClimateSensorStep },
   ],
 
   ReviewComponent: IndoorClimateReviewSection,
@@ -40,7 +40,7 @@ export const indoorClimateTemplate: ReportTemplate<IndoorClimateReportData> = {
     );
   },
   exportValidationMessage:
-    "Du ma fylle ut bedriftsinformasjon og minst en inneklimamaler for a kunne laste ned.",
+    "Du må fylle ut bedriftsinformasjon og minst én inneklimamåler for å kunne laste ned.",
 
   ai: {
     systemInstruction: indoorClimateSystemInstruction,

@@ -253,7 +253,7 @@ export function SharedMetadataStep() {
 
         if (!response.ok) {
           if (!cancelled) {
-            const message = payload?.error || "Kunne ikke hente vaerdata.";
+            const message = payload?.error || "Kunne ikke hente værdata.";
             setWeatherError(message);
             updateIndoorClimateMetadata({ weatherFetching: false, weatherFetchError: message });
           }
@@ -275,7 +275,7 @@ export function SharedMetadataStep() {
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          const message = "Kunne ikke hente vaerdata.";
+          const message = "Kunne ikke hente værdata.";
           setWeatherError(message);
           updateIndoorClimateMetadata({ weatherFetching: false, weatherFetchError: message });
         }

@@ -11,6 +11,7 @@ import {
   TEMPERATURE_RANGES,
   getIndoorClimateData,
 } from "./schema";
+import { normalizeNorwegianDeep, toSafeFileNameSegment } from "@/lib/text/norwegian";
 import { formatDateRange, formatShortDate } from "./format-dates";
 import { buildDailyWeatherRows, filterWeatherHourlyRows } from "./weather-table";
 
@@ -179,7 +180,9 @@ export function buildFallbackRecommendations(state: ReportState): string[] {
   return items;
 }
 
-export async function createIndoorClimateReportPDFDoc(state: ReportState): Promise<jsPDF> {
+export async function createIndoorClimateReportPDFDoc(rawState: ReportState): Promise<jsPDF> {
+  // Recompose decomposed letters before they reach jsPDF's single-byte encoder.
+  const state = normalizeNorwegianDeep(rawState);
   const indoor = getIndoorClimateData(state);
   if (!indoor) throw new Error("Cannot generate indoor climate PDF without data.");
 
@@ -583,6 +586,6 @@ export async function generateIndoorClimateReportPDFBlob(state: ReportState): Pr
 
 export async function generateIndoorClimateReportPDF(state: ReportState): Promise<void> {
   const doc = await createIndoorClimateReportPDFDoc(state);
-  const baseName = (state.client.name || "Kunde").replace(/\s+/g, "_");
+  const baseName = toSafeFileNameSegment(state.client.name, "Kunde");
   doc.save(`Inneklimarapport_${baseName}.pdf`);
 }

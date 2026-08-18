@@ -16,6 +16,8 @@ import {
   WidthType,
   type FileChild,
 } from "docx";
+// @ts-expect-error Node's test runner needs the explicit extension here.
+import { normalizeNorwegian, toSafeFileNameSegment } from "../text/norwegian.ts";
 
 type HeadingLevelValue = (typeof HeadingLevel)[keyof typeof HeadingLevel];
 type SupportedWordImageType = "jpg" | "png" | "gif" | "bmp";
@@ -35,8 +37,7 @@ const STANDARD_FOOTER_TEXT =
   "Dr.Dropin BHT AS | Sørkedalsveien 8, 0369 Oslo | +47 22 12 02 92 | bedrift@drdropin.no | bedrift.drdropin.no";
 
 export function sanitizeFileNameSegment(value: string, fallback: string): string {
-  const normalized = value.trim().replace(/\s+/g, "_").replace(/[^A-Za-z0-9._-]/g, "");
-  return normalized || fallback;
+  return toSafeFileNameSegment(value, fallback);
 }
 
 export function downloadBlob(blob: Blob, fileName: string): void {
@@ -87,7 +88,7 @@ export function createTitle(text: string): Paragraph {
     spacing: { after: 240 },
     children: [
       new TextRun({
-        text,
+        text: normalizeNorwegian(text),
         bold: true,
         color: "000000",
         size: 30,
@@ -112,7 +113,7 @@ export function createHeading(text: string, level: HeadingLevelValue = HeadingLe
     spacing: { before: 240, after: 120 },
     children: [
       new TextRun({
-        text,
+        text: normalizeNorwegian(text),
         bold: true,
         color: "000000",
         size: sizeByLevel[level],
@@ -126,7 +127,7 @@ export function createBodyParagraph(text: string): Paragraph {
     spacing: { after: 120 },
     children: [
       new TextRun({
-        text,
+        text: normalizeNorwegian(text),
         size: 21,
       }),
     ],
@@ -156,7 +157,7 @@ export function createBulletList(items: string[]): Paragraph[] {
           spacing: { after: 80 },
           children: [
             new TextRun({
-              text: item,
+              text: normalizeNorwegian(item),
               size: 21,
             }),
           ],
@@ -189,7 +190,7 @@ export function createTable(
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: cell || "-",
+                      text: normalizeNorwegian(cell) || "-",
                       bold: true,
                       color: options.headerTextColor ?? "FFFFFF",
                       size: 20,
@@ -220,7 +221,7 @@ export function createTable(
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: cell || "-",
+                        text: normalizeNorwegian(cell) || "-",
                         bold: Boolean(options?.firstColumnBold && index === 0),
                         size: 20,
                       }),
@@ -398,7 +399,7 @@ export function createBrandedCover(title: string, logoDataUrl: string | null): T
                 spacing: { after: 0 },
                 children: [
                   new TextRun({
-                    text: title,
+                    text: normalizeNorwegian(title),
                     color: "FFFFFF",
                     bold: true,
                     size: 48,
@@ -483,7 +484,14 @@ export function createImageParagraphs(imageDataUrl: string | null, caption?: str
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 160 },
-        children: [new TextRun({ text: caption.trim(), italics: true, color: MUTED_TEXT, size: 18 })],
+        children: [
+          new TextRun({
+            text: normalizeNorwegian(caption.trim()),
+            italics: true,
+            color: MUTED_TEXT,
+            size: 18,
+          }),
+        ],
       })
     );
   }

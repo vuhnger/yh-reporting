@@ -4,9 +4,12 @@ import type { ReportState } from "../../template-types";
 import { applyGraphikPdfFont } from "../../pdf-font";
 import { addStandardFooter } from "../../pdf-footer";
 import { LIGHT_LOGO_PNG_DATA_URL } from "../../logo-light-data-url";
+import { normalizeNorwegianDeep, toSafeFileNameSegment } from "@/lib/text/norwegian";
 import { getMeasurementLabel, getNoiseData, groupMeasurementsByLocation } from "./schema";
 
-export async function createNoiseReportPDFDoc(state: ReportState) {
+export async function createNoiseReportPDFDoc(rawState: ReportState) {
+  // Recompose decomposed letters before they reach jsPDF's single-byte encoder.
+  const state = normalizeNorwegianDeep(rawState);
   const noise = getNoiseData(state);
   if (!noise) throw new Error("Cannot generate noise PDF without noise data");
   const { metadata: noiseMeta, measurements, thresholds } = noise;
@@ -486,7 +489,7 @@ export async function generateNoiseReportPDFBlob(state: ReportState): Promise<Bl
 
 export async function generateNoiseReportPDF(state: ReportState): Promise<void> {
   const doc = await createNoiseReportPDFDoc(state);
-  doc.save(`Stoyrapport_${state.client.name.replace(/\s+/g, "_")}.pdf`);
+  doc.save(`Støyrapport_${toSafeFileNameSegment(state.client.name, "Kunde")}.pdf`);
 }
 
 export function buildSummaryFromMeasurements(state: ReportState) {
