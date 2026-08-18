@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import type { ReportState, ReportType } from "@/lib/reports/template-types";
 import { getTemplate } from "@/lib/reports/template-registry";
+import { normalizeNorwegian } from "@/lib/text/norwegian";
 
 type Props = {
   reportType: string;
@@ -65,8 +66,11 @@ export function AIFillButton({
       let flushHandle: number | null = null;
 
       const flush = () => {
-        const cleaned = buffer
-          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "");
+        // Normalize the whole buffer rather than each chunk: a chunk boundary can
+        // fall between a base letter and its combining mark.
+        const cleaned = normalizeNorwegian(
+          buffer.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, ""),
+        );
         setValue(`${basePrefix}${cleaned}`);
         flushHandle = null;
       };

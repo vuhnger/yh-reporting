@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="nb">
       <body
         className={`${graphik.variable} antialiased min-h-screen flex flex-col bg-slate-50`}
       >

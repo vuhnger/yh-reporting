@@ -22,19 +22,19 @@ export function IndoorClimateReviewSection() {
     <div className="space-y-6">
       <div className="space-y-1">
         <Label className="text-lg font-semibold text-primary">
-          Inneklimamalere ({metadata.sensors.length})
+          Inneklimamålere ({metadata.sensors.length})
         </Label>
       </div>
 
       {metadata.sensors.length === 0 && (
-        <p className="text-sm text-muted-foreground">Ingen malere registrert.</p>
+        <p className="text-sm text-muted-foreground">Ingen målere registrert.</p>
       )}
 
       {metadata.sensors.map((sensor, index) => (
         <div key={sensor.id} className="rounded-md border p-3 space-y-3">
           <div className="text-sm">
             <p className="font-medium text-primary">
-              Inneklimamaler {index + 1}: {sensor.locationName || "-"}
+              Inneklimamåler {index + 1}: {sensor.locationName || "-"}
             </p>
             <p className="text-muted-foreground">
               Instrument: {sensor.instrument?.hva || "-"} {sensor.instrument?.serienr ? `(${sensor.instrument.serienr})` : ""}
@@ -88,7 +88,7 @@ export function IndoorClimateReviewSection() {
 
       {metadata.weatherInclude && metadata.weatherSnapshot && (
         <div className="rounded-md border p-3 space-y-2">
-          <Label className="text-base font-semibold text-primary">Vaersnapshot</Label>
+          <Label className="text-base font-semibold text-primary">Værsnapshot</Label>
           <p className="text-sm">
             {metadata.weatherSnapshot.weatherEmoji} {metadata.weatherSnapshot.weatherDescription} -{" "}
             {metadata.weatherSnapshot.address} (

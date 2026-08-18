@@ -89,7 +89,7 @@ function InstrumentFields({
         <Input
           value={instrument.hva}
           onChange={(e) => onChange({ ...instrument, hva: e.target.value })}
-          placeholder="F.eks. Inneklimamaler"
+          placeholder="F.eks. Inneklimamåler"
         />
       </div>
       <div className="space-y-1">
@@ -340,9 +340,9 @@ export function IndoorClimateSensorStep() {
   return (
     <Card className="w-full max-w-6xl mx-auto border-primary/20 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl text-primary">Inneklimamalere</CardTitle>
+        <CardTitle className="text-2xl text-primary">Inneklimamålere</CardTitle>
         <CardDescription>
-          Legg til en eller flere malere med instrument, plassering, statistikk og tolkning.
+          Legg til én eller flere målere med instrument, plassering, statistikk og tolkning.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -361,22 +361,22 @@ export function IndoorClimateSensorStep() {
             sensor.instrument?.displayName?.trim() ||
             sensor.instrument?.hva?.trim() ||
             sensor.locationName.trim() ||
-            "Maler";
+            "Måler";
 
           return (
             <div key={sensor.id} className="rounded-lg border p-4 space-y-6 bg-white">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-primary">
-                  Inneklimamaler {index + 1}
+                  Inneklimamåler {index + 1}
                 </h3>
                 <Button type="button" variant="ghost" size="sm" onClick={() => removeSensor(sensor.id)}>
-                  Fjern maler
+                  Fjern måler
                 </Button>
               </div>
 
               <section className="space-y-3">
                 <div className="space-y-2">
-                  <Label>1. Velg maler</Label>
+                  <Label>1. Velg måler</Label>
                   <Select value={selectedInstrument} onValueChange={(value) => handleInstrumentChange(sensor, value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Velg instrument" />
@@ -401,7 +401,7 @@ export function IndoorClimateSensorStep() {
                 {sensor.instrument && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="space-y-1">
-                      <Label>Innkjopsar (valgfritt)</Label>
+                      <Label>Innkjøpsår (valgfritt)</Label>
                       <Input
                         value={sensor.instrument.innkjopsar ?? ""}
                         onChange={(e) =>
@@ -461,14 +461,14 @@ export function IndoorClimateSensorStep() {
 
               <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <SensorImageField
-                  label="3. Bilde av malerplassering"
+                  label="3. Bilde av målerplassering"
                   image={sensor.placementImage}
                   caption={sensor.placementImageCaption}
                   onImageChange={(image) => updateImage(sensor, "placementImage", image)}
                   onCaptionChange={(caption) => updateSensor(sensor.id, { placementImageCaption: caption })}
                 />
                 <SensorImageField
-                  label="4. Bilde av maler-rapport"
+                  label="4. Bilde av måler-rapport"
                   image={sensor.sensorReportImage}
                   caption={sensor.sensorReportImageCaption}
                   onImageChange={(image) => updateImage(sensor, "sensorReportImage", image)}
@@ -484,7 +484,7 @@ export function IndoorClimateSensorStep() {
               </section>
 
               <section className="space-y-3">
-                <Label>6. Tabell med malinger</Label>
+                <Label>6. Tabell med målinger</Label>
                 <SensorCsvUpload
                   onStatsParsed={(stats) => updateSensor(sensor.id, { stats })}
                   onChartImageReady={(dataUrl) => updateSensor(sensor.id, { chartImage: dataUrl })}
@@ -560,7 +560,7 @@ export function IndoorClimateSensorStep() {
                 </div>
                 {(!temperatureValid || !humidityValid || !co2Valid) && (
                   <p className="text-sm text-destructive">
-                    Avg ma ligge mellom min og max for alle parametere.
+                    Avg må ligge mellom min og max for alle parametere.
                   </p>
                 )}
               </section>
@@ -571,7 +571,7 @@ export function IndoorClimateSensorStep() {
                   <ImageTextarea
                     value={sensor.interpretation.temperatureText}
                     onChange={(e) => updateInterpretation(sensor, "temperatureText", e.target.value)}
-                    placeholder="Temperatur: verdiomrade, grenseverdier, dognvariasjon og anbefalinger."
+                    placeholder="Temperatur: verdiområde, grenseverdier, døgnvariasjon og anbefalinger."
                     className="min-h-[120px] pr-10"
                     actions={
                       <AIFillButton
@@ -590,7 +590,7 @@ export function IndoorClimateSensorStep() {
                   <ImageTextarea
                     value={sensor.interpretation.humidityText}
                     onChange={(e) => updateInterpretation(sensor, "humidityText", e.target.value)}
-                    placeholder="Luftfuktighet: verdiomrade, forklaringer, konsekvenser og anbefalinger."
+                    placeholder="Luftfuktighet: verdiområde, forklaringer, konsekvenser og anbefalinger."
                     className="min-h-[120px] pr-10"
                     actions={
                       <AIFillButton
@@ -609,7 +609,7 @@ export function IndoorClimateSensorStep() {
                   <ImageTextarea
                     value={sensor.interpretation.co2Text}
                     onChange={(e) => updateInterpretation(sensor, "co2Text", e.target.value)}
-                    placeholder="CO2: verdiomrade, vurdering mot 1000 ppm og ventilasjonskapasitet."
+                    placeholder="CO2: verdiområde, vurdering mot 1000 ppm og ventilasjonskapasitet."
                     className="min-h-[120px] pr-10"
                     actions={
                       <AIFillButton
@@ -633,7 +633,7 @@ export function IndoorClimateSensorStep() {
 
         <div className="flex justify-center">
           <Button type="button" variant="outline" onClick={addSensor} className="border-dashed">
-            Legg til maler
+            Legg til måler
           </Button>
         </div>
       </CardContent>

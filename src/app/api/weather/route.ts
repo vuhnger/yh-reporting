@@ -67,7 +67,7 @@ const OBSERVATION_BATCH_SIZE_BY_GROUP: Record<WeatherGroupKey, number> = {
 const OBSERVATION_FETCH_TIMEOUT_MS = 7_000;
 const OBSERVATION_FETCH_RETRY_ATTEMPTS = 2;
 const OBSERVATION_FETCH_RETRY_BASE_DELAY_MS = 350;
-const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente vaerdata.";
+const USER_VISIBLE_WEATHER_ERROR = "Kunne ikke hente værdata.";
 
 function getSafeWeatherErrorMessage(error: unknown): string {
   if (
@@ -287,7 +287,7 @@ async function getNearestFrostSourceForElements(
   });
   const rows = Array.isArray(payload.data) ? payload.data : [];
   if (rows.length === 0) {
-    throw new Error("Fant ingen naerliggende vaerstasjon.");
+    throw new Error("Fant ingen nærliggende værstasjon.");
   }
 
   const candidates: FrostSourceCandidate[] = [];
@@ -307,7 +307,7 @@ async function getNearestFrostSourceForElements(
   }
 
   if (candidates.length === 0) {
-    throw new Error("Fant ingen gyldige vaerstasjoner fra Frost.");
+    throw new Error("Fant ingen gyldige værstasjoner fra Frost.");
   }
 
   return candidates;
@@ -440,7 +440,7 @@ function pickNearestSourceWithData(
   dates: ReadonlySet<string>
 ): FrostSourceCandidate {
   if (candidates.length === 0) {
-    throw new Error("Fant ingen kandidater for vaerstasjon.");
+    throw new Error("Fant ingen kandidater for værstasjon.");
   }
 
   const counts = new Map<string, number>();

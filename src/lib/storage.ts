@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Storage } from "@google-cloud/storage";
+import { toAsciiFileName } from "@/lib/text/norwegian";
 
 let storageInstance: Storage | null = null;
 
@@ -26,8 +27,10 @@ function getStorage() {
   return storageInstance;
 }
 
+// GCS object keys stay ASCII, so transliterate instead of dropping the letters:
+// "Støymåling.pdf" becomes "Stoymaling.pdf", not "St-ym-ling.pdf".
 function sanitizeFileName(fileName: string): string {
-  return fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "attachment";
+  return toAsciiFileName(fileName, "attachment");
 }
 
 export async function uploadDraftAttachment(params: {

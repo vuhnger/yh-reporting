@@ -123,7 +123,7 @@ export const TEMPERATURE_RANGES = [
 
 export const INDOOR_CLIMATE_REFERENCES = [
   "Arbeidstilsynets informasjonssider om inneklima.",
-  "Arbeidsmiljoloven § 4-4. Krav til det fysiske arbeidsmiljoet.",
+  "Arbeidsmiljøloven § 4-4. Krav til det fysiske arbeidsmiljøet.",
   "Arbeidsplassforskriften § 2-14. Klima og luftkvalitet.",
   "Forskrift om tekniske krav til byggverk (TEK17).",
   "Folkehelseinstituttets faglige normer og veiledning for inneklima.",
@@ -131,43 +131,43 @@ export const INDOOR_CLIMATE_REFERENCES = [
 
 export const INDOOR_CLIMATE_STANDARD_TEXT = {
   intro: [
-    "Inneklima beskriver de fysiske og kjemiske forholdene i inneluften som pavirker mennesker i bygget. Begrepet omfatter bade det atmosfaeriske miljoet (luftkvalitet, gasser og partikler) og det termiske miljoet (temperatur, trekk og luftfuktighet). Et godt inneklima er avgjorende for helse, trivsel, konsentrasjon og arbeidsprestasjon.",
-    "Arbeidsgiver har ansvar for at arbeidsmiljoet er fullt forsvarlig, og at inneklimaforhold vurderes systematisk. Malinger av temperatur, relativ luftfuktighet og CO2 gir et praktisk grunnlag for a vurdere om ventilasjon og termiske forhold er tilpasset aktivitet og bruksmonster.",
+    "Inneklima beskriver de fysiske og kjemiske forholdene i inneluften som påvirker mennesker i bygget. Begrepet omfatter både det atmosfæriske miljøet (luftkvalitet, gasser og partikler) og det termiske miljøet (temperatur, trekk og luftfuktighet). Et godt inneklima er avgjørende for helse, trivsel, konsentrasjon og arbeidsprestasjon.",
+    "Arbeidsgiver har ansvar for at arbeidsmiljøet er fullt forsvarlig, og at inneklimaforhold vurderes systematisk. Målinger av temperatur, relativ luftfuktighet og CO2 gir et praktisk grunnlag for å vurdere om ventilasjon og termiske forhold er tilpasset aktivitet og bruksmønster.",
   ],
-  legalIntro: "Vurdering av inneklima baseres blant annet pa:",
+  legalIntro: "Vurdering av inneklima baseres blant annet på:",
   legalReferences: [
-    "Arbeidsmiljoloven § 4-4 (krav til fysisk arbeidsmiljo)",
+    "Arbeidsmiljøloven § 4-4 (krav til fysisk arbeidsmiljø)",
     "Arbeidsplassforskriften § 2-14 (klima og luftkvalitet)",
     "Folkehelseinstituttets faglige normer og veiledning",
     "Arbeidstilsynets veiledning om inneklima, ventilasjon og helse",
   ],
-  healthIntro: "Darlig inneklima kan bidra til:",
+  healthIntro: "Dårlig inneklima kan bidra til:",
   healthEffects: [
-    "irritasjon i oyne, nese og luftveier",
-    "torrhet i slimhinner og hud",
+    "irritasjon i øyne, nese og luftveier",
+    "tørrhet i slimhinner og hud",
     "hodepine, tretthet og nedsatt konsentrasjon",
-    "opplevelse av tung/stillestaende luft",
-    "okt risiko for ubehag ved varme eller kuldebelastning",
+    "opplevelse av tung/stillestående luft",
+    "økt risiko for ubehag ved varme eller kuldebelastning",
   ],
   healthOutro:
-    "Symptombildet pavirkes av totalbelastning over tid, individuelle forskjeller og samspillet mellom ventilasjon, temperatur, fukt og aktivitet i lokalene.",
+    "Symptombildet påvirkes av totalbelastning over tid, individuelle forskjeller og samspillet mellom ventilasjon, temperatur, fukt og aktivitet i lokalene.",
   temperatureIntro:
-    "Temperaturkrav vurderes opp mot arbeidsbelastning og type arbeid. Folgende intervaller brukes som faglig utgangspunkt:",
+    "Temperaturkrav vurderes opp mot arbeidsbelastning og type arbeid. Følgende intervaller brukes som faglig utgangspunkt:",
   temperatureOutro:
-    "For kontor- og stillesittende arbeid anbefales det normalt a holde temperaturen under 22 C for a redusere varmebelastning og opplevd darlig luftkvalitet.",
+    "For kontor- og stillesittende arbeid anbefales det normalt å holde temperaturen under 22 C for å redusere varmebelastning og opplevd dårlig luftkvalitet.",
   humidity: [
-    "Det er normalt ikke fastsatt en generell forskriftsfestet grenseverdi for relativ luftfuktighet i arbeidslokaler. I norsk klima varierer relativ luftfuktighet gjennom aret og kan i praksis ligge fra under 20 % RH til over 60 % RH avhengig av utetemperatur, ventilasjon og intern fuktbelastning.",
-    "Ved lave nivaer kan ansatte oppleve torr luft og statisk elektrisitet. Ved vedvarende hoye nivaer oker risikoen for kondens og fuktrelaterte problemer. Saerlig i kalde perioder bor man vaere oppmerksom pa kondensrisiko dersom inneluften ligger over omtrent 35-40 % RH i lokaler med kalde flater eller utilstrekkelig ventilasjon.",
+    "Det er normalt ikke fastsatt en generell forskriftsfestet grenseverdi for relativ luftfuktighet i arbeidslokaler. I norsk klima varierer relativ luftfuktighet gjennom året og kan i praksis ligge fra under 20 % RH til over 60 % RH avhengig av utetemperatur, ventilasjon og intern fuktbelastning.",
+    "Ved lave nivåer kan ansatte oppleve tørr luft og statisk elektrisitet. Ved vedvarende høye nivåer øker risikoen for kondens og fuktrelaterte problemer. Særlig i kalde perioder bør man være oppmerksom på kondensrisiko dersom inneluften ligger over omtrent 35-40 % RH i lokaler med kalde flater eller utilstrekkelig ventilasjon.",
   ],
   co2: [
-    "CO2 brukes som indikator pa ventilasjonseffektivitet i forhold til personbelastning. Hoye CO2-nivaer indikerer vanligvis at luftutskiftningen er lav i forhold til antall personer og aktivitet i rommet.",
-    "Som praktisk vurderingsniva brukes ofte 1000 ppm CO2 (tilsvarende ca. 1800 mg/m3).",
-    "Verdier over dette nivaet tilsier at ventilasjon, luftfordeling og/eller bruksmonster bor vurderes naermere. Ved gjentatte overskridelser kan behovsstyrt ventilasjon, justert driftstid eller organisatoriske tiltak vaere aktuelt.",
+    "CO2 brukes som indikator på ventilasjonseffektivitet i forhold til personbelastning. Høye CO2-nivåer indikerer vanligvis at luftutskiftningen er lav i forhold til antall personer og aktivitet i rommet.",
+    "Som praktisk vurderingsnivå brukes ofte 1000 ppm CO2 (tilsvarende ca. 1800 mg/m3).",
+    "Verdier over dette nivået tilsier at ventilasjon, luftfordeling og/eller bruksmønster bør vurderes nærmere. Ved gjentatte overskridelser kan behovsstyrt ventilasjon, justert driftstid eller organisatoriske tiltak være aktuelt.",
   ],
 } as const;
 
 export const DEFAULT_INDOOR_CLIMATE_THANKS_TEXT =
-  "Dr. Dropin Bedrift takker for samarbeidet i forbindelse med gjennomforing av inneklimamalinger. Bistand fra BHT i forhold til anbefalte tiltak kan bestilles direkte fra KAM, [KAM-navn], eller i bedriftsportalen portal.bedrift.drdropin.no.";
+  "Dr. Dropin Bedrift takker for samarbeidet i forbindelse med gjennomføring av inneklimamålinger. Bistand fra BHT i forhold til anbefalte tiltak kan bestilles direkte fra KAM, [KAM-navn], eller i bedriftsportalen portal.bedrift.drdropin.no.";
 
 function createSensorId(): string {
   return Math.random().toString(36).slice(2, 11);
@@ -190,7 +190,7 @@ export function defaultSensor(): IndoorClimateSensor {
     sensorReportImage: null,
     sensorReportImageCaption: "",
     chartImage: null,
-    chartCaption: "Linjegraf viser temperatur (oransje), CO2 (gronn) og relativ luftfuktighet (bla) over tid.",
+    chartCaption: "Linjegraf viser temperatur (oransje), CO2 (grønn) og relativ luftfuktighet (blå) over tid.",
     stats: {
       temperature: createEmptyStats(),
       humidity: createEmptyStats(),

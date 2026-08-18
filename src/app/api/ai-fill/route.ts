@@ -51,7 +51,7 @@ KONTEKST:
 Denne teksten skal være detaljert og profesjonell. Den skal fungere som en forklarende bro mellom de tekniske målingene og rapportens konklusjoner.
 
 KRAV:
-- SPRÅK: Profesjonell norsk bokmål.
+- SPRÅK: Profesjonell norsk bokmål. Skriv æ, ø og å med korrekte bokstaver – aldri "ae", "oe" eller "aa".
 - LENGDE: ${lengthHint}
 - STRUKTUR: ${structureHint}
 - OUTPUT:

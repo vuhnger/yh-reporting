@@ -152,6 +152,35 @@ test("decodes UTF-8 bytes with BOM", () => {
   assert.equal(result.samples[0].temperatureC, 21);
 });
 
+// The parser only exposes raw cell text through warnings, so an unparseable date
+// cell doubles as an assertion that the decoded text kept its Norwegian letters.
+function decodeWarning(bytes: Uint8Array): string {
+  const result = parseInneklimaCsvBytes(bytes);
+  assert.equal(result.warnings.length, 1);
+  return result.warnings[0].message;
+}
+
+test("decodes UTF-8 bytes without a BOM", () => {
+  const csv = buildCsv(["1;Møterom Øst;21,0;25,0;450"]);
+  assert.match(decodeWarning(new TextEncoder().encode(csv)), /Møterom Øst/);
+});
+
+test("decodes ISO-8859-1 bytes with Norwegian letters", () => {
+  const csv = buildCsv(["1;Møterom Øst;21,0;25,0;450"]);
+  const latin1 = new Uint8Array(csv.length);
+  for (let i = 0; i < csv.length; i += 1) {
+    latin1[i] = csv.charCodeAt(i) & 0xff;
+  }
+  assert.match(decodeWarning(latin1), /Møterom Øst/);
+});
+
+test("recomposes decomposed Norwegian letters from the CSV", () => {
+  const csv = buildCsv(["1;Møterom Øst;21,0;25,0;450"]).normalize("NFD");
+  const message = decodeWarning(new TextEncoder().encode(csv));
+  assert.equal(message, message.normalize("NFC"));
+  assert.match(message, /Møterom Øst/);
+});
+
 test("returns an empty result for empty input", () => {
   const result = parseInneklimaCsv("");
   assert.equal(result.samples.length, 0);
